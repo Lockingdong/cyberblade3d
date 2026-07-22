@@ -1,0 +1,86 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.pnp
+.pnp.js
+vendor/
+
+# Build and Output directories
+dist/
+build/
+out/
+web-build/
+bin/
+*.tsbuildinfo
+
+# Testing & Coverage
+coverage/
+.nyc_output/
+.vitest/
+
+# Turbo & Tooling caches
+.turbo/
+.cache/
+.vite/
+.task/
+.metro/
+
+# Expo / React Native & Native builds
+.expo/
+.expo-shared/
+.bundle/
+android/
+ios/
+apps/mobile/android/
+apps/mobile/ios/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# Logs & Temporary files
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+tmp/
+temp/
+*.tmp
+
+# OS metadata
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Go build artifacts
+*.out
+*.exe
+*.exe?
+*.dll
+*.so
+*.dylib
+*.test
+*.prof
+services/api/api
+
+# IDE, Agent & Editor files
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+.gemini/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

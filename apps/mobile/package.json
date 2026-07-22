@@ -1,0 +1,37 @@
+{
+  "name": "@game-pool/beyblade-mobile",
+  "version": "0.0.0",
+  "private": true,
+  "main": "expo/AppEntry.js",
+  "scripts": {
+    "build": "expo export --platform ios --output-dir dist",
+    "dev": "expo start",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@game-pool/beyblade-core": "workspace:*",
+    "@game-pool/beyblade-multiplayer": "workspace:*",
+    "@game-pool/beyblade-simulation": "workspace:*",
+    "@game-pool/beyblade-visuals": "workspace:*",
+    "@game-pool/design-system": "workspace:*",
+    "@react-three/fiber": "^9.3.0",
+    "expo": "^57.0.6",
+    "expo-asset": "~57.0.5",
+    "expo-gl": "~57.0.2",
+    "expo-haptics": "~57.0.1",
+    "expo-sharing": "~57.0.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.0",
+    "react-native-reanimated": "4.5.0",
+    "react-native-view-shot": "5.1.0",
+    "react-native-worklets": "0.10.0",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@game-pool/config-typescript": "workspace:*",
+    "@types/react": "^19.2.0",
+    "@types/three": "^0.180.0"
+  }
+}

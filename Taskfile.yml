@@ -1,0 +1,66 @@
+version: "3"
+
+dotenv: [".env"]
+
+tasks:
+  setup:
+    desc: Install JavaScript and Go dependencies
+    cmds:
+      - pnpm -C ../.. install
+      - go mod download
+
+  dev:
+    desc: Run PostgreSQL, platform API, game API and web/mobile apps
+    cmds:
+      - task: db:up
+      - cmd: task --parallel dev:platform dev:api dev:web dev:mobile
+
+  dev:platform:
+    desc: Start the platform API service
+    cmd: go run ../../platform/services/api/cmd/api
+
+  dev:api:
+    desc: Start the game API service
+    cmd: go run ./services/api/cmd/api
+
+  dev:web:
+    desc: Start the web app development server
+    cmd: pnpm -C apps/web dev
+
+  dev:mobile:
+    desc: Start the Expo application
+    cmd: pnpm -C apps/mobile dev
+
+  db:up:
+    desc: Start the local PostgreSQL database
+    cmd: docker compose -f ../../infra/compose.yaml up -d --wait postgres
+
+  db:down:
+    desc: Stop local infrastructure
+    cmd: docker compose -f ../../infra/compose.yaml down
+
+  services:up:
+    desc: Build and run all containerized services
+    cmd: docker compose -f ../../infra/compose.yaml up --build
+
+  check:
+    desc: Run all static checks and tests
+    cmds:
+      - pnpm -C apps/web typecheck
+      - pnpm -C apps/web test
+      - pnpm -C apps/mobile typecheck
+      - pnpm -C apps/mobile test
+      - go test ./services/api/...
+
+  build:
+    desc: Build all apps and services
+    cmds:
+      - pnpm -C apps/web build
+      - pnpm -C apps/mobile build
+      - go build ./services/api/...
+
+  format:
+    desc: Format TypeScript, JSON, YAML and Go
+    cmds:
+      - pnpm -C ../.. prettier --write "games/beyblade/**/*.{ts,tsx,json,css,md,yml}"
+      - gofmt -w services/api

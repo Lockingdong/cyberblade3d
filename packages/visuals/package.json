@@ -1,0 +1,22 @@
+{
+  "name": "@game-pool/beyblade-visuals",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@game-pool/beyblade-core": "workspace:*",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@game-pool/config-typescript": "workspace:*",
+    "@types/three": "^0.180.0"
+  }
+}

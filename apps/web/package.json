@@ -1,0 +1,32 @@
+{
+  "name": "@game-pool/beyblade-web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite --host",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@game-pool/beyblade-core": "workspace:*",
+    "@game-pool/beyblade-multiplayer": "workspace:*",
+    "@game-pool/beyblade-simulation": "workspace:*",
+    "@game-pool/beyblade-visuals": "workspace:*",
+    "@react-three/fiber": "^9.3.0",
+    "@react-three/postprocessing": "^3.0.4",
+    "postprocessing": "^6.39.2",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@game-pool/config-typescript": "workspace:*",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@types/three": "^0.180.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "vite": "^7.1.0"
+  }
+}
