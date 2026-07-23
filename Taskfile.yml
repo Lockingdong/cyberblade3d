@@ -21,7 +21,7 @@ tasks:
 
   dev:api:
     desc: Start the game API service
-    cmd: go run ./services/api/cmd/api
+    cmd: go -C services/api run ./cmd/api
 
   dev:web:
     desc: Start the web app development server
@@ -50,14 +50,14 @@ tasks:
       - pnpm -C apps/web test
       - pnpm -C apps/mobile typecheck
       - pnpm -C apps/mobile test
-      - go test ./services/api/...
+      - go -C services/api test ./...
 
   build:
     desc: Build all apps and services
     cmds:
       - pnpm -C apps/web build
       - pnpm -C apps/mobile build
-      - go build ./services/api/...
+      - go -C services/api build ./...
 
   format:
     desc: Format TypeScript, JSON, YAML and Go
