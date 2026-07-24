@@ -73,6 +73,7 @@ function paint(base: Rgb, color: Rgb, sd: number): Rgb {
 // picker shows in BladeMiniIcon (for attack: a hub dot with three radiating
 // strokes), drawn bold in warm white over a red gradient with a gold ring
 // border. Keeping the two in sync makes the chip read as "this blade's mark".
+// 1. 赤紅核心 (Crimson Core) Emblem: 3-Blade Radiating Slash Mark (No Cross)
 function shadeAttackEmblem(x: number, y: number, accent: Rgb): Rgb {
   const len = Math.hypot(x, y);
 
@@ -83,18 +84,58 @@ function shadeAttackEmblem(x: number, y: number, accent: Rgb): Rgb {
     Math.min(1, len) ** 1.2,
   );
 
-  // Glyph: four mirrored impact blades converging on a small core.
-  let sd = sdCircle(x, y, 0, 0, 0.13);
-  sd = Math.min(sd, sdSegment(x, y, -0.58, -0.54, -0.08, -0.08) - 0.075);
-  sd = Math.min(sd, sdSegment(x, y, 0.58, -0.54, 0.08, -0.08) - 0.075);
-  sd = Math.min(sd, sdSegment(x, y, -0.58, 0.54, -0.08, 0.08) - 0.075);
-  sd = Math.min(sd, sdSegment(x, y, 0.58, 0.54, 0.08, 0.08) - 0.075);
+  // Glyph: 3-Blade Radiating Curved Slash (3-way rotational symmetry: 30°, 150°, 270°, no cross)
+  let sd = sdCircle(x, y, 0, 0, 0.12);
+  // 3 radiating slashing arms
+  sd = Math.min(sd, sdSegment(x, y, 0, -0.08, 0, -0.58) - 0.07);
+  sd = Math.min(sd, sdSegment(x, y, -0.07, 0.04, -0.50, 0.29) - 0.07);
+  sd = Math.min(sd, sdSegment(x, y, 0.07, 0.04, 0.50, 0.29) - 0.07);
+  // 3 sweeping arc tips
+  sd = Math.min(sd, sdSegment(x, y, 0, -0.58, -0.42, -0.36) - 0.05);
+  sd = Math.min(sd, sdSegment(x, y, -0.50, 0.29, 0.10, 0.56) - 0.05);
+  sd = Math.min(sd, sdSegment(x, y, 0.50, 0.29, 0.32, -0.44) - 0.05);
+
   color = paint(color, mixRgb(toRgb(0xfff1df), accent, 0.1), sd);
 
-  // Border: thin gold ring inside a narrow deep-red outer band. paint() fills
-  // where sd < 0, so the outer band uses 0.92 - len (negative outside r 0.92).
+  // Border: thin gold ring inside a narrow deep-red outer band.
   color = paint(color, toRgb(0xecb452), Math.abs(len - 0.8) - 0.02);
   color = paint(color, toRgb(0x47101c), 0.92 - len);
+  return color;
+}
+
+// 1b. 龍焰核心 (Drake Core) Emblem: Dragon Eye & Ascending Wings Emblem
+function shadeDrakeEmblem(x: number, y: number, accent: Rgb): Rgb {
+  const len = Math.hypot(x, y);
+
+  // Background: Fiery crimson and dark magma forged steel
+  let color = mixRgb(
+    toRgb(0xbf1717),
+    toRgb(0x1a0505),
+    Math.min(1, len) ** 1.3,
+  );
+
+  // Central Dragon Eye Pupil
+  let sd = sdCircle(x, y, 0, 0, 0.07);
+  // Dragon Eye Diamond Frame
+  sd = Math.min(sd, sdSegment(x, y, -0.36, 0, 0, 0.18) - 0.045);
+  sd = Math.min(sd, sdSegment(x, y, 0, 0.18, 0.36, 0) - 0.045);
+  sd = Math.min(sd, sdSegment(x, y, 0.36, 0, 0, -0.18) - 0.045);
+  sd = Math.min(sd, sdSegment(x, y, 0, -0.18, -0.36, 0) - 0.045);
+
+  // Ascending Flame Dragon Wings / Horns (Left & Right)
+  sd = Math.min(sd, sdSegment(x, y, -0.24, 0.08, -0.55, 0.48) - 0.055);
+  sd = Math.min(sd, sdSegment(x, y, -0.55, 0.48, -0.28, 0.52) - 0.04);
+  sd = Math.min(sd, sdSegment(x, y, 0.24, 0.08, 0.55, 0.48) - 0.055);
+  sd = Math.min(sd, sdSegment(x, y, 0.55, 0.48, 0.28, 0.52) - 0.04);
+
+  // Lower Dragon Jaw / Flame Spine
+  sd = Math.min(sd, sdSegment(x, y, 0, -0.18, 0, -0.54) - 0.05);
+
+  color = paint(color, mixRgb(toRgb(0xffe2b3), accent, 0.2), sd);
+
+  // Border: Crimson gold ring inside dark outer band.
+  color = paint(color, toRgb(0xf59e0b), Math.abs(len - 0.8) - 0.022);
+  color = paint(color, toRgb(0x2a0404), 0.92 - len);
   return color;
 }
 
@@ -192,7 +233,8 @@ export function getChipEmblemTexture(
 
   const accent = toRgb(accentColor);
   let shader = shadeAttackEmblem;
-  if (type.startsWith("defense")) shader = shadeDefenseEmblem;
+  if (type.includes("drake")) shader = shadeDrakeEmblem;
+  else if (type.startsWith("defense")) shader = shadeDefenseEmblem;
   else if (type.startsWith("stamina")) shader = shadeStaminaEmblem;
   else if (type.startsWith("balance")) shader = shadeBalanceEmblem;
 

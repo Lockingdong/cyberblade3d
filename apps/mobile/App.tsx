@@ -61,7 +61,7 @@ import {
 const LOCAL_TOP_ID: TopId = "p1";
 type AppMode = "menu" | "local" | "online";
 const descriptions: Record<BeybladeType, string> = {
-  attack: "赤紅斬刃：速度快、撞擊力極強，配備赤紅棘輪與平軸，擅長強攻與引爆。",
+  attack: "赤紅斬刃：速度快、撞擊力極強，可配備烈焰暴龍刃、龍骨棘輪與狂暴衝壓軸特化為重型高爆發形態。",
   defense: "玄武鐵壁：重量極重、底座穩固，可配備黑曜重鎚與白銀聖盾，減傷反擊極強。",
   stamina: "黃金巨星：低摩擦底軸帶來驚人持久力，可配備蒼穹疾風戰刃，轉速衰減極低。",
   balance: "翡翠幻象：各屬性均衡，可配備暗夜血蝕戰刃竊取轉速或幻影戰刃進行閃避突襲。",

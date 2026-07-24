@@ -14,6 +14,19 @@ export const BLADE_PARTS: Record<string, BladePart> = {
     exclusiveTo: "attack",
   },
 
+  attack_ignis: {
+    id: "attack_ignis",
+    name: "烈焰暴龍刃",
+    englishName: "Ignis Blade",
+    ai: "seek",
+    damageTaken: 0.8,
+    counteredBy: "defense",
+    color: 0xe60012,
+    massContribution: 0.7,
+    attackMultiplier: 1.4,
+    exclusiveTo: "attack",
+  },
+
   // Defense (Iron/Grey)
   defense_shield: {
     id: "defense_shield",

@@ -13,6 +13,17 @@ export const BIT_PARTS: Record<string, BitPart> = {
     massContribution: 0.11,
   },
 
+  attack_impact_bit: {
+    id: "attack_impact_bit",
+    name: "狂暴衝壓軸",
+    englishName: "Impact Bit",
+    maxRpm: 5700,
+    rpmDecay: 510,
+    speed: 15,
+    friction: 0.16,
+    massContribution: 0.12,
+  },
+
   // Defense
   defense_ball: {
     id: "defense_ball",

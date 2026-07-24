@@ -10,19 +10,19 @@ import {
 describe("parts module", () => {
   it("returns allowed parts for each beyblade type", () => {
     const attackParts = getCompatibleParts("attack");
-    expect(attackParts.allowedBlades).toEqual(["attack_slash"]);
-    expect(attackParts.allowedRatchets).toEqual(["attack_standard"]);
-    expect(attackParts.allowedBits).toEqual(["attack_flat"]);
-    expect(attackParts.allowedChips).toEqual(["attack_core"]);
+    expect(attackParts.allowedBlades).toEqual(["attack_slash", "attack_ignis"]);
+    expect(attackParts.allowedRatchets).toEqual(["attack_standard", "attack_drake_ratchet"]);
+    expect(attackParts.allowedBits).toEqual(["attack_flat", "attack_impact_bit"]);
+    expect(attackParts.allowedChips).toEqual(["attack_core", "attack_drake_chip"]);
   });
 
   it("validates compatible configs successfully", () => {
     const validConfig = {
       type: "attack" as const,
-      bladeId: "attack_slash",
-      ratchetId: "attack_standard",
-      bitId: "attack_flat",
-      chipId: "attack_core",
+      bladeId: "attack_ignis",
+      ratchetId: "attack_drake_ratchet",
+      bitId: "attack_impact_bit",
+      chipId: "attack_drake_chip",
     };
     const result = validatePartCompatibility(validConfig);
     expect(result.valid).toBe(true);
@@ -60,14 +60,26 @@ describe("parts module", () => {
   });
 
   it("uses chip name as default Beyblade name regardless of blade part", () => {
-    const spec = assembleBeybladeSpec({
+    const specOriginal = assembleBeybladeSpec({
       type: "attack",
       bladeId: "attack_slash",
       ratchetId: "attack_standard",
       bitId: "attack_flat",
       chipId: "attack_core",
     });
-    expect(spec.name).toBe("赤紅核心");
-    expect(spec.englishName).toBe("Crimson Core");
+    expect(specOriginal.name).toBe("赤紅核心");
+    expect(specOriginal.englishName).toBe("Crimson Core");
+
+    const specDrake = assembleBeybladeSpec({
+      type: "attack",
+      bladeId: "attack_ignis",
+      ratchetId: "attack_drake_ratchet",
+      bitId: "attack_impact_bit",
+      chipId: "attack_drake_chip",
+    });
+    expect(specDrake.name).toBe("龍焰核心");
+    expect(specDrake.englishName).toBe("Drake Core");
+    expect(specDrake.attackMultiplier).toBe(1.4);
+    expect(specDrake.mass).toBe(1.17);
   });
 });

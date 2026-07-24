@@ -17,7 +17,16 @@ const ATTACK_STYLE = {
   ratchetPolycarbonate: 0x151c28,
 };
 
-function makeBladeShape(scale: number, withSlot: boolean): THREE.Shape {
+const IGNIS_STYLE = {
+  chipBase: 0x1a1c22,
+  driverGlass: 0xff2200,
+  driverGlassEmissive: 0x8c0800,
+  spindle: 0x222233,
+  contact: 0x33343c,
+  ratchetPolycarbonate: 0x2a080c,
+};
+
+function makeOriginalBladeShape(scale: number, withSlot: boolean): THREE.Shape {
   const s = scale;
   const blade = new THREE.Shape();
   blade.moveTo(0.18 * s, 0.1 * s);
@@ -28,6 +37,23 @@ function makeBladeShape(scale: number, withSlot: boolean): THREE.Shape {
   if (withSlot) {
     const slot = new THREE.Path();
     slot.absellipse(0.32 * s, 0, 0.055 * s, 0.028 * s, 0, Math.PI * 2, true, 0.5);
+    blade.holes.push(slot);
+  }
+  return blade;
+}
+
+function makeIgnisBladeShape(scale: number, withSlot: boolean): THREE.Shape {
+  const s = scale;
+  const blade = new THREE.Shape();
+  // 4-blade symmetrical heavy cross impact profile
+  blade.moveTo(0.18 * s, 0.08 * s);
+  blade.quadraticCurveTo(0.36 * s, 0.16 * s, 0.52 * s, 0.02 * s);
+  blade.lineTo(0.44 * s, -0.04 * s);
+  blade.quadraticCurveTo(0.32 * s, -0.06 * s, 0.18 * s, -0.12 * s);
+  blade.closePath();
+  if (withSlot) {
+    const slot = new THREE.Path();
+    slot.absellipse(0.32 * s, 0.01 * s, 0.05 * s, 0.022 * s, 0, Math.PI * 2, true, 0.5);
     blade.holes.push(slot);
   }
   return blade;
@@ -51,7 +77,7 @@ function extrudeBlade(
   return geometry;
 }
 
-// 1. BLADE (ブレード) - Upper metal attack ring layer
+// 1. BLADE (ブレード) - 赤紅斬刃 (attack_slash)
 export function buildBlade(accentColor: number): THREE.Group {
   const bladeGroup = new THREE.Group();
   bladeGroup.position.y = 0.052;
@@ -69,9 +95,9 @@ export function buildBlade(accentColor: number): THREE.Group {
   ];
   chromeGeometries.push(new THREE.LatheGeometry(hubProfile, 40));
 
-  const mainBlade = extrudeBlade(makeBladeShape(1, true), 0.05, 0.012, 0.01);
+  const mainBlade = extrudeBlade(makeOriginalBladeShape(1, true), 0.05, 0.012, 0.01);
   mainBlade.translate(0, 0.055, 0);
-  const upperBlade = extrudeBlade(makeBladeShape(0.72, false), 0.04, 0.012, 0.01);
+  const upperBlade = extrudeBlade(makeOriginalBladeShape(0.72, false), 0.04, 0.012, 0.01);
   upperBlade.rotateY(0.35);
   upperBlade.translate(0, 0.105, 0);
   for (let index = 0; index < 3; index += 1) {
@@ -96,7 +122,6 @@ export function buildBlade(accentColor: number): THREE.Group {
   chrome.userData.smoothOutline = true;
   bladeGroup.add(chrome);
 
-  // Accent claws
   const clawShape = new THREE.Shape();
   clawShape.moveTo(0.2, 0.02);
   clawShape.quadraticCurveTo(0.36, 0.1, 0.47, 0.02);
@@ -124,7 +149,6 @@ export function buildBlade(accentColor: number): THREE.Group {
   claws.userData.smoothOutline = true;
   bladeGroup.add(claws);
 
-  // Emissive slivers
   const sliverBase = new THREE.BoxGeometry(0.14, 0.014, 0.028);
   sliverBase.rotateY(-0.34);
   sliverBase.translate(0.385, 0.112, -0.1);
@@ -143,27 +167,31 @@ export function buildBlade(accentColor: number): THREE.Group {
   return bladeGroup;
 }
 
-export function buildAttackV2Blade(accentColor: number): THREE.Group {
+// 1b. BLADE (ブレード) - 烈焰暴龍刃 (attack_ignis)
+export function buildIgnisBlade(accentColor: number): THREE.Group {
   const bladeGroup = new THREE.Group();
-  bladeGroup.position.y = 0.05;
+  bladeGroup.position.y = 0.052;
+  bladeGroup.scale.y = 0.88;
 
   const chromeGeometries: THREE.BufferGeometry[] = [];
 
   const hubProfile = [
     new THREE.Vector2(0.1, -0.02),
-    new THREE.Vector2(0.3, -0.02),
-    new THREE.Vector2(0.345, 0.01),
-    new THREE.Vector2(0.345, 0.04),
-    new THREE.Vector2(0.28, 0.06),
-    new THREE.Vector2(0.1, 0.06),
+    new THREE.Vector2(0.31, -0.02),
+    new THREE.Vector2(0.355, 0.01),
+    new THREE.Vector2(0.355, 0.045),
+    new THREE.Vector2(0.29, 0.065),
+    new THREE.Vector2(0.1, 0.065),
   ];
   chromeGeometries.push(new THREE.LatheGeometry(hubProfile, 40));
 
-  const mainBlade = extrudeBlade(makeBladeShape(1.05, true), 0.052, 0.012, 0.01);
+  const mainBlade = extrudeBlade(makeIgnisBladeShape(1.02, true), 0.055, 0.014, 0.012);
   mainBlade.translate(0, 0.055, 0);
-  const upperBlade = extrudeBlade(makeBladeShape(0.75, false), 0.042, 0.012, 0.01);
-  upperBlade.rotateY(0.35);
-  upperBlade.translate(0, 0.105, 0);
+  const upperBlade = extrudeBlade(makeIgnisBladeShape(0.74, false), 0.045, 0.012, 0.01);
+  upperBlade.rotateY(0.32);
+  upperBlade.translate(0, 0.11, 0);
+
+  // 4-blade cross structure (4 blades at 90 degrees)
   for (let index = 0; index < 4; index += 1) {
     const angle = (index * Math.PI * 2) / 4;
     chromeGeometries.push(mainBlade.clone().rotateY(angle));
@@ -186,15 +214,16 @@ export function buildAttackV2Blade(accentColor: number): THREE.Group {
   chrome.userData.smoothOutline = true;
   bladeGroup.add(chrome);
 
-  // Accent claws - 4 blades & further extended
+  // 4 Accent heavy claws
   const clawShape = new THREE.Shape();
-  clawShape.moveTo(0.2, 0.02);
-  clawShape.quadraticCurveTo(0.38, 0.12, 0.52, 0.03);
-  clawShape.quadraticCurveTo(0.40, 0.05, 0.32, -0.03);
-  clawShape.quadraticCurveTo(0.24, -0.06, 0.2, -0.04);
+  clawShape.moveTo(0.18, 0.03);
+  clawShape.quadraticCurveTo(0.38, 0.15, 0.52, 0.04);
+  clawShape.lineTo(0.44, 0.01);
+  clawShape.quadraticCurveTo(0.36, 0.04, 0.28, -0.04);
+  clawShape.quadraticCurveTo(0.22, -0.06, 0.18, -0.03);
   clawShape.closePath();
-  const clawBase = extrudeBlade(clawShape, 0.032, 0.008, 0.006);
-  clawBase.translate(0, 0.085, 0);
+  const clawBase = extrudeBlade(clawShape, 0.035, 0.008, 0.006);
+  clawBase.translate(0, 0.088, 0);
   const clawGeometries: THREE.BufferGeometry[] = [];
   for (let index = 0; index < 4; index += 1) {
     clawGeometries.push(
@@ -206,18 +235,18 @@ export function buildAttackV2Blade(accentColor: number): THREE.Group {
     mergeStaticGeometries(clawGeometries),
     new THREE.MeshStandardMaterial({
       color: accentColor,
-      roughness: 0.35,
-      metalness: 0.6,
+      roughness: 0.25,
+      metalness: 0.7,
     }),
   );
   claws.userData.outlineThickness = 0.01;
   claws.userData.smoothOutline = true;
   bladeGroup.add(claws);
 
-  // Emissive slivers - 4 elements
-  const sliverBase = new THREE.BoxGeometry(0.14, 0.014, 0.028);
-  sliverBase.rotateY(-0.34);
-  sliverBase.translate(0.42, 0.112, -0.1);
+  // 4 Emissive energy lines (Matching Crimson Red)
+  const sliverBase = new THREE.BoxGeometry(0.16, 0.016, 0.03);
+  sliverBase.rotateY(-0.35);
+  sliverBase.translate(0.4, 0.115, -0.1);
   const sliverGeometries: THREE.BufferGeometry[] = [];
   for (let index = 0; index < 4; index += 1) {
     sliverGeometries.push(sliverBase.clone().rotateY((index * Math.PI * 2) / 4));
@@ -233,11 +262,14 @@ export function buildAttackV2Blade(accentColor: number): THREE.Group {
   return bladeGroup;
 }
 
-// 2. RATCHET (ラチェット) - Middle height & locking teeth layer (3-60 Ratchet)
+export function buildAttackV2Blade(accentColor: number): THREE.Group {
+  return buildBlade(accentColor);
+}
+
+// 2. RATCHET (ラチェット) - 赤紅棘輪 (attack_standard)
 export function buildRatchet(accentColor: number): THREE.Group {
   const ratchetGroup = new THREE.Group();
 
-  // Translucent polycarbonate body ring
   const ringGeo = new THREE.CylinderGeometry(0.28, 0.3, 0.05, 32);
   ringGeo.translate(0, 0.02, 0);
   const ringMesh = new THREE.Mesh(
@@ -253,7 +285,6 @@ export function buildRatchet(accentColor: number): THREE.Group {
   ringMesh.userData.outlineThickness = 0.01;
   ratchetGroup.add(ringMesh);
 
-  // 3-60 Ratchet protruding bumper teeth x3
   const toothShape = new THREE.Shape();
   toothShape.moveTo(0.28, -0.05);
   toothShape.lineTo(0.38, -0.01);
@@ -284,11 +315,62 @@ export function buildRatchet(accentColor: number): THREE.Group {
   return ratchetGroup;
 }
 
-// 3. BIT (ビット) - Bottom shaft, X-Dash gear ring & driver tip
+// 2b. RATCHET (ラチェット) - 龍骨棘輪 (attack_drake_ratchet) - 4-tooth dragon spine ratchet
+export function buildDrakeRatchet(accentColor: number): THREE.Group {
+  const ratchetGroup = new THREE.Group();
+
+  const ringGeo = new THREE.CylinderGeometry(0.29, 0.31, 0.052, 32);
+  ringGeo.translate(0, 0.02, 0);
+  const ringMesh = new THREE.Mesh(
+    ringGeo,
+    new THREE.MeshStandardMaterial({
+      color: ATTACK_STYLE.ratchetPolycarbonate,
+      roughness: 0.25,
+      metalness: 0.5,
+      transparent: true,
+      opacity: 0.88,
+    }),
+  );
+  ringMesh.userData.outlineThickness = 0.01;
+  ratchetGroup.add(ringMesh);
+
+  // 4 serrated dragon spine teeth (4-tooth layout matching 4-blade Ignis Blade)
+  const toothShape = new THREE.Shape();
+  toothShape.moveTo(0.28, -0.06);
+  toothShape.lineTo(0.34, -0.02);
+  toothShape.lineTo(0.32, 0.01);
+  toothShape.lineTo(0.39, 0.03);
+  toothShape.lineTo(0.33, 0.06);
+  toothShape.lineTo(0.27, 0.04);
+  toothShape.closePath();
+
+  const toothGeom = extrudeBlade(toothShape, 0.048, 0.005, 0.005);
+  toothGeom.translate(0, -0.002, 0);
+
+  const toothGeometries: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < 4; i += 1) {
+    toothGeometries.push(toothGeom.clone().rotateY((i * Math.PI * 2) / 4));
+  }
+  toothGeom.dispose();
+
+  const teethMesh = new THREE.Mesh(
+    mergeStaticGeometries(toothGeometries),
+    new THREE.MeshStandardMaterial({
+      color: accentColor,
+      roughness: 0.2,
+      metalness: 0.8,
+    }),
+  );
+  teethMesh.userData.outlineThickness = 0.01;
+  ratchetGroup.add(teethMesh);
+
+  return ratchetGroup;
+}
+
+// 3. BIT (ビット) - 赤紅平軸 (attack_flat)
 export function buildBit(accentColor: number): THREE.Group {
   const bitGroup = new THREE.Group();
 
-  // X-Dash gear teeth ring (12 gears around shaft base)
   const gearGeometries: THREE.BufferGeometry[] = [];
   const gearTooth = new THREE.BoxGeometry(0.025, 0.06, 0.04);
   gearTooth.translate(0.165, -0.02, 0);
@@ -308,7 +390,6 @@ export function buildBit(accentColor: number): THREE.Group {
   gearMesh.userData.outlineThickness = 0.008;
   bitGroup.add(gearMesh);
 
-  // Translucent driver body
   const facetGeometry = new THREE.CylinderGeometry(
     0.13,
     0.055,
@@ -334,7 +415,6 @@ export function buildBit(accentColor: number): THREE.Group {
   facets.userData.noShadow = true;
   bitGroup.add(facets);
 
-  // Opaque inner spindle
   const spindle = new THREE.Mesh(
     new THREE.CylinderGeometry(0.03, 0.03, 0.15, 8),
     new THREE.MeshStandardMaterial({
@@ -347,7 +427,6 @@ export function buildBit(accentColor: number): THREE.Group {
   spindle.userData.noOutline = true;
   bitGroup.add(spindle);
 
-  // Ground contact tip cone
   const contactGeometry = new THREE.ConeGeometry(0.045, 0.06, 10);
   contactGeometry.rotateX(Math.PI);
   contactGeometry.translate(0, -0.215, 0);
@@ -378,7 +457,113 @@ export function buildBit(accentColor: number): THREE.Group {
   return bitGroup;
 }
 
-// 4. CHIP (晶片 / 核心印記) - Center printed emblem chip & dome
+// 3b. BIT (ビット) - 狂暴衝壓軸 (attack_impact_bit) - Heavy 16-gear multi-ring & wide flat tip
+export function buildImpactBit(accentColor: number): THREE.Group {
+  const bitGroup = new THREE.Group();
+
+  // 16 wide protruding gear teeth around X-Dash gear ring base
+  const gearGeometries: THREE.BufferGeometry[] = [];
+  const gearTooth = new THREE.BoxGeometry(0.03, 0.07, 0.05);
+  gearTooth.translate(0.185, -0.02, 0);
+  for (let i = 0; i < 16; i += 1) {
+    gearGeometries.push(gearTooth.clone().rotateY((i * Math.PI * 2) / 16));
+  }
+  gearTooth.dispose();
+
+  const gearMesh = new THREE.Mesh(
+    mergeStaticGeometries(gearGeometries),
+    new THREE.MeshStandardMaterial({
+      color: accentColor,
+      roughness: 0.2,
+      metalness: 0.8,
+    }),
+  );
+  gearMesh.userData.outlineThickness = 0.01;
+  bitGroup.add(gearMesh);
+
+  const facetGeometry = new THREE.CylinderGeometry(
+    0.15,
+    0.08,
+    0.17,
+    8,
+    2,
+  ).toNonIndexed();
+  facetGeometry.computeVertexNormals();
+  facetGeometry.translate(0, -0.1, 0);
+  const facets = new THREE.Mesh(
+    facetGeometry,
+    new THREE.MeshStandardMaterial({
+      color: ATTACK_STYLE.driverGlass,
+      transparent: true,
+      opacity: 0.75,
+      roughness: 0.15,
+      metalness: 0.2,
+      emissive: ATTACK_STYLE.driverGlassEmissive,
+      emissiveIntensity: 0.5,
+    }),
+  );
+  facets.userData.noOutline = true;
+  facets.userData.noShadow = true;
+  bitGroup.add(facets);
+
+  // Heavy middle metallic armor ring
+  const armorRingGeo = new THREE.TorusGeometry(0.145, 0.028, 8, 16);
+  armorRingGeo.rotateX(Math.PI / 2);
+  const armorRing = new THREE.Mesh(
+    armorRingGeo,
+    new THREE.MeshStandardMaterial({
+      color: accentColor,
+      roughness: 0.2,
+      metalness: 0.8,
+    }),
+  );
+  armorRing.position.y = -0.1;
+  armorRing.userData.outlineThickness = 0.008;
+  bitGroup.add(armorRing);
+
+  const spindle = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.04, 0.04, 0.15, 8),
+    new THREE.MeshStandardMaterial({
+      color: ATTACK_STYLE.spindle,
+      roughness: 0.3,
+      metalness: 0.7,
+    }),
+  );
+  spindle.position.y = -0.09;
+  spindle.userData.noOutline = true;
+  bitGroup.add(spindle);
+
+  // Wide flat heavy impact tip
+  const contactGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.05, 16);
+  contactGeometry.translate(0, -0.21, 0);
+  const contact = new THREE.Mesh(
+    contactGeometry,
+    new THREE.MeshStandardMaterial({
+      color: ATTACK_STYLE.contact,
+      roughness: 0.15,
+      metalness: 0.9,
+    }),
+  );
+  contact.userData.outlineThickness = 0.014;
+  bitGroup.add(contact);
+
+  const collarGeometry = new THREE.TorusGeometry(0.17, 0.052, 8, 16);
+  collarGeometry.rotateX(Math.PI / 2);
+  const collar = new THREE.Mesh(
+    collarGeometry,
+    new THREE.MeshStandardMaterial({
+      color: accentColor,
+      roughness: 0.3,
+      metalness: 0.8,
+    }),
+  );
+  collar.position.y = -0.04;
+  bitGroup.add(collar);
+
+  return bitGroup;
+}
+
+// 4. CHIP (晶片 / 核心印記) - 赤紅核心 (attack_core)
 export function buildChip(accentColor: number): THREE.Group {
   const chipGroup = new THREE.Group();
   chipGroup.position.y = 0.165;
@@ -414,6 +599,65 @@ export function buildChip(accentColor: number): THREE.Group {
     artGeometry,
     new THREE.MeshBasicMaterial({
       map: getChipEmblemTexture("attack", accentColor),
+      toneMapped: false,
+    }),
+  );
+  art.position.y = 0.066;
+  art.userData.noOutline = true;
+  chipGroup.add(art);
+
+  return chipGroup;
+}
+
+// 4b. CHIP (晶片 / 核心印記) - 龍焰核心 (attack_drake_chip) - Heavy Crown Bezel with Corner Teeth
+export function buildDrakeChip(accentColor: number): THREE.Group {
+  const chipGroup = new THREE.Group();
+  chipGroup.position.y = 0.165;
+
+  // Heavy metal base
+  const baseGeometries: THREE.BufferGeometry[] = [];
+  baseGeometries.push(new THREE.CylinderGeometry(0.175, 0.19, 0.13, 8));
+
+  // 4 corner armor studs around crown base
+  const cornerStud = new THREE.BoxGeometry(0.045, 0.07, 0.045);
+  cornerStud.translate(0.18, 0.02, 0);
+  for (let i = 0; i < 4; i += 1) {
+    baseGeometries.push(cornerStud.clone().rotateY((i * Math.PI * 2) / 4));
+  }
+  cornerStud.dispose();
+
+  const base = new THREE.Mesh(
+    mergeStaticGeometries(baseGeometries),
+    new THREE.MeshStandardMaterial({
+      color: ATTACK_STYLE.chipBase,
+      roughness: 0.4,
+      metalness: 0.8,
+    }),
+  );
+  base.userData.outlineThickness = 0.014;
+  chipGroup.add(base);
+
+  // Heavy octagonal outer rim torus
+  const rimGeometry = new THREE.TorusGeometry(0.17, 0.018, 6, 8);
+  rimGeometry.rotateX(Math.PI / 2);
+  const rim = new THREE.Mesh(
+    rimGeometry,
+    new THREE.MeshStandardMaterial({
+      color: accentColor,
+      roughness: 0.3,
+      metalness: 0.7,
+    }),
+  );
+  rim.position.y = 0.066;
+  rim.userData.noOutline = true;
+  chipGroup.add(rim);
+
+  const artGeometry = new THREE.CircleGeometry(0.15, 32);
+  artGeometry.rotateX(-Math.PI / 2);
+  const art = new THREE.Mesh(
+    artGeometry,
+    new THREE.MeshBasicMaterial({
+      map: getChipEmblemTexture("attack_drake_chip", accentColor),
       toneMapped: false,
     }),
   );

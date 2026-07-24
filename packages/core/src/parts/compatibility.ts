@@ -3,10 +3,10 @@ import type { AllowedPartsConfig, CustomBeybladeConfig } from "./types";
 
 export const BEYBLADE_ALLOWED_PARTS: Record<BeybladeType, AllowedPartsConfig> = {
   attack: {
-    allowedBlades: ["attack_slash"],
-    allowedRatchets: ["attack_standard"],
-    allowedBits: ["attack_flat"],
-    allowedChips: ["attack_core"],
+    allowedBlades: ["attack_slash", "attack_ignis"],
+    allowedRatchets: ["attack_standard", "attack_drake_ratchet"],
+    allowedBits: ["attack_flat", "attack_impact_bit"],
+    allowedChips: ["attack_core", "attack_drake_chip"],
   },
   defense: {
     allowedBlades: ["defense_shield"],
