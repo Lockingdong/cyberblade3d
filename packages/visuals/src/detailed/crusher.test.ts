@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { BEYBLADES } from "@game-pool/beyblade-core";
+import { assembleBeybladeSpec } from "@game-pool/beyblade-core";
 import { buildCrusherDetailed } from "./crusher";
 
 function meshes(object: THREE.Object3D): THREE.Mesh[] {
@@ -12,7 +12,13 @@ function meshes(object: THREE.Object3D): THREE.Mesh[] {
 }
 
 describe("buildCrusherDetailed", () => {
-  const spec = BEYBLADES.crusher;
+  const spec = assembleBeybladeSpec({
+    type: "defense",
+    bladeId: "defense_barrier",
+    ratchetId: "defense_fortress",
+    bitId: "defense_ball",
+    chipId: "defense_shield_core",
+  });
 
   it("returns the four burst-separable composites for crusher top", () => {
     const parts = buildCrusherDetailed(spec.color, spec);

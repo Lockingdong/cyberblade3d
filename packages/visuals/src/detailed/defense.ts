@@ -38,7 +38,8 @@ function extrudeDefense(
 // 1. BLADE (ブレード) - Radially symmetric eight-segment fortress shield
 export function buildBlade(accentColor: number): THREE.Group {
   const bladeGroup = new THREE.Group();
-  bladeGroup.position.y = 0.05;
+  bladeGroup.position.y = 0.052;
+  bladeGroup.scale.y = 0.85;
 
   const steelGeometries: THREE.BufferGeometry[] = [];
 
@@ -313,7 +314,7 @@ export function buildBit(accentColor: number): THREE.Group {
 // 4. CHIP (晶片 / 核心印記) - Center printed Shield Crest chip & dome
 export function buildChip(accentColor: number): THREE.Group {
   const chipGroup = new THREE.Group();
-  chipGroup.position.y = 0.155;
+  chipGroup.position.y = 0.165;
 
   const base = new THREE.Mesh(
     new THREE.CylinderGeometry(0.175, 0.185, 0.13, 24),

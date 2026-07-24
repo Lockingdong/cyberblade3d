@@ -27,17 +27,18 @@ function extrudeAegis(
     bevelEnabled: true,
     bevelThickness,
     bevelSize,
-    bevelSegments: 2,
-    curveSegments: 8,
+    bevelSegments: 3,
+    curveSegments: 16,
   });
   geometry.rotateX(-Math.PI / 2);
   return geometry;
 }
 
-// 1. BLADE (ブレード) - Silver Aegis fortress shield blade
+// 1. BLADE (ブレード) - Silver Aegis fortress shield blade (8-fold radial symmetry)
 export function buildBlade(accentColor: number): THREE.Group {
   const bladeGroup = new THREE.Group();
-  bladeGroup.position.y = 0.05;
+  bladeGroup.position.y = 0.052;
+  bladeGroup.scale.y = 0.85;
 
   const steelGeometries: THREE.BufferGeometry[] = [];
 
@@ -49,23 +50,23 @@ export function buildBlade(accentColor: number): THREE.Group {
     new THREE.Vector2(0.3, 0.07),
     new THREE.Vector2(0.1, 0.07),
   ];
-  steelGeometries.push(new THREE.LatheGeometry(hubProfile, 36));
+  steelGeometries.push(new THREE.LatheGeometry(hubProfile, 32));
 
-  // 8 Aegis Fortress Armor Plates
+  // 8 Aegis Fortress Armor Plates - 100% mathematically symmetric
   for (let i = 0; i < 8; i += 1) {
     const angle = (i * Math.PI * 2) / 8;
     const plateShape = new THREE.Shape();
-    plateShape.moveTo(-0.12, -0.04);
-    plateShape.lineTo(0.12, -0.04);
-    plateShape.lineTo(0.16, 0.06);
-    plateShape.lineTo(0.08, 0.11);
-    plateShape.lineTo(-0.08, 0.11);
-    plateShape.lineTo(-0.16, 0.06);
+    plateShape.moveTo(0.21, -0.04);
+    plateShape.lineTo(0.45, -0.04);
+    plateShape.lineTo(0.49, 0.06);
+    plateShape.lineTo(0.41, 0.11);
+    plateShape.lineTo(0.25, 0.11);
+    plateShape.lineTo(0.17, 0.06);
     plateShape.closePath();
 
     const plateGeom = extrudeAegis(plateShape, 0.065, 0.012, 0.01);
+    plateGeom.translate(0, 0.04, 0);
     plateGeom.rotateY(angle);
-    plateGeom.translate(Math.cos(angle) * 0.33, 0.04, Math.sin(angle) * 0.33);
     steelGeometries.push(plateGeom);
   }
 
@@ -83,12 +84,13 @@ export function buildBlade(accentColor: number): THREE.Group {
   steelMesh.userData.smoothOutline = true;
   bladeGroup.add(steelMesh);
 
-  // Accent Rivets
+  // Accent Rivets - symmetrical
   const studGeometries: THREE.BufferGeometry[] = [];
   for (let i = 0; i < 8; i += 1) {
     const angle = (i * Math.PI * 2) / 8 + Math.PI / 8;
-    const studGeom = new THREE.SphereGeometry(0.032, 8, 8);
-    studGeom.translate(Math.cos(angle) * 0.43, 0.08, Math.sin(angle) * 0.43);
+    const studGeom = new THREE.SphereGeometry(0.032, 12, 12);
+    studGeom.translate(0.43, 0.08, 0);
+    studGeom.rotateY(angle);
     studGeometries.push(studGeom);
   }
 
@@ -106,12 +108,12 @@ export function buildBlade(accentColor: number): THREE.Group {
   return bladeGroup;
 }
 
-// 2. RATCHET (ラチェット) - 9-60 Ratchet
+// 2. RATCHET (ラチェット) - 9-60 Ratchet (9-fold symmetry kept under blade boundary)
 export function buildRatchet(accentColor: number): THREE.Group {
   const ratchetGroup = new THREE.Group();
-  ratchetGroup.position.y = 0.005;
+  ratchetGroup.position.y = 0.01;
 
-  const coreGeom = new THREE.CylinderGeometry(0.38, 0.4, 0.065, 32);
+  const coreGeom = new THREE.CylinderGeometry(0.3, 0.32, 0.065, 32);
   const coreMesh = new THREE.Mesh(
     coreGeom,
     new THREE.MeshStandardMaterial({
@@ -129,15 +131,14 @@ export function buildRatchet(accentColor: number): THREE.Group {
   for (let i = 0; i < 9; i += 1) {
     const angle = (i * Math.PI * 2) / 9;
     const toothShape = new THREE.Shape();
-    toothShape.moveTo(-0.04, -0.04);
-    toothShape.lineTo(0.04, -0.04);
-    toothShape.lineTo(0.03, 0.07);
-    toothShape.lineTo(-0.03, 0.07);
+    toothShape.moveTo(0.3, -0.04);
+    toothShape.lineTo(0.385, -0.04);
+    toothShape.lineTo(0.375, 0.06);
+    toothShape.lineTo(0.3, 0.06);
     toothShape.closePath();
 
-    const tooth = extrudeAegis(toothShape, 0.06, 0.006, 0.006);
+    const tooth = extrudeAegis(toothShape, 0.06, 0.005, 0.005);
     tooth.rotateY(angle);
-    tooth.translate(Math.cos(angle) * 0.41, 0, Math.sin(angle) * 0.41);
     toothGeometries.push(tooth);
   }
 
@@ -155,10 +156,10 @@ export function buildRatchet(accentColor: number): THREE.Group {
   return ratchetGroup;
 }
 
-// 3. BIT (ビット) - High Ball Defense Bit
+// 3. BIT (ビット) - High Ball / Needle Defense Bit
 export function buildBit(accentColor: number): THREE.Group {
   const bitGroup = new THREE.Group();
-  bitGroup.position.y = -0.055;
+  bitGroup.position.y = -0.065;
 
   const bodyGeom = new THREE.CylinderGeometry(0.24, 0.19, 0.07, 24);
   const bodyMesh = new THREE.Mesh(
@@ -176,7 +177,10 @@ export function buildBit(accentColor: number): THREE.Group {
   bodyMesh.userData.noShadow = true;
   bitGroup.add(bodyMesh);
 
-  const tipGeom = new THREE.SphereGeometry(0.08, 16, 12);
+  // Sharp Needle Tip Cone geometry
+  const tipGeom = new THREE.ConeGeometry(0.06, 0.11, 24);
+  tipGeom.rotateX(Math.PI);
+  tipGeom.translate(0, -0.09, 0);
   const tipMesh = new THREE.Mesh(
     tipGeom,
     new THREE.MeshStandardMaterial({
@@ -185,7 +189,7 @@ export function buildBit(accentColor: number): THREE.Group {
       metalness: 0.8,
     }),
   );
-  tipMesh.position.y = -0.05;
+  tipMesh.userData.outlineThickness = 0.008;
   bitGroup.add(tipMesh);
 
   return bitGroup;
@@ -194,10 +198,10 @@ export function buildBit(accentColor: number): THREE.Group {
 // 4. CHIP (晶片 / 核心印記) - Center Silver Aegis chip
 export function buildChip(accentColor: number): THREE.Group {
   const chipGroup = new THREE.Group();
-  chipGroup.position.y = 0.155;
+  chipGroup.position.y = 0.165;
 
   const base = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.175, 0.185, 0.13, 24),
+    new THREE.CylinderGeometry(0.175, 0.185, 0.13, 32),
     new THREE.MeshStandardMaterial({
       color: AEGIS_STYLE.chipBase,
       roughness: 0.4,
@@ -207,7 +211,7 @@ export function buildChip(accentColor: number): THREE.Group {
   base.userData.outlineThickness = 0.014;
   chipGroup.add(base);
 
-  const rimGeometry = new THREE.TorusGeometry(0.165, 0.012, 6, 24);
+  const rimGeometry = new THREE.TorusGeometry(0.165, 0.012, 8, 32);
   rimGeometry.rotateX(Math.PI / 2);
   const rim = new THREE.Mesh(
     rimGeometry,
@@ -243,3 +247,4 @@ export const buildAegisDetailed: DetailedBladeBuilder = (accentColor) => ({
   bit: buildBit(accentColor),
   chip: buildChip(accentColor),
 });
+

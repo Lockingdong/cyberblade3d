@@ -305,10 +305,10 @@ function shadeZephyrEmblem(x: number, y: number, accent: Rgb): Rgb {
 function shadeBerserkEmblem(x: number, y: number, accent: Rgb): Rgb {
   const len = Math.hypot(x, y);
 
-  // Background: intense blaze orange / dark flame radial gradient
+  // Background: clean white / dark slate radial gradient
   let color = mixRgb(
-    toRgb(0xc2410c),
-    toRgb(0x451a03),
+    toRgb(0xf8fafc),
+    toRgb(0x1e293b),
     Math.min(1, len) ** 1.2,
   );
 
@@ -318,18 +318,18 @@ function shadeBerserkEmblem(x: number, y: number, accent: Rgb): Rgb {
   sd = Math.min(sd, sdSegment(x, y, 0.12, -0.08, 0.56, -0.54) - 0.085);
   sd = Math.min(sd, sdSegment(x, y, -0.12, 0.08, -0.56, 0.54) - 0.085);
   sd = Math.min(sd, sdSegment(x, y, 0.12, 0.08, 0.56, 0.54) - 0.085);
-  color = paint(color, mixRgb(toRgb(0xfffbe7), accent, 0.2), sd);
+  color = paint(color, mixRgb(toRgb(0xffffff), accent, 0.2), sd);
 
-  // Border: fiery yellow ring inside deep amber outer band
-  color = paint(color, toRgb(0xfde047), Math.abs(len - 0.8) - 0.02);
-  color = paint(color, toRgb(0x270d02), 0.92 - len);
+  // Border: pure white ring inside dark slate outer band
+  color = paint(color, toRgb(0xffffff), Math.abs(len - 0.8) - 0.02);
+  color = paint(color, toRgb(0x0f172a), 0.92 - len);
   return color;
 }
 
 const textureCache = new Map<string, THREE.DataTexture>();
 
 export function getChipEmblemTexture(
-  type: BeybladeType,
+  type: string,
   accentColor: number,
 ): THREE.DataTexture {
   const key = `${type}:${accentColor.toString(16)}`;
@@ -338,15 +338,10 @@ export function getChipEmblemTexture(
 
   const accent = toRgb(accentColor);
   let shader = shadeAttackEmblem;
-  if (type === "defense") shader = shadeDefenseEmblem;
-  else if (type === "stamina") shader = shadeStaminaEmblem;
-  else if (type === "balance") shader = shadeBalanceEmblem;
-  else if (type === "crusher") shader = shadeCrusherEmblem;
-  else if (type === "phantom") shader = shadePhantomEmblem;
-  else if (type === "aegis") shader = shadeAegisEmblem;
-  else if (type === "vampire") shader = shadeVampireEmblem;
-  else if (type === "zephyr") shader = shadeZephyrEmblem;
-  else if (type === "berserk") shader = shadeBerserkEmblem;
+  if (type.startsWith("defense") || type === "crusher" || type === "aegis") shader = shadeDefenseEmblem;
+  else if (type.startsWith("stamina") || type === "zephyr") shader = shadeStaminaEmblem;
+  else if (type.startsWith("balance") || type === "phantom" || type === "vampire") shader = shadeBalanceEmblem;
+  else if (type.includes("blaze") || type === "berserk") shader = shadeBerserkEmblem;
 
   const data = new Uint8Array(SIZE * SIZE * 4);
   for (let row = 0; row < SIZE; row += 1) {

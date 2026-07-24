@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { BEYBLADES } from "@game-pool/beyblade-core";
+import { assembleBeybladeSpec } from "@game-pool/beyblade-core";
 import { buildZephyrDetailed } from "./zephyr";
 
 function meshes(object: THREE.Object3D): THREE.Mesh[] {
@@ -12,7 +12,13 @@ function meshes(object: THREE.Object3D): THREE.Mesh[] {
 }
 
 describe("buildZephyrDetailed", () => {
-  const spec = BEYBLADES.zephyr;
+  const spec = assembleBeybladeSpec({
+    type: "stamina",
+    bladeId: "stamina_wing",
+    ratchetId: "stamina_solar",
+    bitId: "stamina_orbit",
+    chipId: "stamina_solar_core",
+  });
 
   it("returns the four burst-separable composites for zephyr top", () => {
     const parts = buildZephyrDetailed(spec.color, spec);

@@ -27,8 +27,8 @@ function extrudePhantom(
     bevelEnabled: true,
     bevelThickness,
     bevelSize,
-    bevelSegments: 2,
-    curveSegments: 8,
+    bevelSegments: 3,
+    curveSegments: 16,
   });
   geometry.rotateX(-Math.PI / 2);
   return geometry;
@@ -37,7 +37,8 @@ function extrudePhantom(
 // 1. BLADE (ブレード) - Phantom Edge 4-scythe metal blade with dual-layer scythe arcs
 export function buildBlade(accentColor: number): THREE.Group {
   const bladeGroup = new THREE.Group();
-  bladeGroup.position.y = 0.05;
+  bladeGroup.position.y = 0.052;
+  bladeGroup.scale.y = 0.85;
 
   const steelGeometries: THREE.BufferGeometry[] = [];
 
@@ -57,36 +58,36 @@ export function buildBlade(accentColor: number): THREE.Group {
   innerRingGeo.translate(0, 0.04, 0);
   steelGeometries.push(innerRingGeo);
 
-  // 4 Razor-Sharp Crescent Scythe Blade Arcs (Nightblades)
+  // 4 Razor-Sharp Crescent Scythe Blade Arcs - mathematically 100% symmetrical
   for (let i = 0; i < 4; i += 1) {
     const angle = (i * Math.PI * 2) / 4;
 
-    // Base razor-sharp scythe blade
+    // Base razor-sharp scythe blade shape drawn at radial origin
     const scytheShape = new THREE.Shape();
-    scytheShape.moveTo(-0.16, -0.05);
-    scytheShape.quadraticCurveTo(0.06, -0.08, 0.24, -0.04);
-    scytheShape.lineTo(0.4, 0.22); // Razor-sharp outer scythe blade tip!
-    scytheShape.lineTo(0.28, 0.18); // Crescent back notch
-    scytheShape.quadraticCurveTo(0.08, 0.08, -0.14, 0.05); // Concave inner blade curve
+    scytheShape.moveTo(0.14, -0.05);
+    scytheShape.quadraticCurveTo(0.36, -0.08, 0.44, 0.05);
+    scytheShape.lineTo(0.48, 0.22); // Sharp outer scythe tip
+    scytheShape.lineTo(0.36, 0.18); // Crescent back notch
+    scytheShape.quadraticCurveTo(0.28, 0.08, 0.16, 0.05);
     scytheShape.closePath();
 
     const scytheGeom = extrudePhantom(scytheShape, 0.065, 0.014, 0.012);
-    scytheGeom.rotateY(angle + 0.1);
-    scytheGeom.translate(Math.cos(angle) * 0.3, 0.04, Math.sin(angle) * 0.3);
+    scytheGeom.translate(0, 0.04, 0);
+    scytheGeom.rotateY(angle);
     steelGeometries.push(scytheGeom);
 
     // Upper secondary scythe blade step (adds 3D metallic bevel along sharp edge)
     const upperScytheShape = new THREE.Shape();
-    upperScytheShape.moveTo(-0.12, -0.03);
-    upperScytheShape.quadraticCurveTo(0.04, -0.05, 0.18, -0.02);
-    upperScytheShape.lineTo(0.32, 0.16); // Sharp upper tip point
-    upperScytheShape.lineTo(0.22, 0.13);
-    upperScytheShape.quadraticCurveTo(0.05, 0.05, -0.1, 0.03);
+    upperScytheShape.moveTo(0.18, -0.03);
+    upperScytheShape.quadraticCurveTo(0.34, -0.05, 0.42, 0.03);
+    upperScytheShape.lineTo(0.45, 0.18); // Upper tip point
+    upperScytheShape.lineTo(0.35, 0.14);
+    upperScytheShape.quadraticCurveTo(0.25, 0.05, 0.2, 0.03);
     upperScytheShape.closePath();
 
     const upperScytheGeom = extrudePhantom(upperScytheShape, 0.04, 0.01, 0.008);
-    upperScytheGeom.rotateY(angle + 0.12);
-    upperScytheGeom.translate(Math.cos(angle) * 0.34, 0.09, Math.sin(angle) * 0.34);
+    upperScytheGeom.translate(0, 0.09, 0);
+    upperScytheGeom.rotateY(angle);
     steelGeometries.push(upperScytheGeom);
   }
 
@@ -104,26 +105,22 @@ export function buildBlade(accentColor: number): THREE.Group {
   steelMesh.userData.smoothOutline = true;
   bladeGroup.add(steelMesh);
 
-  // 4 Accent Scythe Spine Claws (sharp angled metal clips)
-  const clawShape = new THREE.Shape();
-  clawShape.moveTo(-0.04, -0.03);
-  clawShape.lineTo(0.08, -0.01);
-  clawShape.lineTo(0.04, 0.09); // Sharp claw tip
-  clawShape.lineTo(-0.04, 0.05);
-  clawShape.closePath();
-
-  const clawBase = extrudePhantom(clawShape, 0.035, 0.008, 0.006);
-  clawBase.translate(0, 0.085, 0);
-
+  // 4 Accent Scythe Spine Claws (sharp angled metal clips) - symmetrical
   const clawGeometries: THREE.BufferGeometry[] = [];
   for (let i = 0; i < 4; i += 1) {
     const angle = (i * Math.PI * 2) / 4 + 0.35;
-    const clawGeom = clawBase.clone();
+    const clawShape = new THREE.Shape();
+    clawShape.moveTo(0.38, -0.03);
+    clawShape.lineTo(0.46, -0.01);
+    clawShape.lineTo(0.42, 0.09);
+    clawShape.lineTo(0.34, 0.05);
+    clawShape.closePath();
+
+    const clawGeom = extrudePhantom(clawShape, 0.035, 0.008, 0.006);
+    clawGeom.translate(0, 0.095, 0);
     clawGeom.rotateY(angle);
-    clawGeom.translate(Math.cos(angle) * 0.42, 0.01, Math.sin(angle) * 0.42);
     clawGeometries.push(clawGeom);
   }
-  clawBase.dispose();
 
   const clawsMesh = new THREE.Mesh(
     mergeStaticGeometries(clawGeometries),
@@ -136,17 +133,15 @@ export function buildBlade(accentColor: number): THREE.Group {
   clawsMesh.userData.outlineThickness = 0.01;
   bladeGroup.add(clawsMesh);
 
-  // 4 Emissive Glow Vents (Slots) along scythe inner crescent gaps
-  const ventBase = new THREE.BoxGeometry(0.08, 0.018, 0.04);
+  // 4 Emissive Glow Vents along scythe gaps - symmetrical
   const ventGeometries: THREE.BufferGeometry[] = [];
   for (let i = 0; i < 4; i += 1) {
     const angle = (i * Math.PI * 2) / 4 + Math.PI / 4;
-    const ventGeom = ventBase.clone();
+    const ventGeom = new THREE.BoxGeometry(0.08, 0.018, 0.04);
+    ventGeom.translate(0.32, 0.085, 0);
     ventGeom.rotateY(angle);
-    ventGeom.translate(Math.cos(angle) * 0.32, 0.085, Math.sin(angle) * 0.32);
     ventGeometries.push(ventGeom);
   }
-  ventBase.dispose();
 
   const vents = new THREE.Mesh(
     mergeStaticGeometries(ventGeometries),
@@ -158,12 +153,12 @@ export function buildBlade(accentColor: number): THREE.Group {
   return bladeGroup;
 }
 
-// 2. RATCHET (ラチェット) - 4-60 Ratchet
+// 2. RATCHET (ラチェット) - 4-60 Ratchet (Symmetrical 4 teeth kept under blade boundary)
 export function buildRatchet(accentColor: number): THREE.Group {
   const ratchetGroup = new THREE.Group();
-  ratchetGroup.position.y = 0.005;
+  ratchetGroup.position.y = 0.01;
 
-  const coreGeom = new THREE.CylinderGeometry(0.38, 0.4, 0.065, 32);
+  const coreGeom = new THREE.CylinderGeometry(0.3, 0.32, 0.065, 32);
   const coreMesh = new THREE.Mesh(
     coreGeom,
     new THREE.MeshStandardMaterial({
@@ -181,15 +176,14 @@ export function buildRatchet(accentColor: number): THREE.Group {
   for (let i = 0; i < 4; i += 1) {
     const angle = (i * Math.PI * 2) / 4;
     const toothShape = new THREE.Shape();
-    toothShape.moveTo(-0.06, -0.05);
-    toothShape.lineTo(0.06, -0.05);
-    toothShape.lineTo(0.04, 0.09);
-    toothShape.lineTo(-0.04, 0.09);
+    toothShape.moveTo(0.28, -0.05);
+    toothShape.lineTo(0.385, -0.05);
+    toothShape.lineTo(0.375, 0.08);
+    toothShape.lineTo(0.28, 0.08);
     toothShape.closePath();
 
-    const tooth = extrudePhantom(toothShape, 0.06, 0.008, 0.008);
+    const tooth = extrudePhantom(toothShape, 0.06, 0.006, 0.006);
     tooth.rotateY(angle);
-    tooth.translate(Math.cos(angle) * 0.41, 0, Math.sin(angle) * 0.41);
     toothGeometries.push(tooth);
   }
 
@@ -211,14 +205,14 @@ export function buildRatchet(accentColor: number): THREE.Group {
 export function buildBit(accentColor: number): THREE.Group {
   const bitGroup = new THREE.Group();
 
-  // X-Dash gear ring (12 teeth)
+  // X-Dash gear ring (12 teeth) - strictly symmetrical
   const gearGeometries: THREE.BufferGeometry[] = [];
-  const gearTooth = new THREE.BoxGeometry(0.025, 0.06, 0.04);
-  gearTooth.translate(0.165, -0.02, 0);
   for (let i = 0; i < 12; i += 1) {
-    gearGeometries.push(gearTooth.clone().rotateY((i * Math.PI * 2) / 12));
+    const gearTooth = new THREE.BoxGeometry(0.025, 0.06, 0.04);
+    gearTooth.translate(0.165, -0.02, 0);
+    gearTooth.rotateY((i * Math.PI * 2) / 12);
+    gearGeometries.push(gearTooth);
   }
-  gearTooth.dispose();
 
   const gearMesh = new THREE.Mesh(
     mergeStaticGeometries(gearGeometries),
@@ -236,7 +230,7 @@ export function buildBit(accentColor: number): THREE.Group {
     0.13,
     0.055,
     0.17,
-    8,
+    12,
     2,
   ).toNonIndexed();
   facetGeometry.computeVertexNormals();
@@ -259,7 +253,7 @@ export function buildBit(accentColor: number): THREE.Group {
 
   // Inner spindle
   const spindle = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.03, 0.03, 0.15, 8),
+    new THREE.CylinderGeometry(0.03, 0.03, 0.15, 12),
     new THREE.MeshStandardMaterial({
       color: PHANTOM_STYLE.spindle,
       roughness: 0.3,
@@ -271,7 +265,7 @@ export function buildBit(accentColor: number): THREE.Group {
   bitGroup.add(spindle);
 
   // Taper contact cone tip
-  const contactGeometry = new THREE.ConeGeometry(0.075, 0.065, 12);
+  const contactGeometry = new THREE.ConeGeometry(0.075, 0.065, 16);
   contactGeometry.rotateX(Math.PI);
   contactGeometry.translate(0, -0.21, 0);
   const contact = new THREE.Mesh(
@@ -285,7 +279,7 @@ export function buildBit(accentColor: number): THREE.Group {
   contact.userData.outlineThickness = 0.01;
   bitGroup.add(contact);
 
-  const collarGeometry = new THREE.TorusGeometry(0.15, 0.045, 8, 16);
+  const collarGeometry = new THREE.TorusGeometry(0.15, 0.045, 12, 24);
   collarGeometry.rotateX(Math.PI / 2);
   const collar = new THREE.Mesh(
     collarGeometry,
@@ -304,10 +298,10 @@ export function buildBit(accentColor: number): THREE.Group {
 // 4. CHIP (晶片 / 核心印記) - Center Phantom Edge chip
 export function buildChip(accentColor: number): THREE.Group {
   const chipGroup = new THREE.Group();
-  chipGroup.position.y = 0.155;
+  chipGroup.position.y = 0.165;
 
   const base = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.175, 0.185, 0.13, 24),
+    new THREE.CylinderGeometry(0.175, 0.185, 0.13, 32),
     new THREE.MeshStandardMaterial({
       color: PHANTOM_STYLE.chipBase,
       roughness: 0.4,
@@ -317,7 +311,7 @@ export function buildChip(accentColor: number): THREE.Group {
   base.userData.outlineThickness = 0.014;
   chipGroup.add(base);
 
-  const rimGeometry = new THREE.TorusGeometry(0.165, 0.012, 6, 24);
+  const rimGeometry = new THREE.TorusGeometry(0.165, 0.012, 8, 32);
   rimGeometry.rotateX(Math.PI / 2);
   const rim = new THREE.Mesh(
     rimGeometry,
@@ -353,3 +347,4 @@ export const buildPhantomDetailed: DetailedBladeBuilder = (accentColor) => ({
   bit: buildBit(accentColor),
   chip: buildChip(accentColor),
 });
+

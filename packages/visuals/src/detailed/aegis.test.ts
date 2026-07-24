@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { BEYBLADES } from "@game-pool/beyblade-core";
+import { assembleBeybladeSpec } from "@game-pool/beyblade-core";
 import { buildAegisDetailed } from "./aegis";
 
 function meshes(object: THREE.Object3D): THREE.Mesh[] {
@@ -12,7 +12,13 @@ function meshes(object: THREE.Object3D): THREE.Mesh[] {
 }
 
 describe("buildAegisDetailed", () => {
-  const spec = BEYBLADES.aegis;
+  const spec = assembleBeybladeSpec({
+    type: "defense",
+    bladeId: "defense_bastion",
+    ratchetId: "defense_standard",
+    bitId: "defense_needle",
+    chipId: "defense_core",
+  });
 
   it("returns the four burst-separable composites for aegis top", () => {
     const parts = buildAegisDetailed(spec.color, spec);

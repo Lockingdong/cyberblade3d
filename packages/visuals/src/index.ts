@@ -31,8 +31,9 @@ import type { DetailedParts } from "./detailed/types";
 
 export * from "./camera";
 
-const MODEL_SCALE = 1.8;
-const MODEL_TIP_OFFSET = 0.198;
+const MODEL_SCALE_XZ = 1.8;
+const MODEL_SCALE_Y = 2.07;
+const MODEL_TIP_OFFSET = 0.2277;
 const UP_VECTOR = new THREE.Vector3(0, 1, 0);
 const tempNormal = new THREE.Vector3();
 
@@ -647,7 +648,9 @@ export class BeybladeVisualWorld {
       part.getWorldPosition(worldPosition);
       top.group.remove(part);
       part.position.copy(worldPosition);
-      part.scale.multiplyScalar(MODEL_SCALE);
+      part.scale.multiply(
+        new THREE.Vector3(MODEL_SCALE_XZ, MODEL_SCALE_Y, MODEL_SCALE_XZ),
+      );
       this.root.add(part);
       const angle =
         (index * Math.PI * 2) / top.parts.length + Math.random() * 0.5;
@@ -1418,7 +1421,7 @@ function createBeyblade(
   const spec = customSpec ?? BEYBLADES[type];
   const color = colorOverride ?? spec.color;
   const group = new THREE.Group();
-  group.scale.setScalar(MODEL_SCALE);
+  group.scale.set(MODEL_SCALE_XZ, MODEL_SCALE_Y, MODEL_SCALE_XZ);
 
   const bladeFn = BLADE_BUILDERS[spec.bladeId];
   const ratchetFn = RATCHET_BUILDERS[spec.ratchetId];

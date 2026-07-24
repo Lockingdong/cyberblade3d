@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { BEYBLADES } from "@game-pool/beyblade-core";
+import { assembleBeybladeSpec } from "@game-pool/beyblade-core";
 import { buildBerserkDetailed } from "./berserk";
 
 function meshes(object: THREE.Object3D): THREE.Mesh[] {
@@ -12,7 +12,13 @@ function meshes(object: THREE.Object3D): THREE.Mesh[] {
 }
 
 describe("buildBerserkDetailed", () => {
-  const spec = BEYBLADES.berserk;
+  const spec = assembleBeybladeSpec({
+    type: "attack",
+    bladeId: "attack_blaze",
+    ratchetId: "attack_heavy",
+    bitId: "attack_rush",
+    chipId: "attack_blaze_core",
+  });
 
   it("returns the four burst-separable composites for berserk top", () => {
     const parts = buildBerserkDetailed(spec.color, spec);

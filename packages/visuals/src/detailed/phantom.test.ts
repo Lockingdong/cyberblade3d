@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { BEYBLADES } from "@game-pool/beyblade-core";
+import { assembleBeybladeSpec } from "@game-pool/beyblade-core";
 import { buildPhantomDetailed } from "./phantom";
 
 function meshes(object: THREE.Object3D): THREE.Mesh[] {
@@ -12,7 +12,13 @@ function meshes(object: THREE.Object3D): THREE.Mesh[] {
 }
 
 describe("buildPhantomDetailed", () => {
-  const spec = BEYBLADES.phantom;
+  const spec = assembleBeybladeSpec({
+    type: "balance",
+    bladeId: "balance_phantom",
+    ratchetId: "balance_phantom",
+    bitId: "balance_balance",
+    chipId: "balance_phantom_core",
+  });
 
   it("returns the four burst-separable composites for phantom top", () => {
     const parts = buildPhantomDetailed(spec.color, spec);

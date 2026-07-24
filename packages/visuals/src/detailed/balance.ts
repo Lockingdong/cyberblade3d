@@ -39,7 +39,8 @@ function extrudeBalance(
 // 1. BLADE (ブレード) - Upper hybrid metal ring (2 attack wings + 2 defense arcs) + Translucent Emerald inner ring
 export function buildBlade(accentColor: number): THREE.Group {
   const bladeGroup = new THREE.Group();
-  bladeGroup.position.y = 0.05;
+  bladeGroup.position.y = 0.052;
+  bladeGroup.scale.y = 0.85;
 
   const chromeGeometries: THREE.BufferGeometry[] = [];
 
@@ -241,7 +242,7 @@ export function buildBit(accentColor: number): THREE.Group {
 // 4. CHIP (フェイスチップ) - Central Emerald Chip with Gale Emblem
 export function buildChip(accentColor: number): THREE.Group {
   const chipGroup = new THREE.Group();
-  chipGroup.position.y = 0.05;
+  chipGroup.position.y = 0.055;
 
   const baseMesh = new THREE.Mesh(
     new THREE.CylinderGeometry(0.17, 0.17, 0.06, 32),

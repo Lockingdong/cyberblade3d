@@ -26,8 +26,8 @@ function extrudeCrusher(
     bevelEnabled: true,
     bevelThickness,
     bevelSize,
-    bevelSegments: 2,
-    curveSegments: 8,
+    bevelSegments: 3,
+    curveSegments: 16,
   });
   geometry.rotateX(-Math.PI / 2);
   return geometry;
@@ -36,7 +36,8 @@ function extrudeCrusher(
 // 1. BLADE (ブレード) - Obsidian Maul heavy dual-step hammer blade
 export function buildBlade(accentColor: number): THREE.Group {
   const bladeGroup = new THREE.Group();
-  bladeGroup.position.y = 0.05;
+  bladeGroup.position.y = 0.052;
+  bladeGroup.scale.y = 0.85;
 
   const steelGeometries: THREE.BufferGeometry[] = [];
 
@@ -49,45 +50,45 @@ export function buildBlade(accentColor: number): THREE.Group {
     new THREE.Vector2(0.3, 0.07),
     new THREE.Vector2(0.1, 0.07),
   ];
-  steelGeometries.push(new THREE.LatheGeometry(hubProfile, 8));
+  steelGeometries.push(new THREE.LatheGeometry(hubProfile, 16));
 
-  // Heavy metal connecting linkage beam across the two hammer heads (aligned along X axis)
+  // Heavy metal connecting linkage beam across the two hammer heads
   const beamGeom = new THREE.BoxGeometry(0.72, 0.055, 0.22);
   beamGeom.translate(0, 0.045, 0);
   steelGeometries.push(beamGeom);
 
-  // 2 Opposed Heavy Dual-Step Hammer Heads (at X = +0.36 and X = -0.36)
+  // 2 Opposed Heavy Dual-Step Hammer Heads - mathematically 100% 2-fold symmetrical
   for (let i = 0; i < 2; i += 1) {
     const angle = i * Math.PI;
 
-    // Base heavy hammer head
+    // Base heavy hammer head shape centered at X ~ 0.36
     const hammerShape = new THREE.Shape();
-    hammerShape.moveTo(-0.18, -0.14);
-    hammerShape.lineTo(0.18, -0.14);
-    hammerShape.lineTo(0.25, -0.04);
-    hammerShape.lineTo(0.22, 0.08);
-    hammerShape.lineTo(0.14, 0.14);
-    hammerShape.lineTo(-0.14, 0.14);
-    hammerShape.lineTo(-0.22, 0.08);
-    hammerShape.lineTo(-0.25, -0.04);
+    hammerShape.moveTo(0.18, -0.14);
+    hammerShape.lineTo(0.54, -0.14);
+    hammerShape.lineTo(0.61, -0.04);
+    hammerShape.lineTo(0.58, 0.08);
+    hammerShape.lineTo(0.5, 0.14);
+    hammerShape.lineTo(0.22, 0.14);
+    hammerShape.lineTo(0.14, 0.08);
+    hammerShape.lineTo(0.11, -0.04);
     hammerShape.closePath();
 
     const hammerGeom = extrudeCrusher(hammerShape, 0.075, 0.016, 0.014);
+    hammerGeom.translate(0, 0.04, 0);
     hammerGeom.rotateY(angle);
-    hammerGeom.translate(Math.cos(angle) * 0.36, 0.04, Math.sin(angle) * 0.36);
     steelGeometries.push(hammerGeom);
 
     // Upper secondary hammer step for dual-layer impact look
     const upperHammerShape = new THREE.Shape();
-    upperHammerShape.moveTo(-0.13, -0.09);
-    upperHammerShape.lineTo(0.13, -0.09);
-    upperHammerShape.lineTo(0.17, 0.05);
-    upperHammerShape.lineTo(-0.17, 0.05);
+    upperHammerShape.moveTo(0.25, -0.09);
+    upperHammerShape.lineTo(0.51, -0.09);
+    upperHammerShape.lineTo(0.55, 0.05);
+    upperHammerShape.lineTo(0.21, 0.05);
     upperHammerShape.closePath();
 
     const upperHammerGeom = extrudeCrusher(upperHammerShape, 0.045, 0.012, 0.01);
+    upperHammerGeom.translate(0, 0.095, 0);
     upperHammerGeom.rotateY(angle);
-    upperHammerGeom.translate(Math.cos(angle) * 0.38, 0.095, Math.sin(angle) * 0.38);
     steelGeometries.push(upperHammerGeom);
   }
 
@@ -95,15 +96,15 @@ export function buildBlade(accentColor: number): THREE.Group {
   for (let i = 0; i < 2; i += 1) {
     const angle = i * Math.PI + Math.PI / 2;
     const wingShape = new THREE.Shape();
-    wingShape.moveTo(-0.12, -0.06);
-    wingShape.lineTo(0.12, -0.06);
-    wingShape.lineTo(0.16, 0.06);
-    wingShape.lineTo(-0.16, 0.06);
+    wingShape.moveTo(0.22, -0.06);
+    wingShape.lineTo(0.46, -0.06);
+    wingShape.lineTo(0.5, 0.06);
+    wingShape.lineTo(0.18, 0.06);
     wingShape.closePath();
 
     const wingGeom = extrudeCrusher(wingShape, 0.05, 0.01, 0.008);
+    wingGeom.translate(0, 0.045, 0);
     wingGeom.rotateY(angle);
-    wingGeom.translate(Math.cos(angle) * 0.34, 0.045, Math.sin(angle) * 0.34);
     steelGeometries.push(wingGeom);
   }
 
@@ -121,26 +122,22 @@ export function buildBlade(accentColor: number): THREE.Group {
   steelMesh.userData.smoothOutline = true;
   bladeGroup.add(steelMesh);
 
-  // 2 Accent Impact Wedges on top of hammer heads
-  const wedgeShape = new THREE.Shape();
-  wedgeShape.moveTo(-0.07, -0.05);
-  wedgeShape.lineTo(0.07, -0.05);
-  wedgeShape.lineTo(0.05, 0.07);
-  wedgeShape.lineTo(-0.05, 0.07);
-  wedgeShape.closePath();
-
-  const wedgeBase = extrudeCrusher(wedgeShape, 0.035, 0.008, 0.006);
-  wedgeBase.translate(0, 0.12, 0);
-
+  // 2 Accent Impact Wedges on top of hammer heads - symmetrical
   const wedgeGeometries: THREE.BufferGeometry[] = [];
   for (let i = 0; i < 2; i += 1) {
     const angle = i * Math.PI;
-    const wedgeGeom = wedgeBase.clone();
+    const wedgeShape = new THREE.Shape();
+    wedgeShape.moveTo(0.35, -0.05);
+    wedgeShape.lineTo(0.49, -0.05);
+    wedgeShape.lineTo(0.47, 0.07);
+    wedgeShape.lineTo(0.37, 0.07);
+    wedgeShape.closePath();
+
+    const wedgeGeom = extrudeCrusher(wedgeShape, 0.035, 0.008, 0.006);
+    wedgeGeom.translate(0, 0.13, 0);
     wedgeGeom.rotateY(angle);
-    wedgeGeom.translate(Math.cos(angle) * 0.42, 0.01, Math.sin(angle) * 0.42);
     wedgeGeometries.push(wedgeGeom);
   }
-  wedgeBase.dispose();
 
   const wedgesMesh = new THREE.Mesh(
     mergeStaticGeometries(wedgeGeometries),
@@ -154,16 +151,14 @@ export function buildBlade(accentColor: number): THREE.Group {
   bladeGroup.add(wedgesMesh);
 
   // 2 Emissive Glow Vents (Slots) along linkage frame gaps
-  const ventBase = new THREE.BoxGeometry(0.1, 0.02, 0.05);
   const ventGeometries: THREE.BufferGeometry[] = [];
   for (let i = 0; i < 2; i += 1) {
     const angle = i * Math.PI + Math.PI / 2;
-    const ventGeom = ventBase.clone();
+    const ventGeom = new THREE.BoxGeometry(0.1, 0.02, 0.05);
+    ventGeom.translate(0.28, 0.09, 0);
     ventGeom.rotateY(angle);
-    ventGeom.translate(Math.cos(angle) * 0.28, 0.09, Math.sin(angle) * 0.28);
     ventGeometries.push(ventGeom);
   }
-  ventBase.dispose();
 
   const vents = new THREE.Mesh(
     mergeStaticGeometries(ventGeometries),
@@ -175,12 +170,12 @@ export function buildBlade(accentColor: number): THREE.Group {
   return bladeGroup;
 }
 
-// 2. RATCHET (ラチェット) - Heavy 3-60 Ratchet with copper accents
+// 2. RATCHET (ラチェット) - Heavy 3-60 Ratchet with copper accents (3-fold symmetry kept under blade boundary)
 export function buildRatchet(accentColor: number): THREE.Group {
   const ratchetGroup = new THREE.Group();
-  ratchetGroup.position.y = 0.005;
+  ratchetGroup.position.y = 0.01;
 
-  const coreGeom = new THREE.CylinderGeometry(0.38, 0.4, 0.065, 32);
+  const coreGeom = new THREE.CylinderGeometry(0.3, 0.32, 0.065, 32);
   const coreMesh = new THREE.Mesh(
     coreGeom,
     new THREE.MeshStandardMaterial({
@@ -198,15 +193,14 @@ export function buildRatchet(accentColor: number): THREE.Group {
   for (let i = 0; i < 3; i += 1) {
     const angle = (i * Math.PI * 2) / 3;
     const toothShape = new THREE.Shape();
-    toothShape.moveTo(-0.08, -0.06);
-    toothShape.lineTo(0.08, -0.06);
-    toothShape.lineTo(0.05, 0.1);
-    toothShape.lineTo(-0.05, 0.1);
+    toothShape.moveTo(0.28, -0.06);
+    toothShape.lineTo(0.385, -0.06);
+    toothShape.lineTo(0.37, 0.08);
+    toothShape.lineTo(0.28, 0.08);
     toothShape.closePath();
 
-    const tooth = extrudeCrusher(toothShape, 0.06, 0.008, 0.008);
+    const tooth = extrudeCrusher(toothShape, 0.06, 0.006, 0.006);
     tooth.rotateY(angle);
-    tooth.translate(Math.cos(angle) * 0.41, 0, Math.sin(angle) * 0.41);
     toothGeometries.push(tooth);
   }
 
@@ -230,12 +224,12 @@ export function buildBit(accentColor: number): THREE.Group {
 
   // X-Dash gear ring (12 teeth)
   const gearGeometries: THREE.BufferGeometry[] = [];
-  const gearTooth = new THREE.BoxGeometry(0.025, 0.06, 0.04);
-  gearTooth.translate(0.165, -0.02, 0);
   for (let i = 0; i < 12; i += 1) {
-    gearGeometries.push(gearTooth.clone().rotateY((i * Math.PI * 2) / 12));
+    const gearTooth = new THREE.BoxGeometry(0.025, 0.06, 0.04);
+    gearTooth.translate(0.165, -0.02, 0);
+    gearTooth.rotateY((i * Math.PI * 2) / 12);
+    gearGeometries.push(gearTooth);
   }
-  gearTooth.dispose();
 
   const gearMesh = new THREE.Mesh(
     mergeStaticGeometries(gearGeometries),
@@ -253,7 +247,7 @@ export function buildBit(accentColor: number): THREE.Group {
     0.13,
     0.06,
     0.17,
-    8,
+    12,
     2,
   ).toNonIndexed();
   facetGeometry.computeVertexNormals();
@@ -276,7 +270,7 @@ export function buildBit(accentColor: number): THREE.Group {
 
   // Inner spindle
   const spindle = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.03, 0.03, 0.15, 8),
+    new THREE.CylinderGeometry(0.03, 0.03, 0.15, 12),
     new THREE.MeshStandardMaterial({
       color: CRUSHER_STYLE.spindle,
       roughness: 0.3,
@@ -288,7 +282,7 @@ export function buildBit(accentColor: number): THREE.Group {
   bitGroup.add(spindle);
 
   // Heavy Flat Impact Tip (wide flat ground contact point)
-  const contactGeometry = new THREE.CylinderGeometry(0.065, 0.065, 0.05, 12);
+  const contactGeometry = new THREE.CylinderGeometry(0.065, 0.065, 0.05, 24);
   contactGeometry.translate(0, -0.205, 0);
   const contact = new THREE.Mesh(
     contactGeometry,
@@ -301,7 +295,7 @@ export function buildBit(accentColor: number): THREE.Group {
   contact.userData.outlineThickness = 0.01;
   bitGroup.add(contact);
 
-  const collarGeometry = new THREE.TorusGeometry(0.15, 0.045, 8, 16);
+  const collarGeometry = new THREE.TorusGeometry(0.15, 0.045, 12, 24);
   collarGeometry.rotateX(Math.PI / 2);
   const collar = new THREE.Mesh(
     collarGeometry,
@@ -320,10 +314,10 @@ export function buildBit(accentColor: number): THREE.Group {
 // 4. CHIP (晶片 / 核心印記) - Center Obsidian Maul chip
 export function buildChip(accentColor: number): THREE.Group {
   const chipGroup = new THREE.Group();
-  chipGroup.position.y = 0.155;
+  chipGroup.position.y = 0.165;
 
   const base = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.175, 0.185, 0.13, 8),
+    new THREE.CylinderGeometry(0.175, 0.185, 0.13, 32),
     new THREE.MeshStandardMaterial({
       color: CRUSHER_STYLE.chipBase,
       roughness: 0.4,
@@ -333,7 +327,7 @@ export function buildChip(accentColor: number): THREE.Group {
   base.userData.outlineThickness = 0.014;
   chipGroup.add(base);
 
-  const rimGeometry = new THREE.TorusGeometry(0.165, 0.012, 6, 24);
+  const rimGeometry = new THREE.TorusGeometry(0.165, 0.012, 8, 32);
   rimGeometry.rotateX(Math.PI / 2);
   const rim = new THREE.Mesh(
     rimGeometry,
@@ -369,3 +363,4 @@ export const buildCrusherDetailed: DetailedBladeBuilder = (accentColor) => ({
   bit: buildBit(accentColor),
   chip: buildChip(accentColor),
 });
+

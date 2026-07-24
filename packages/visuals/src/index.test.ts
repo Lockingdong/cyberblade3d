@@ -66,7 +66,7 @@ describe("BeybladePreviewWorld", () => {
   it("renders a custom mix-and-match top correctly based on part IDs", () => {
     const originalSpec = { ...BEYBLADES.attack };
     try {
-      (BEYBLADES.attack as any).bladeId = "defense";
+      (BEYBLADES.attack as any).bladeId = "defense_shield";
       const color = 0x123456;
       const world = new BeybladePreviewWorld("attack", color);
 
@@ -75,7 +75,7 @@ describe("BeybladePreviewWorld", () => {
       const bladeGroup = topGroup!.children[0];
       expect(bladeGroup).toBeDefined();
 
-      const defenseBuilder = BLADE_BUILDERS.defense;
+      const defenseBuilder = BLADE_BUILDERS.defense_shield;
       expect(defenseBuilder).toBeDefined();
       const referenceBlade = defenseBuilder!(color);
 
