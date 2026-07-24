@@ -1,0 +1,11 @@
+.git
+.github
+.expo
+.turbo
+**/.DS_Store
+**/dist
+**/node_modules
+**/*.log
+coverage
+design_docs
+node_modules

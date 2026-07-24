@@ -6,8 +6,8 @@ tasks:
   setup:
     desc: Install JavaScript and Go dependencies
     cmds:
-      - pnpm -C ../.. install
-      - go mod download
+      - pnpm install
+      - go -C services/api mod download
 
   dev:
     desc: Run PostgreSQL, platform API, game API and web/mobile apps
@@ -46,17 +46,14 @@ tasks:
   check:
     desc: Run all static checks and tests
     cmds:
-      - pnpm -C apps/web typecheck
-      - pnpm -C apps/web test
-      - pnpm -C apps/mobile typecheck
-      - pnpm -C apps/mobile test
+      - pnpm -r --if-present typecheck
+      - pnpm -r --if-present test
       - go -C services/api test ./...
 
   build:
     desc: Build all apps and services
     cmds:
-      - pnpm -C apps/web build
-      - pnpm -C apps/mobile build
+      - pnpm -r --if-present build
       - go -C services/api build ./...
 
   format:

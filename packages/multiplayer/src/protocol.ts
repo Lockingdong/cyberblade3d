@@ -361,18 +361,7 @@ function isVec3(value: unknown): value is readonly [number, number, number] {
 }
 
 function isBlade(value: unknown): value is BeybladeType {
-  return [
-    "attack",
-    "defense",
-    "stamina",
-    "balance",
-    "crusher",
-    "phantom",
-    "aegis",
-    "vampire",
-    "zephyr",
-    "berserk",
-  ].includes(String(value));
+  return ["attack", "defense", "stamina", "balance"].includes(String(value));
 }
 
 function isStadium(value: unknown): value is StadiumTheme {

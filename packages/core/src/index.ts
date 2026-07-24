@@ -4,17 +4,7 @@ import type {
   GameStatus,
 } from "@game-pool/game-runtime";
 
-export type BeybladeType =
-  | "attack"
-  | "defense"
-  | "stamina"
-  | "balance"
-  | "crusher"
-  | "phantom"
-  | "aegis"
-  | "vampire"
-  | "zephyr"
-  | "berserk";
+export type BeybladeType = "attack" | "defense" | "stamina" | "balance";
 export type AiBehavior =
   "seek" | "hold" | "orbitEvade" | "adaptive" | "strafe" | "counterHold";
 export type StadiumTheme = "neon" | "toxic" | "volcano";
@@ -253,31 +243,18 @@ export type BeybladeInput =
 import { assembleBeybladeSpec, type CustomBeybladeConfig } from "./parts";
 export * from "./parts";
 
-
 const PRESET_ORDER: BeybladeType[] = [
   "attack",
   "defense",
   "stamina",
   "balance",
-  "crusher",
-  "phantom",
-  "aegis",
-  "vampire",
-  "zephyr",
-  "berserk",
 ];
 
 const PRESET_CONFIGS: Record<BeybladeType, CustomBeybladeConfig> = {
-  attack: { type: "attack", bladeId: "attack", ratchetId: "attack", bitId: "attack", chipId: "attack" },
-  defense: { type: "defense", bladeId: "defense", ratchetId: "defense", bitId: "defense", chipId: "defense" },
-  stamina: { type: "stamina", bladeId: "stamina", ratchetId: "stamina", bitId: "stamina", chipId: "stamina" },
-  balance: { type: "balance", bladeId: "balance", ratchetId: "balance", bitId: "balance", chipId: "balance" },
-  crusher: { type: "crusher", bladeId: "crusher", ratchetId: "crusher", bitId: "crusher", chipId: "crusher" },
-  phantom: { type: "phantom", bladeId: "phantom", ratchetId: "phantom", bitId: "phantom", chipId: "phantom" },
-  aegis: { type: "aegis", bladeId: "aegis", ratchetId: "aegis", bitId: "aegis", chipId: "aegis" },
-  vampire: { type: "vampire", bladeId: "vampire", ratchetId: "vampire", bitId: "vampire", chipId: "vampire" },
-  zephyr: { type: "zephyr", bladeId: "zephyr", ratchetId: "zephyr", bitId: "zephyr", chipId: "zephyr" },
-  berserk: { type: "berserk", bladeId: "berserk", ratchetId: "berserk", bitId: "berserk", chipId: "berserk" },
+  attack: { type: "attack", bladeId: "attack_slash", ratchetId: "attack_standard", bitId: "attack_flat", chipId: "attack_core" },
+  defense: { type: "defense", bladeId: "defense_shield", ratchetId: "defense_standard", bitId: "defense_ball", chipId: "defense_core" },
+  stamina: { type: "stamina", bladeId: "stamina_solar", ratchetId: "stamina_standard", bitId: "stamina_stamina", chipId: "stamina_core" },
+  balance: { type: "balance", bladeId: "balance_emerald", ratchetId: "balance_standard", bitId: "balance_balance", chipId: "balance_core" },
 };
 
 export const BEYBLADES: Record<BeybladeType, BeybladeSpec> = PRESET_ORDER.reduce(

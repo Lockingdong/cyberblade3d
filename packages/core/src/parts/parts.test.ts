@@ -10,20 +10,19 @@ import {
 describe("parts module", () => {
   it("returns allowed parts for each beyblade type", () => {
     const attackParts = getCompatibleParts("attack");
-    expect(attackParts.allowedBlades).toContain("attack");
-    expect(attackParts.allowedBlades).toContain("attack_v2");
-    expect(attackParts.allowedRatchets).toEqual(["attack"]);
-    expect(attackParts.allowedBits).toEqual(["attack"]);
-    expect(attackParts.allowedChips).toEqual(["attack"]);
+    expect(attackParts.allowedBlades).toEqual(["attack_slash"]);
+    expect(attackParts.allowedRatchets).toEqual(["attack_standard"]);
+    expect(attackParts.allowedBits).toEqual(["attack_flat"]);
+    expect(attackParts.allowedChips).toEqual(["attack_core"]);
   });
 
   it("validates compatible configs successfully", () => {
     const validConfig = {
       type: "attack" as const,
-      bladeId: "attack_v2",
-      ratchetId: "attack",
-      bitId: "attack",
-      chipId: "attack",
+      bladeId: "attack_slash",
+      ratchetId: "attack_standard",
+      bitId: "attack_flat",
+      chipId: "attack_core",
     };
     const result = validatePartCompatibility(validConfig);
     expect(result.valid).toBe(true);
@@ -33,42 +32,42 @@ describe("parts module", () => {
   it("corrects incompatible configs to allowed parts", () => {
     const invalidConfig = {
       type: "attack" as const,
-      bladeId: "defense", // Invalid for attack
-      ratchetId: "stamina", // Invalid for attack
-      bitId: "attack",
-      chipId: "attack",
+      bladeId: "defense_shield", // Invalid for attack
+      ratchetId: "stamina_standard", // Invalid for attack
+      bitId: "attack_flat",
+      chipId: "attack_core",
     };
     const result = validatePartCompatibility(invalidConfig);
     expect(result.valid).toBe(false);
-    expect(result.correctedConfig.bladeId).toBe("attack");
-    expect(result.correctedConfig.ratchetId).toBe("attack");
-    expect(result.correctedConfig.bitId).toBe("attack");
+    expect(result.correctedConfig.bladeId).toBe("attack_slash");
+    expect(result.correctedConfig.ratchetId).toBe("attack_standard");
+    expect(result.correctedConfig.bitId).toBe("attack_flat");
   });
 
   it("assembles spec with automatic correction for incompatible parts", () => {
     const spec = assembleBeybladeSpec({
       type: "attack",
-      bladeId: "defense",
-      ratchetId: "defense",
-      bitId: "defense",
-      chipId: "defense",
+      bladeId: "defense_shield",
+      ratchetId: "defense_standard",
+      bitId: "defense_ball",
+      chipId: "defense_core",
     });
     expect(spec.type).toBe("attack");
-    expect(spec.bladeId).toBe("attack");
-    expect(spec.ratchetId).toBe("attack");
-    expect(spec.bitId).toBe("attack");
-    expect(spec.chipId).toBe("attack");
+    expect(spec.bladeId).toBe("attack_slash");
+    expect(spec.ratchetId).toBe("attack_standard");
+    expect(spec.bitId).toBe("attack_flat");
+    expect(spec.chipId).toBe("attack_core");
   });
 
   it("uses chip name as default Beyblade name regardless of blade part", () => {
     const spec = assembleBeybladeSpec({
       type: "attack",
-      bladeId: "attack_v2",
-      ratchetId: "attack",
-      bitId: "attack",
-      chipId: "attack",
+      bladeId: "attack_slash",
+      ratchetId: "attack_standard",
+      bitId: "attack_flat",
+      chipId: "attack_core",
     });
-    expect(spec.name).toBe("赤紅狂嵐");
-    expect(spec.englishName).toBe("Red Storm");
+    expect(spec.name).toBe("赤紅核心");
+    expect(spec.englishName).toBe("Crimson Core");
   });
 });

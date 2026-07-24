@@ -18,8 +18,6 @@ const ProtocolVersion = 4
 var (
 	validBlades = map[string]bool{
 		"attack": true, "defense": true, "stamina": true, "balance": true,
-		"crusher": true, "phantom": true, "aegis": true, "vampire": true,
-		"zephyr": true, "berserk": true,
 	}
 	validStadiums = map[string]bool{"neon": true, "toxic": true, "volcano": true}
 	validEnvironments = []string{"space", "sunset", "deep-sea", "neon-city", "glacier"}

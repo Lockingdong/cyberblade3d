@@ -46,7 +46,7 @@ TypeScript 與 Go 各自有一份線上協定定義，兩邊必須保持一致�
 | 戰鬥物理、AI 移動、撞擊傷害、轉速衰減、出界判定 | `packages/simulation/src/index.ts` | `packages/simulation/src/battle.test.ts`、`index.test.ts`；若勝負規則改變再看 `core` |
 | 勝負條件、遊戲 phase、runtime 狀態轉換 | `packages/core/src/index.ts` 的 `resolveMatchFinish`、`BeybladeRuntime` | `packages/core/src/index.test.ts`、兩端 `App.tsx` |
 | 陀螺 3D 模型、場館、特效、背景環境 | `packages/visuals/src/index.ts` | `packages/visuals/src/detailed/*`、`geometry-utils.ts`、相關 visuals tests |
-| 高精度陀螺零件、3D 樣式拼裝與註冊 | `packages/visuals/src/detailed/` 的 `detailed/index.ts`（包含 `BLADE_BUILDERS`/`RATCHET_BUILDERS`/`BIT_BUILDERS`/`CHIP_BUILDERS`） | 全 10 種陀螺在 `detailed/` 擁有獨立 builder，並於 `index.ts` 進行零件註冊與導出 |
+| 高精度陀螺零件、3D 樣式拼裝與註冊 | `packages/visuals/src/detailed/` 的 `detailed/index.ts`（包含 `BLADE_BUILDERS`/`RATCHET_BUILDERS`/`BIT_BUILDERS`/`CHIP_BUILDERS`） | 各陀螺類型在 `detailed/` 擁有獨立 builder，並於 `index.ts` 進行零件註冊與導出 |
 | 戰鬥／發射鏡頭 | `packages/visuals/src/camera.ts` | `apps/web/src/BattleScene.tsx`、`apps/mobile/src/BattleScene.tsx` |
 | Web 頁面流程、選單、HUD、結果頁 | `apps/web/src/App.tsx` | `apps/web/src/styles.css`、對應元件與 `App.test.tsx` |
 | Mobile 頁面流程、選單、HUD、結果頁 | `apps/mobile/App.tsx` | `apps/mobile/src/*`、`feedback.ts` |

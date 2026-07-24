@@ -34,23 +34,28 @@ From the repository root:
 
 ```sh
 pnpm install
-pnpm --filter @game-pool/beyblade-web dev
-pnpm --filter @game-pool/beyblade-mobile dev
-go run ./games/beyblade/services/api/cmd/api
+pnpm -C apps/web dev
+pnpm -C apps/mobile dev
+go -C services/api run ./cmd/api
 ```
 
 Run package checks with:
 
 ```sh
-pnpm --filter './games/beyblade/**' typecheck
-pnpm --filter './games/beyblade/**' test
-pnpm --filter './games/beyblade/**' build
-go test ./games/beyblade/services/api/...
+pnpm -r --if-present typecheck
+pnpm -r --if-present test
+pnpm -r --if-present build
+go -C services/api test ./...
 ```
 
 The native renderer uses Expo GL and React Three Fiber. Test 3D behavior on a
 physical iOS or Android device in addition to the automated Expo export.
 
-The Web and API container targets are declared in
-[`../../deploy/targets.json`](../../deploy/targets.json). Deployment logic is
-shared by deployable type rather than duplicated for this game.
+Production-ready container definitions live in `apps/web/Dockerfile` and
+`services/api/Dockerfile`.
+
+## CI/CD
+
+The initial trunk-based CI/CD architecture is documented in
+[`docs/cicd.md`](docs/cicd.md). Pull requests run full validation, while merges
+to `main` selectively deploy only the affected Web, Server, or Mobile targets.

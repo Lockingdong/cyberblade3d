@@ -61,16 +61,10 @@ import {
 const LOCAL_TOP_ID: TopId = "p1";
 type AppMode = "menu" | "local" | "online";
 const descriptions: Record<BeybladeType, string> = {
-  attack: "速度快、撞擊力極強，擅長將對手撞出盤外或引爆。",
-  defense: "重量極重、底座穩固，受到撞擊時不易位移。",
-  stamina: "低摩擦底軸帶來驚人持久力，但質量較輕。",
-  balance: "各屬性均衡，能依戰況切換進攻與閃避。",
-  crusher: "沉重雙鎚帶來毀滅性撞擊，但速度緩慢、追不上游擊型對手。",
-  phantom: "極速螺旋走位擦撞削血，裝甲極薄，經不起正面對撞。",
-  aegis: "頂級減傷聖盾，穩定度領先時會轉守為攻壓制對手。",
-  vampire: "每次碰撞竊取對手轉速回補自身，持久戰的天敵，惟自身脆弱。",
-  zephyr: "史上最輕的極速機體，靈活無比，但撞擊輕如鴻毛且易爆。",
-  berserk: "全力全開的玻璃大砲，爆發力最強，撐不過長期戰。",
+  attack: "赤紅斬刃：速度快、撞擊力極強，配備赤紅棘輪與平軸，擅長強攻與引爆。",
+  defense: "玄武鐵壁：重量極重、底座穩固，可配備黑曜重鎚與白銀聖盾，減傷反擊極強。",
+  stamina: "黃金巨星：低摩擦底軸帶來驚人持久力，可配備蒼穹疾風戰刃，轉速衰減極低。",
+  balance: "翡翠幻象：各屬性均衡，可配備暗夜血蝕戰刃竊取轉速或幻影戰刃進行閃避突襲。",
 };
 
 export default function App() {

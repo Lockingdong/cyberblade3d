@@ -49,50 +49,6 @@ const ICONS: Record<BeybladeType, JSX.Element> = {
       <circle cx="12" cy="16" r="1.1" fill="currentColor" stroke="none" />
     </g>
   ),
-  crusher: (
-    <g>
-      <rect x="4" y="9" width="11" height="6" rx="1" />
-      <path d="M15 12h5" />
-      <path d="M12 9V6" />
-      <path d="M7 9V6" />
-    </g>
-  ),
-  phantom: (
-    <g>
-      <path d="M5 19c4-2 7-4 9-7s3-6 5-8" />
-      <path d="M9.5 8.5l-2 3 3 1 2-3z" fill="currentColor" fillOpacity="0.2" />
-      <path d="M14.5 16l3 1" strokeDasharray="1.5 1.5" />
-    </g>
-  ),
-  aegis: (
-    <g>
-      <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z" />
-      <path d="M12 8v8" />
-      <path d="M8 12h8" />
-    </g>
-  ),
-  vampire: (
-    <g>
-      <path d="M20 12a8 8 0 1 1-12.5-6.6A8 8 0 0 0 20 12z" fill="currentColor" fillOpacity="0.15" />
-      <path d="M20 12a8 8 0 1 1-12.5-6.6A8 8 0 0 0 20 12z" />
-      <path d="M9.5 18.5l1.5 2 1.5-2" fill="currentColor" fillOpacity="0.4" />
-    </g>
-  ),
-  zephyr: (
-    <g>
-      <path d="M3 8h10" />
-      <path d="M3 14h14" />
-      <path d="M3 20h7" />
-      <path d="M16 5l3 3-3 3" />
-    </g>
-  ),
-  berserk: (
-    <g>
-      <path d="M12 3c1.5 3 4 4 4 7s-1.5 5-4 5-4-2-4-5 2.5-4 4-7z" fill="currentColor" fillOpacity="0.18" />
-      <path d="M12 3c1.5 3 4 4 4 7s-1.5 5-4 5-4-2-4-5 2.5-4 4-7z" />
-      <path d="M12 15v6" />
-    </g>
-  ),
 };
 
 export function BladeMiniIcon({ type, className }: BladeMiniIconProps): JSX.Element {

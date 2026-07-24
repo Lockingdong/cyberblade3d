@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  javascript:
+    name: JavaScript and TypeScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Test deployment target detection
+        run: node --test scripts/ci/detect-deploy-targets.test.mjs
+
+      - name: Typecheck workspaces
+        run: pnpm -r --if-present typecheck
+
+      - name: Test workspaces
+        run: pnpm -r --if-present test
+
+      - name: Build web
+        run: pnpm -C apps/web build
+
+      - name: Export mobile iOS bundle
+        run: pnpm -C apps/mobile build
+
+      - name: Export mobile Android bundle
+        run: >-
+          pnpm -C apps/mobile exec expo export
+          --platform android
+          --output-dir "${RUNNER_TEMP}/cyberblade-mobile-android"
+
+  go:
+    name: Go
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/api/go.mod
+          cache-dependency-path: services/api/go.sum
+
+      - name: Test
+        run: go -C services/api test ./...
+
+      - name: Vet
+        run: go -C services/api vet ./...
+
+      - name: Build
+        run: go -C services/api build ./cmd/api
+
+  quality-gate:
+    name: Quality Gate
+    if: always()
+    needs: [javascript, go]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all checks
+        env:
+          JAVASCRIPT_RESULT: ${{ needs.javascript.result }}
+          GO_RESULT: ${{ needs.go.result }}
+        run: |
+          test "$JAVASCRIPT_RESULT" = "success"
+          test "$GO_RESULT" = "success"

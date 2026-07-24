@@ -180,152 +180,6 @@ function shadeBalanceEmblem(x: number, y: number, accent: Rgb): Rgb {
   return color;
 }
 
-function shadeCrusherEmblem(x: number, y: number, accent: Rgb): Rgb {
-  const len = Math.hypot(x, y);
-
-  // Background: dark obsidian / bronze radial gradient
-  let color = mixRgb(
-    toRgb(0x451a03),
-    toRgb(0x180c04),
-    Math.min(1, len) ** 1.2,
-  );
-
-  // Glyph: two opposing breaker heads joined by a heavy diagonal axle.
-  let sd = sdSegment(x, y, -0.5, -0.48, 0.5, 0.48) - 0.075;
-  sd = Math.min(sd, sdSegment(x, y, -0.62, -0.62, -0.32, -0.62) - 0.11);
-  sd = Math.min(sd, sdSegment(x, y, 0.32, 0.62, 0.62, 0.62) - 0.11);
-  sd = Math.min(sd, sdCircle(x, y, 0, 0, 0.12));
-  color = paint(color, mixRgb(toRgb(0xfef3c7), accent, 0.2), sd);
-
-  // Border: bronze/copper ring inside deep obsidian outer band
-  color = paint(color, toRgb(0xd97706), Math.abs(len - 0.8) - 0.02);
-  color = paint(color, toRgb(0x271206), 0.92 - len);
-  return color;
-}
-
-function shadePhantomEmblem(x: number, y: number, accent: Rgb): Rgb {
-  const len = Math.hypot(x, y);
-
-  // Background: deep purple / shadow void radial gradient
-  let color = mixRgb(
-    toRgb(0x4c1d95),
-    toRgb(0x1e1b4b),
-    Math.min(1, len) ** 1.2,
-  );
-
-  // Glyph: a symmetrical eclipse with four spectral hooks.
-  let sd = Math.abs(Math.hypot(x, y) - 0.34) - 0.065;
-  sd = Math.min(sd, sdCircle(x, y, 0, 0, 0.12));
-  sd = Math.min(sd, sdSegment(x, y, -0.55, -0.08, -0.24, -0.08) - 0.055);
-  sd = Math.min(sd, sdSegment(x, y, 0.24, -0.08, 0.55, -0.08) - 0.055);
-  sd = Math.min(sd, sdSegment(x, y, -0.55, 0.08, -0.24, 0.08) - 0.055);
-  sd = Math.min(sd, sdSegment(x, y, 0.24, 0.08, 0.55, 0.08) - 0.055);
-  color = paint(color, mixRgb(toRgb(0xf3e8ff), accent, 0.15), sd);
-
-  // Border: neon purple/magenta ring inside dark void band
-  color = paint(color, toRgb(0xc084fc), Math.abs(len - 0.8) - 0.02);
-  color = paint(color, toRgb(0x0f0927), 0.92 - len);
-  return color;
-}
-
-function shadeAegisEmblem(x: number, y: number, accent: Rgb): Rgb {
-  const len = Math.hypot(x, y);
-
-  // Background: deep royal navy / silver radial gradient
-  let color = mixRgb(
-    toRgb(0x1e293b),
-    toRgb(0x0f172a),
-    Math.min(1, len) ** 1.2,
-  );
-
-  // Glyph: an inset aegis plate with a clean split-chevron mark.
-  let sd = sdSegment(x, y, -0.48, -0.28, 0, 0.46) - 0.07;
-  sd = Math.min(sd, sdSegment(x, y, 0, 0.46, 0.48, -0.28) - 0.07);
-  sd = Math.min(sd, sdSegment(x, y, -0.34, -0.08, 0, 0.22) - 0.06);
-  sd = Math.min(sd, sdSegment(x, y, 0, 0.22, 0.34, -0.08) - 0.06);
-  sd = Math.min(sd, sdSegment(x, y, -0.18, -0.12, 0.18, -0.12) - 0.045);
-  color = paint(color, mixRgb(toRgb(0xf8fafc), accent, 0.1), sd);
-
-  // Border: bright silver ring inside dark navy outer band
-  color = paint(color, toRgb(0xcbd5e1), Math.abs(len - 0.8) - 0.02);
-  color = paint(color, toRgb(0x020617), 0.92 - len);
-  return color;
-}
-
-function shadeVampireEmblem(x: number, y: number, accent: Rgb): Rgb {
-  const len = Math.hypot(x, y);
-
-  // Background: crimson / blood night radial gradient
-  let color = mixRgb(
-    toRgb(0x881337),
-    toRgb(0x2a040e),
-    Math.min(1, len) ** 1.2,
-  );
-
-  // Glyph: mirrored bat crest with a compact blood core and two fangs.
-  let sd = sdCircle(x, y, 0, 0.04, 0.13);
-  sd = Math.min(sd, sdSegment(x, y, -0.1, -0.02, -0.58, -0.34) - 0.075);
-  sd = Math.min(sd, sdSegment(x, y, 0.1, -0.02, 0.58, -0.34) - 0.075);
-  sd = Math.min(sd, sdSegment(x, y, -0.58, -0.34, -0.3, 0.12) - 0.06);
-  sd = Math.min(sd, sdSegment(x, y, 0.58, -0.34, 0.3, 0.12) - 0.06);
-  sd = Math.min(sd, sdSegment(x, y, -0.12, 0.12, -0.08, 0.42) - 0.055);
-  sd = Math.min(sd, sdSegment(x, y, 0.12, 0.12, 0.08, 0.42) - 0.055);
-  color = paint(color, mixRgb(toRgb(0xffe4e6), accent, 0.2), sd);
-
-  // Border: ruby red ring inside dark blood outer band
-  color = paint(color, toRgb(0xf43f5e), Math.abs(len - 0.8) - 0.02);
-  color = paint(color, toRgb(0x190207), 0.92 - len);
-  return color;
-}
-
-function shadeZephyrEmblem(x: number, y: number, accent: Rgb): Rgb {
-  const len = Math.hypot(x, y);
-
-  // Background: deep cyan / sky rift radial gradient
-  let color = mixRgb(
-    toRgb(0x0e7490),
-    toRgb(0x083344),
-    Math.min(1, len) ** 1.2,
-  );
-
-  // Glyph: a sharp symmetric wind-chevron with a split tail.
-  let sd = sdSegment(x, y, -0.52, -0.38, 0, 0.18) - 0.07;
-  sd = Math.min(sd, sdSegment(x, y, 0, 0.18, 0.52, -0.38) - 0.07);
-  sd = Math.min(sd, sdSegment(x, y, -0.34, -0.02, -0.58, 0.34) - 0.055);
-  sd = Math.min(sd, sdSegment(x, y, 0.34, -0.02, 0.58, 0.34) - 0.055);
-  sd = Math.min(sd, sdCircle(x, y, 0, 0.18, 0.1));
-  color = paint(color, mixRgb(toRgb(0xe0f2fe), accent, 0.15), sd);
-
-  // Border: bright sky-blue ring inside dark cyan outer band
-  color = paint(color, toRgb(0x38bdf8), Math.abs(len - 0.8) - 0.02);
-  color = paint(color, toRgb(0x041d27), 0.92 - len);
-  return color;
-}
-
-function shadeBerserkEmblem(x: number, y: number, accent: Rgb): Rgb {
-  const len = Math.hypot(x, y);
-
-  // Background: clean white / dark slate radial gradient
-  let color = mixRgb(
-    toRgb(0xf8fafc),
-    toRgb(0x1e293b),
-    Math.min(1, len) ** 1.2,
-  );
-
-  // Glyph: mirrored furnace jaws around a hot central core.
-  let sd = sdCircle(x, y, 0, 0, 0.14);
-  sd = Math.min(sd, sdSegment(x, y, -0.12, -0.08, -0.56, -0.54) - 0.085);
-  sd = Math.min(sd, sdSegment(x, y, 0.12, -0.08, 0.56, -0.54) - 0.085);
-  sd = Math.min(sd, sdSegment(x, y, -0.12, 0.08, -0.56, 0.54) - 0.085);
-  sd = Math.min(sd, sdSegment(x, y, 0.12, 0.08, 0.56, 0.54) - 0.085);
-  color = paint(color, mixRgb(toRgb(0xffffff), accent, 0.2), sd);
-
-  // Border: pure white ring inside dark slate outer band
-  color = paint(color, toRgb(0xffffff), Math.abs(len - 0.8) - 0.02);
-  color = paint(color, toRgb(0x0f172a), 0.92 - len);
-  return color;
-}
-
 const textureCache = new Map<string, THREE.DataTexture>();
 
 export function getChipEmblemTexture(
@@ -338,10 +192,9 @@ export function getChipEmblemTexture(
 
   const accent = toRgb(accentColor);
   let shader = shadeAttackEmblem;
-  if (type.startsWith("defense") || type === "crusher" || type === "aegis") shader = shadeDefenseEmblem;
-  else if (type.startsWith("stamina") || type === "zephyr") shader = shadeStaminaEmblem;
-  else if (type.startsWith("balance") || type === "phantom" || type === "vampire") shader = shadeBalanceEmblem;
-  else if (type.includes("blaze") || type === "berserk") shader = shadeBerserkEmblem;
+  if (type.startsWith("defense")) shader = shadeDefenseEmblem;
+  else if (type.startsWith("stamina")) shader = shadeStaminaEmblem;
+  else if (type.startsWith("balance")) shader = shadeBalanceEmblem;
 
   const data = new Uint8Array(SIZE * SIZE * 4);
   for (let row = 0; row < SIZE; row += 1) {
