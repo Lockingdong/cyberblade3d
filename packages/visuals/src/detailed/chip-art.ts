@@ -139,6 +139,40 @@ function shadeDrakeEmblem(x: number, y: number, accent: Rgb): Rgb {
   return color;
 }
 
+// 1c. 磐岩核心 (Bastion Core) Emblem: Riveted Shield-Boss with a braced center bar
+function shadeBastionEmblem(x: number, y: number, accent: Rgb): Rgb {
+  const len = Math.hypot(x, y);
+
+  // Background: warm bronze/amber forged armor - stays in the attack color family
+  // but leans metallic and grounded rather than hot-blooded.
+  let color = mixRgb(
+    toRgb(0xb5651d),
+    toRgb(0x2a1608),
+    Math.min(1, len) ** 1.25,
+  );
+
+  // Glyph: a bilateral shield outline (steadfast stance) with a braced center bar
+  // and four rivet dots, echoing the riveted armor plates on the physical chip.
+  let sd = sdSegment(x, y, -0.4, -0.3, 0.4, -0.3) - 0.05;
+  sd = Math.min(sd, sdSegment(x, y, 0.4, -0.3, 0.32, 0.14) - 0.05);
+  sd = Math.min(sd, sdSegment(x, y, 0.32, 0.14, 0, 0.5) - 0.05);
+  sd = Math.min(sd, sdSegment(x, y, 0, 0.5, -0.32, 0.14) - 0.05);
+  sd = Math.min(sd, sdSegment(x, y, -0.32, 0.14, -0.4, -0.3) - 0.05);
+  sd = Math.min(sd, sdSegment(x, y, -0.2, -0.05, 0.2, -0.05) - 0.045);
+  sd = Math.min(sd, sdSegment(x, y, 0, -0.22, 0, 0.28) - 0.04);
+  sd = Math.min(sd, sdCircle(x, y, -0.22, -0.18, 0.035));
+  sd = Math.min(sd, sdCircle(x, y, 0.22, -0.18, 0.035));
+  sd = Math.min(sd, sdCircle(x, y, -0.18, 0.28, 0.035));
+  sd = Math.min(sd, sdCircle(x, y, 0.18, 0.28, 0.035));
+
+  color = paint(color, mixRgb(toRgb(0xffe8c2), accent, 0.15), sd);
+
+  // Border: bright amber ring inside a dark bronze outer band.
+  color = paint(color, toRgb(0xf2a541), Math.abs(len - 0.8) - 0.02);
+  color = paint(color, toRgb(0x1a0d04), 0.92 - len);
+  return color;
+}
+
 function shadeDefenseEmblem(x: number, y: number, accent: Rgb): Rgb {
   const len = Math.hypot(x, y);
 
@@ -234,6 +268,7 @@ export function getChipEmblemTexture(
   const accent = toRgb(accentColor);
   let shader = shadeAttackEmblem;
   if (type.includes("drake")) shader = shadeDrakeEmblem;
+  else if (type.includes("bastion")) shader = shadeBastionEmblem;
   else if (type.startsWith("defense")) shader = shadeDefenseEmblem;
   else if (type.startsWith("stamina")) shader = shadeStaminaEmblem;
   else if (type.startsWith("balance")) shader = shadeBalanceEmblem;

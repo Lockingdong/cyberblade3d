@@ -18,6 +18,14 @@ export const RATCHET_PARTS: Record<string, RatchetPart> = {
     massContribution: 0.35,
   },
 
+  attack_bastion_ratchet: {
+    id: "attack_bastion_ratchet",
+    name: "磐岩棘輪",
+    englishName: "Bastion Ratchet",
+    maxStability: 105,
+    massContribution: 0.4,
+  },
+
   // Defense
   defense_standard: {
     id: "defense_standard",

@@ -24,6 +24,17 @@ export const BIT_PARTS: Record<string, BitPart> = {
     massContribution: 0.12,
   },
 
+  attack_guard_bit: {
+    id: "attack_guard_bit",
+    name: "重甲穩軸",
+    englishName: "Guard Bit",
+    maxRpm: 5600,
+    rpmDecay: 340,
+    speed: 9,
+    friction: 0.09,
+    massContribution: 0.15,
+  },
+
   // Defense
   defense_ball: {
     id: "defense_ball",

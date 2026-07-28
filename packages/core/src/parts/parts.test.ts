@@ -10,10 +10,14 @@ import {
 describe("parts module", () => {
   it("returns allowed parts for each beyblade type", () => {
     const attackParts = getCompatibleParts("attack");
-    expect(attackParts.allowedBlades).toEqual(["attack_slash", "attack_ignis"]);
-    expect(attackParts.allowedRatchets).toEqual(["attack_standard", "attack_drake_ratchet"]);
-    expect(attackParts.allowedBits).toEqual(["attack_flat", "attack_impact_bit"]);
-    expect(attackParts.allowedChips).toEqual(["attack_core", "attack_drake_chip"]);
+    expect(attackParts.allowedBlades).toEqual(["attack_slash", "attack_ignis", "attack_aegis"]);
+    expect(attackParts.allowedRatchets).toEqual([
+      "attack_standard",
+      "attack_drake_ratchet",
+      "attack_bastion_ratchet",
+    ]);
+    expect(attackParts.allowedBits).toEqual(["attack_flat", "attack_impact_bit", "attack_guard_bit"]);
+    expect(attackParts.allowedChips).toEqual(["attack_core", "attack_drake_chip", "attack_bastion_chip"]);
   });
 
   it("validates compatible configs successfully", () => {
@@ -81,5 +85,19 @@ describe("parts module", () => {
     expect(specDrake.englishName).toBe("Drake Core");
     expect(specDrake.attackMultiplier).toBe(1.4);
     expect(specDrake.mass).toBe(1.17);
+
+    const specBastion = assembleBeybladeSpec({
+      type: "attack",
+      bladeId: "attack_aegis",
+      ratchetId: "attack_bastion_ratchet",
+      bitId: "attack_guard_bit",
+      chipId: "attack_bastion_chip",
+    });
+    expect(specBastion.name).toBe("磐岩核心");
+    expect(specBastion.englishName).toBe("Bastion Core");
+    expect(specBastion.attackMultiplier).toBe(1.15);
+    expect(specBastion.damageTaken).toBe(0.55);
+    expect(specBastion.maxStability).toBe(105);
+    expect(specBastion.mass).toBe(1.3);
   });
 });

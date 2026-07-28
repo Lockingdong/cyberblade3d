@@ -27,6 +27,19 @@ export const BLADE_PARTS: Record<string, BladePart> = {
     exclusiveTo: "attack",
   },
 
+  attack_aegis: {
+    id: "attack_aegis",
+    name: "熔壁犀刃",
+    englishName: "Aegis Blade",
+    ai: "counterHold",
+    damageTaken: 0.55,
+    counteredBy: "defense",
+    color: 0xe60012,
+    massContribution: 0.75,
+    attackMultiplier: 1.15,
+    exclusiveTo: "attack",
+  },
+
   // Defense (Iron/Grey)
   defense_shield: {
     id: "defense_shield",
