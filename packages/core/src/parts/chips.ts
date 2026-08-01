@@ -20,4 +20,9 @@ export const CHIP_PARTS: Record<string, ChipPart> = {
 
   // Balance
   balance_core: { id: "balance_core", name: "翡翠核心", englishName: "Emerald Core" },
+  balance_chameleon_chip: {
+    id: "balance_chameleon_chip",
+    name: "變色龍核心",
+    englishName: "Chameleon Core",
+  },
 };

@@ -103,4 +103,16 @@ export const BLADE_PARTS: Record<string, BladePart> = {
     massContribution: 0.78,
     exclusiveTo: "balance",
   },
+
+  balance_chameleon: {
+    id: "balance_chameleon",
+    name: "幻彩變色龍刃",
+    englishName: "Prismatic Chameleon Blade",
+    ai: "adaptive",
+    damageTaken: 0.9,
+    counteredBy: "attack",
+    color: 0x7c3aed,
+    massContribution: 0.66,
+    exclusiveTo: "balance",
+  },
 };

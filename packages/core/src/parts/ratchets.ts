@@ -68,4 +68,12 @@ export const RATCHET_PARTS: Record<string, RatchetPart> = {
     maxStability: 110,
     massContribution: 0.39,
   },
+
+  balance_mirage_ratchet: {
+    id: "balance_mirage_ratchet",
+    name: "幻鱗棘輪",
+    englishName: "Phantom Scale Ratchet",
+    maxStability: 100,
+    massContribution: 0.29,
+  },
 };

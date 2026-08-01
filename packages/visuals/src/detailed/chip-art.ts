@@ -318,6 +318,52 @@ function shadeBalanceEmblem(x: number, y: number, accent: Rgb): Rgb {
   return color;
 }
 
+function shadeChameleonEmblem(x: number, y: number, accent: Rgb): Rgb {
+  const len = Math.hypot(x, y);
+  let color = mixRgb(
+    mixRgb(toRgb(0x312e81), accent, 0.55),
+    toRgb(0x160b2d),
+    Math.min(1, len) ** 1.18,
+  );
+
+  // Side-profile chameleon: rounded head, arched body, feet, and a coiled tail.
+  let glyph = sdCircle(x, y, 0.28, -0.08, 0.14);
+  glyph = Math.min(glyph, sdSegment(x, y, -0.18, 0.06, 0.24, -0.03) - 0.12);
+  glyph = Math.min(glyph, sdSegment(x, y, 0.33, -0.09, 0.48, -0.04) - 0.045);
+  glyph = Math.min(glyph, sdSegment(x, y, -0.03, 0.12, 0.05, 0.35) - 0.045);
+  glyph = Math.min(glyph, sdSegment(x, y, 0.05, 0.35, 0.2, 0.38) - 0.04);
+  glyph = Math.min(glyph, sdSegment(x, y, 0.13, 0.04, 0.22, 0.28) - 0.045);
+  glyph = Math.min(glyph, sdSegment(x, y, 0.22, 0.28, 0.37, 0.3) - 0.04);
+
+  let previousX = -0.18;
+  let previousY = 0.06;
+  for (let index = 1; index <= 12; index += 1) {
+    const t = index / 12;
+    const angle = t * Math.PI * 2.25;
+    const radius = 0.38 * (1 - t * 0.72);
+    const nextX = -0.2 - Math.cos(angle) * radius;
+    const nextY = 0.02 + Math.sin(angle) * radius;
+    glyph = Math.min(
+      glyph,
+      sdSegment(x, y, previousX, previousY, nextX, nextY) - 0.042,
+    );
+    previousX = nextX;
+    previousY = nextY;
+  }
+  color = paint(color, mixRgb(toRgb(0x67e8f9), accent, 0.16), glyph);
+
+  // Five bright scales echo the five short wings on the blade.
+  for (let index = 0; index < 5; index += 1) {
+    const scaleX = -0.12 + index * 0.085;
+    const scaleY = 0.015 - Math.abs(index - 2) * 0.018;
+    color = paint(color, toRgb(0xa7f3d0), sdCircle(x, y, scaleX, scaleY, 0.025));
+  }
+  color = paint(color, toRgb(0x0f172a), sdCircle(x, y, 0.31, -0.12, 0.035));
+  color = paint(color, toRgb(0x22d3ee), Math.abs(len - 0.8) - 0.022);
+  color = paint(color, toRgb(0x160b2d), 0.92 - len);
+  return color;
+}
+
 const textureCache = new Map<string, THREE.DataTexture>();
 
 export function getChipEmblemTexture(
@@ -334,6 +380,7 @@ export function getChipEmblemTexture(
   else if (type.includes("bastion")) shader = shadeBastionEmblem;
   else if (type.includes("aegis")) shader = shadeSilverAegisEmblem;
   else if (type.includes("sky_falcon")) shader = shadeGoldenFalconEmblem;
+  else if (type.includes("chameleon")) shader = shadeChameleonEmblem;
   else if (type.startsWith("defense")) shader = shadeDefenseEmblem;
   else if (type.startsWith("stamina")) shader = shadeStaminaEmblem;
   else if (type.startsWith("balance")) shader = shadeBalanceEmblem;

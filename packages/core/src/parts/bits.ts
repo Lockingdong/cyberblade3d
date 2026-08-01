@@ -92,4 +92,15 @@ export const BIT_PARTS: Record<string, BitPart> = {
     friction: 0.08,
     massContribution: 0.13,
   },
+
+  balance_phantom_taper_bit: {
+    id: "balance_phantom_taper_bit",
+    name: "幻步錐軸",
+    englishName: "Phantom Step Taper Bit",
+    maxRpm: 5550,
+    rpmDecay: 350,
+    speed: 11.5,
+    friction: 0.06,
+    massContribution: 0.1,
+  },
 };

@@ -20,6 +20,10 @@ import {
   buildRatchet as buildBalanceRatchet,
   buildBit as buildBalanceBit,
   buildChip as buildBalanceChip,
+  buildChameleonBlade,
+  buildMirageRatchet,
+  buildPhantomTaperBit,
+  buildChameleonChip,
   buildBalanceDetailed,
 } from "./balance";
 import {
@@ -66,6 +70,7 @@ export const BLADE_BUILDERS: Record<string, (color: number) => THREE.Group> = {
   stamina_solar: buildStaminaBlade,
   stamina_sky_gale: buildGoldenFalconBlade,
   balance_emerald: buildBalanceBlade,
+  balance_chameleon: buildChameleonBlade,
 };
 
 export const RATCHET_BUILDERS: Record<string, (color: number) => THREE.Group> = {
@@ -78,6 +83,7 @@ export const RATCHET_BUILDERS: Record<string, (color: number) => THREE.Group> = 
   stamina_standard: buildStaminaRatchet,
   stamina_sky_ring_ratchet: buildSolarRingRatchet,
   balance_standard: buildBalanceRatchet,
+  balance_mirage_ratchet: buildMirageRatchet,
 };
 
 export const BIT_BUILDERS: Record<string, (color: number) => THREE.Group> = {
@@ -90,6 +96,7 @@ export const BIT_BUILDERS: Record<string, (color: number) => THREE.Group> = {
   stamina_stamina: buildStaminaBit,
   stamina_zephyr_needle_bit: buildEternalNeedleBit,
   balance_balance: buildBalanceBit,
+  balance_phantom_taper_bit: buildPhantomTaperBit,
 };
 
 export const CHIP_BUILDERS: Record<string, (color: number) => THREE.Group> = {
@@ -102,4 +109,5 @@ export const CHIP_BUILDERS: Record<string, (color: number) => THREE.Group> = {
   stamina_core: buildStaminaChip,
   stamina_sky_falcon_chip: buildGoldenFalconChip,
   balance_core: buildBalanceChip,
+  balance_chameleon_chip: buildChameleonChip,
 };

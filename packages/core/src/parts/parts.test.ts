@@ -43,6 +43,24 @@ describe("parts module", () => {
       "stamina_core",
       "stamina_sky_falcon_chip",
     ]);
+
+    const balanceParts = getCompatibleParts("balance");
+    expect(balanceParts.allowedBlades).toEqual([
+      "balance_emerald",
+      "balance_chameleon",
+    ]);
+    expect(balanceParts.allowedRatchets).toEqual([
+      "balance_standard",
+      "balance_mirage_ratchet",
+    ]);
+    expect(balanceParts.allowedBits).toEqual([
+      "balance_balance",
+      "balance_phantom_taper_bit",
+    ]);
+    expect(balanceParts.allowedChips).toEqual([
+      "balance_core",
+      "balance_chameleon_chip",
+    ]);
   });
 
   it("validates compatible configs successfully", () => {
@@ -234,5 +252,48 @@ describe("parts module", () => {
       bitId: "stamina_stamina",
       chipId: "stamina_core",
     });
+  });
+
+  it("assembles the Chameleon balance set without replacing the Emerald preset", () => {
+    const spec = assembleBeybladeSpec({
+      type: "balance",
+      bladeId: "balance_chameleon",
+      ratchetId: "balance_mirage_ratchet",
+      bitId: "balance_phantom_taper_bit",
+      chipId: "balance_chameleon_chip",
+    });
+
+    expect(spec).toMatchObject({
+      type: "balance",
+      name: "變色龍核心",
+      englishName: "Chameleon Core",
+      mass: 1.05,
+      maxRpm: 5550,
+      rpmDecay: 350,
+      maxStability: 100,
+      speed: 11.5,
+      friction: 0.06,
+      color: 0x7c3aed,
+      damageTaken: 0.9,
+      ai: "adaptive",
+      counteredBy: "attack",
+    });
+    expect(BEYBLADES.balance).toMatchObject({
+      bladeId: "balance_emerald",
+      ratchetId: "balance_standard",
+      bitId: "balance_balance",
+      chipId: "balance_core",
+    });
+  });
+
+  it("allows free mixing between the Emerald and Chameleon balance parts", () => {
+    const result = validatePartCompatibility({
+      type: "balance",
+      bladeId: "balance_chameleon",
+      ratchetId: "balance_standard",
+      bitId: "balance_phantom_taper_bit",
+      chipId: "balance_core",
+    });
+    expect(result.valid).toBe(true);
   });
 });

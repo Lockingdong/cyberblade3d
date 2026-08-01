@@ -21,10 +21,10 @@ export const BEYBLADE_ALLOWED_PARTS: Record<BeybladeType, AllowedPartsConfig> = 
     allowedChips: ["stamina_core", "stamina_sky_falcon_chip"],
   },
   balance: {
-    allowedBlades: ["balance_emerald"],
-    allowedRatchets: ["balance_standard"],
-    allowedBits: ["balance_balance"],
-    allowedChips: ["balance_core"],
+    allowedBlades: ["balance_emerald", "balance_chameleon"],
+    allowedRatchets: ["balance_standard", "balance_mirage_ratchet"],
+    allowedBits: ["balance_balance", "balance_phantom_taper_bit"],
+    allowedChips: ["balance_core", "balance_chameleon_chip"],
   },
 };
 

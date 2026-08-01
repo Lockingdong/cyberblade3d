@@ -137,4 +137,23 @@ describe("BeybladePreviewWorld", () => {
     expect(world.root.children[0]!.children).toHaveLength(4);
     world.dispose();
   });
+
+  it("registers and renders the complete Chameleon set", () => {
+    expect(BLADE_BUILDERS.balance_chameleon).toBeDefined();
+    expect(RATCHET_BUILDERS.balance_mirage_ratchet).toBeDefined();
+    expect(BIT_BUILDERS.balance_phantom_taper_bit).toBeDefined();
+    expect(CHIP_BUILDERS.balance_chameleon_chip).toBeDefined();
+
+    const spec = assembleBeybladeSpec({
+      type: "balance",
+      bladeId: "balance_chameleon",
+      ratchetId: "balance_mirage_ratchet",
+      bitId: "balance_phantom_taper_bit",
+      chipId: "balance_chameleon_chip",
+    });
+    const world = new BeybladePreviewWorld("balance", undefined, spec);
+    expect(world.root.children).toHaveLength(1);
+    expect(world.root.children[0]!.children).toHaveLength(4);
+    world.dispose();
+  });
 });
