@@ -1,33 +1,37 @@
 # CI/CD
 
 CyberBlade 3D uses short-lived branches and `main` as the only long-lived
-branch. Pull requests run CI. A successful merge to `main` runs the selective
-Production workflow.
+branch. Pull requests run CI. Production deployment is release-tag driven and
+does not run when commits are pushed or merged to `main`.
 
 ## Workflows
 
 - `ci.yml` runs workspace typechecks/tests, Web and Mobile exports, and Go
   checks for pull requests.
-- `cd-production.yml` classifies the changed files, verifies the exact
-  Production revision, and deploys only affected targets.
+- `cd-production.yml` validates `web-v<major>.<minor>.<patch>` tags, verifies the
+  exact tagged revision, and deploys Web to Production.
 
-The target classifier is implemented and tested in
-`scripts/ci/detect-deploy-targets.mjs`.
+The target classifier in `scripts/ci/detect-deploy-targets.mjs` remains covered
+by CI but is not used by the tag-driven Production workflow.
 
-## Deployment mapping
+## Production release tags
 
-| Change | Web | Server | Mobile |
-| --- | --- | --- | --- |
-| `apps/web/**` | deploy | - | - |
-| `services/api/**` | - | deploy | - |
-| Mobile JavaScript/assets | - | - | OTA |
-| Mobile native configuration/dependencies | - | - | native build |
-| Shared game runtime packages | deploy | - | OTA |
-| TypeScript or Go wire protocol | deploy | deploy | OTA |
-| Documentation and tests only | - | - | - |
+| Tag | Status | Target |
+| --- | --- | --- |
+| `web-v1.2.3` | Active | Web Production |
+| `server-v1.2.3` | Reserved | Server Production |
+| `mobile-v1.2.3` | Reserved | iOS and Android Production |
 
-`pnpm-lock.yaml` is conservatively treated as Web plus a native Mobile build.
-This can be narrowed after Expo native fingerprinting is added.
+Only stable three-part semantic versions are accepted for Web releases. Create
+the tag on the exact commit to release, then push that tag:
+
+```sh
+git tag -a web-v1.2.3 -m "Release web-v1.2.3"
+git push origin web-v1.2.3
+```
+
+Server and Mobile tag filters are intentionally left as comments in the
+workflow until those deployment paths are enabled.
 
 ## GitHub Production environment
 
@@ -36,40 +40,29 @@ environment variables:
 
 | Variable | Purpose |
 | --- | --- |
-| `ENABLE_SERVER_DEPLOY` | Set to `true` after the Server hook is ready |
-| `ENABLE_WEB_DEPLOY` | Set to `true` after the Web hook is ready |
-| `ENABLE_MOBILE_DEPLOY` | Set to `true` after EAS is fully configured |
-| `PUBLIC_WS_URL` | Public `wss://` endpoint used by both clients |
-| `SERVER_HEALTH_URL` | Public Server `/health` URL |
+| `PUBLIC_WS_URL` | Public `wss://` endpoint embedded in the Web build |
 | `WEB_URL` | Public Web URL used by the smoke test |
 
 Configure these secrets:
 
 | Secret | Purpose |
 | --- | --- |
-| `SERVER_DEPLOY_HOOK_URL` | Server hosting deployment endpoint |
-| `SERVER_DEPLOY_HOOK_TOKEN` | Optional bearer token for the endpoint |
 | `WEB_DEPLOY_HOOK_URL` | Web hosting deployment endpoint |
 | `WEB_DEPLOY_HOOK_TOKEN` | Optional bearer token for the endpoint |
-| `EXPO_TOKEN` | EAS Build, Update, and Submit authentication |
-
-All `ENABLE_*_DEPLOY` variables default to disabled when absent. This lets the
-workflows merge safely before Production credentials and hosting exist.
 
 ## Hosting hook contract
 
-The Server and Web jobs publish immutable images to GHCR:
+The Web job publishes an immutable image to GHCR:
 
 ```text
-ghcr.io/<owner>/<repository>/server:<commit-sha>
 ghcr.io/<owner>/<repository>/web:<commit-sha>
 ```
 
-They then send an authenticated `POST` request to the configured hook:
+It then sends an authenticated `POST` request to the configured hook:
 
 ```json
 {
-  "image": "ghcr.io/owner/repository/server:commit-sha",
+  "image": "ghcr.io/owner/repository/web:commit-sha",
   "revision": "commit-sha"
 }
 ```
@@ -82,7 +75,7 @@ The hook is the only provider-specific seam in the initial architecture.
 Replace it with a provider CLI or OIDC deployment later if the selected hosting
 platform supports a stronger integration.
 
-## Mobile activation
+## Future Mobile activation
 
 `apps/mobile/eas.json` defines a single `production` profile and channel. Before
 setting `ENABLE_MOBILE_DEPLOY=true`:
@@ -100,22 +93,6 @@ JavaScript-compatible changes use EAS Update. Changes to `app.json`,
 `eas.json`, or the Mobile package dependency declaration create and submit new
 iOS and Android binaries.
 
-## Manual deployment
-
-`Deploy Production` supports manual runs against a commit on `main`:
-
-```text
-auto
-web
-server
-mobile-ota
-mobile-native
-all
-```
-
-Use an explicit target to retry one failed component without redeploying the
-others.
-
 ## Branch protection
 
 Protect `main` with:
@@ -126,9 +103,8 @@ Protect `main` with:
 - squash merge enabled;
 - branch deletion after merge.
 
-Production deployment jobs use separate concurrency groups for Web, Server,
-and Mobile. Unrelated targets can deploy independently, while a change that
-also deploys Server must pass the Server gate before either client is released.
+Web Production deployments use one concurrency group and complete in order;
+an in-progress Production deployment is never cancelled by a newer tag.
 
 ## Follow-up hardening
 
