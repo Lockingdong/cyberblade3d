@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/purity */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   BEYBLADES,
   BeybladeRuntime,
@@ -77,6 +77,64 @@ const descriptions: Record<BeybladeType, string> = {
 const LOCAL_TOP_ID: TopId = "p1";
 type AppMode = "menu" | "local" | "online";
 
+const POWER_START = 20;
+const POWER_MIN = 10;
+const POWER_MAX = 100;
+/** Percent per millisecond — matches the old 3.5% every 16ms. */
+const POWER_SPEED = 3.5 / 16;
+
+type PowerState = { value: number; direction: number };
+
+/**
+ * Animates the launch meter without React state: the value lives in a ref and
+ * the bar/label are written directly to the DOM each frame. A 60fps setState on
+ * <App> would re-render the whole tree (3D scene included) every frame, which
+ * is what made this stutter on phones.
+ */
+function usePowerMeter(powerRef: RefObject<PowerState>, active: boolean) {
+  const fillRef = useRef<HTMLSpanElement>(null);
+  const valueRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const paint = (value: number) => {
+      if (fillRef.current) {
+        fillRef.current.style.transform = `scaleX(${value / POWER_MAX})`;
+      }
+      const label = `${Math.round(value)}%`;
+      if (valueRef.current && valueRef.current.textContent !== label) {
+        valueRef.current.textContent = label;
+      }
+    };
+
+    paint(powerRef.current.value);
+    if (!active) return;
+
+    let frame = 0;
+    let last = performance.now();
+    const step = (now: number) => {
+      // Clamp so a backgrounded tab doesn't resume with a giant jump.
+      const delta = Math.min(now - last, 64);
+      last = now;
+      const power = powerRef.current;
+      let next = power.value + power.direction * POWER_SPEED * delta;
+      if (next >= POWER_MAX) {
+        next = POWER_MAX;
+        power.direction = -1;
+      } else if (next <= POWER_MIN) {
+        next = POWER_MIN;
+        power.direction = 1;
+      }
+      power.value = next;
+      paint(next);
+      frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [powerRef, active]);
+
+  return { fillRef, valueRef };
+}
+
 export function App() {
   const [runtime] = useState(
     () => new BeybladeRuntime(new CannonBattleSimulation()),
@@ -147,7 +205,6 @@ export function App() {
     loadPlayerColor(),
   );
   const [record, setRecord] = useState<BattleRecord>(() => loadBattleRecord());
-  const [launchPower, setLaunchPower] = useState(20);
   const [countdownNow, setCountdownNow] = useState(0);
   const [showIntro, setShowIntro] = useState(true);
   const [upcomingModalOpen, setUpcomingModalOpen] = useState(false);
@@ -155,7 +212,10 @@ export function App() {
     pickRandomEnvironmentScene(),
   );
 
-  const powerDirection = useRef(1);
+  // The launch meter runs at 60fps. Keeping it in a ref (and painting it
+  // imperatively, see usePowerMeter) avoids re-rendering the whole app — and
+  // the 3D scene under it — on every frame.
+  const powerRef = useRef<PowerState>({ value: POWER_START, direction: 1 });
   const preparedMatch = useRef<string | null>(null);
   const launchedMatch = useRef<string | null>(null);
   const endingSentMatch = useRef<string | null>(null);
@@ -340,27 +400,6 @@ export function App() {
       }),
     [coordinator, runtime],
   );
-
-  const powerActive =
-    (mode === "local" && game.phase === "launch") ||
-    (mode === "online" && online.phase === "matched");
-  useEffect(() => {
-    if (!powerActive) return;
-    const timer = window.setInterval(() => {
-      setLaunchPower((current) => {
-        let next = current + powerDirection.current * 3.5;
-        if (next >= 100) {
-          next = 100;
-          powerDirection.current = -1;
-        } else if (next <= 10) {
-          next = 10;
-          powerDirection.current = 1;
-        }
-        return next;
-      });
-    }, 16);
-    return () => window.clearInterval(timer);
-  }, [powerActive]);
 
   useEffect(() => {
     if (
@@ -566,8 +605,7 @@ export function App() {
   ]);
 
   function resetMatchRefs(): void {
-    powerDirection.current = 1;
-    setLaunchPower(20);
+    powerRef.current = { value: POWER_START, direction: 1 };
     lastAudioTick.current = 0;
     scraped.current = { p1: false, p2: false };
     preparedMatch.current = null;
@@ -613,7 +651,7 @@ export function App() {
     runtime.dispatch({
       type: "launch",
       launch: {
-        p1Power: launchPower,
+        p1Power: powerRef.current.value,
         p1Angle: offset(),
         p2Power: 60 + Math.random() * 30,
         p2Angle: 180 + offset(),
@@ -637,7 +675,7 @@ export function App() {
       name: customName.trim() || BEYBLADES[playerType].name,
       wins: record.wins,
       losses: record.losses,
-      power: launchPower,
+      power: powerRef.current.value,
       angle: Math.random() * 60 - 30,
       stadium: "neon",
       ...(customColor !== null ? { color: customColor } : {}),
@@ -779,7 +817,7 @@ export function App() {
       />
 
       {mode === "local" && game.phase === "launch" && (
-        <LaunchScreen power={launchPower} onLaunch={launchLocal} />
+        <LaunchScreen powerRef={powerRef} onLaunch={launchLocal} />
       )}
 
       {mode === "online" &&
@@ -802,7 +840,7 @@ export function App() {
         (onlinePhase === "matched" || onlinePhase === "waiting_ready") && (
           <OnlineSelection
             online={online}
-            power={launchPower}
+            powerRef={powerRef}
             onReady={readyOnline}
             onLeave={returnToMenu}
           />
@@ -1627,16 +1665,17 @@ function BladeDetails({
 
 function OnlineSelection({
   online,
-  power,
+  powerRef,
   onReady,
   onLeave,
 }: {
   online: OnlineMatchState;
-  power: number;
+  powerRef: RefObject<PowerState>;
   onReady: () => void;
   onLeave: () => void;
 }) {
   const locked = online.phase === "waiting_ready";
+  const meter = usePowerMeter(powerRef, !locked);
   return (
     <section className="screen menu-screen online-selection">
       <header className="online-heading">
@@ -1653,10 +1692,10 @@ function OnlineSelection({
         </p>
       </header>
       <div className="online-ready-panel">
-        <PowerMeter power={power} />
+        <PowerMeter fillRef={meter.fillRef} />
         <div className="online-ready-copy">
           <span>{online.opponentReady ? "對手 READY" : "等待對手 READY"}</span>
-          <strong>{Math.round(power)}%</strong>
+          <strong className="power-value" ref={meter.valueRef} />
         </div>
         <div className="online-ready-actions">
           <button disabled={locked} className="primary" onClick={onReady}>
@@ -1670,12 +1709,13 @@ function OnlineSelection({
 }
 
 function LaunchScreen({
-  power,
+  powerRef,
   onLaunch,
 }: {
-  power: number;
+  powerRef: RefObject<PowerState>;
   onLaunch: () => void;
 }) {
+  const meter = usePowerMeter(powerRef, true);
   return (
     <button className="screen launch-screen" onClick={onLaunch}>
       <div>
@@ -1686,20 +1726,20 @@ function LaunchScreen({
       <div className="power-panel">
         <div className="power-copy">
           <span>LAUNCH POWER</span>
-          <strong>{Math.round(power)}%</strong>
+          <strong className="power-value" ref={meter.valueRef} />
         </div>
-        <PowerMeter power={power} />
+        <PowerMeter fillRef={meter.fillRef} />
         <small>85–95% 完美發射可獲得額外轉速</small>
       </div>
     </button>
   );
 }
 
-function PowerMeter({ power }: { power: number }) {
+function PowerMeter({ fillRef }: { fillRef: RefObject<HTMLSpanElement | null> }) {
   return (
     <div className="power-track">
       <span className="perfect-zone" />
-      <span className="power-fill" style={{ width: `${power}%` }} />
+      <span className="power-fill" ref={fillRef} />
     </div>
   );
 }
