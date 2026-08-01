@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
@@ -17,21 +20,21 @@ importers:
 
   apps/mobile:
     dependencies:
-      '@game-pool/beyblade-core':
+      '@cyberblade/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@game-pool/beyblade-multiplayer':
-        specifier: workspace:*
-        version: link:../../packages/multiplayer
-      '@game-pool/beyblade-simulation':
-        specifier: workspace:*
-        version: link:../../packages/simulation
-      '@game-pool/beyblade-visuals':
-        specifier: workspace:*
-        version: link:../../packages/visuals
-      '@game-pool/design-system':
+      '@cyberblade/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
+      '@cyberblade/multiplayer':
+        specifier: workspace:*
+        version: link:../../packages/multiplayer
+      '@cyberblade/simulation':
+        specifier: workspace:*
+        version: link:../../packages/simulation
+      '@cyberblade/visuals':
+        specifier: workspace:*
+        version: link:../../packages/visuals
       '@react-three/fiber':
         specifier: ^9.3.0
         version: 9.6.1(5a44ddb296c387bfccd8857b8c0ef539)
@@ -72,7 +75,7 @@ importers:
         specifier: ^0.180.0
         version: 0.180.0
     devDependencies:
-      '@game-pool/config-typescript':
+      '@cyberblade/config-typescript':
         specifier: workspace:*
         version: link:../../packages/config-typescript
       '@types/react':
@@ -84,16 +87,16 @@ importers:
 
   apps/web:
     dependencies:
-      '@game-pool/beyblade-core':
+      '@cyberblade/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@game-pool/beyblade-multiplayer':
+      '@cyberblade/multiplayer':
         specifier: workspace:*
         version: link:../../packages/multiplayer
-      '@game-pool/beyblade-simulation':
+      '@cyberblade/simulation':
         specifier: workspace:*
         version: link:../../packages/simulation
-      '@game-pool/beyblade-visuals':
+      '@cyberblade/visuals':
         specifier: workspace:*
         version: link:../../packages/visuals
       '@react-three/fiber':
@@ -115,7 +118,7 @@ importers:
         specifier: ^0.180.0
         version: 0.180.0
     devDependencies:
-      '@game-pool/config-typescript':
+      '@cyberblade/config-typescript':
         specifier: workspace:*
         version: link:../../packages/config-typescript
       '@types/react':
@@ -141,11 +144,11 @@ importers:
 
   packages/core:
     dependencies:
-      '@game-pool/game-runtime':
+      '@cyberblade/game-runtime':
         specifier: workspace:*
         version: link:../game-runtime
     devDependencies:
-      '@game-pool/config-typescript':
+      '@cyberblade/config-typescript':
         specifier: workspace:*
         version: link:../config-typescript
       vitest:
@@ -154,23 +157,23 @@ importers:
 
   packages/design-system:
     devDependencies:
-      '@game-pool/config-typescript':
+      '@cyberblade/config-typescript':
         specifier: workspace:*
         version: link:../config-typescript
 
   packages/game-runtime:
     devDependencies:
-      '@game-pool/config-typescript':
+      '@cyberblade/config-typescript':
         specifier: workspace:*
         version: link:../config-typescript
 
   packages/multiplayer:
     dependencies:
-      '@game-pool/beyblade-core':
+      '@cyberblade/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
-      '@game-pool/config-typescript':
+      '@cyberblade/config-typescript':
         specifier: workspace:*
         version: link:../config-typescript
       vitest:
@@ -179,14 +182,14 @@ importers:
 
   packages/simulation:
     dependencies:
-      '@game-pool/beyblade-core':
+      '@cyberblade/core':
         specifier: workspace:*
         version: link:../core
       cannon-es:
         specifier: ^0.20.0
         version: 0.20.0
     devDependencies:
-      '@game-pool/config-typescript':
+      '@cyberblade/config-typescript':
         specifier: workspace:*
         version: link:../config-typescript
       vitest:
@@ -195,14 +198,14 @@ importers:
 
   packages/visuals:
     dependencies:
-      '@game-pool/beyblade-core':
+      '@cyberblade/core':
         specifier: workspace:*
         version: link:../core
       three:
         specifier: ^0.180.0
         version: 0.180.0
     devDependencies:
-      '@game-pool/config-typescript':
+      '@cyberblade/config-typescript':
         specifier: workspace:*
         version: link:../config-typescript
       '@types/three':
@@ -2641,6 +2644,11 @@ packages:
     peerDependencies:
       three: '>= 0.168.0 < 0.186.0'
 
+  prettier@3.9.6:
+    resolution: {integrity: sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g==}
+    engines: {node: '>=14'}
+    hasBin: true
+
   pretty-format@29.7.0:
     resolution: {integrity: sha512-Pdlw/oPxN+aXdmM9R00JVC9WVFoCLTKJvDVLgmJ+qAffBMxsV85l/Lu7sNx4zSzPyoL2euImuEwHhOXdEgNFZQ==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
@@ -4519,9 +4527,7 @@ snapshots:
       metro-runtime: 0.84.4
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
 
   '@react-native/normalize-colors@0.86.0': {}
 
@@ -5963,6 +5969,8 @@ snapshots:
   postprocessing@6.39.3(three@0.180.0):
     dependencies:
       three: 0.180.0
+
+  prettier@3.9.6: {}
 
   pretty-format@29.7.0:
     dependencies:

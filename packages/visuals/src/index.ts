@@ -12,7 +12,7 @@ import {
   type TopId,
   type TopSnapshot,
   type EnvironmentScene,
-} from "@game-pool/beyblade-core";
+} from "@cyberblade/core";
 import { mergeStaticGeometries } from "./geometry-utils";
 import {
   DETAILED_BUILDERS,

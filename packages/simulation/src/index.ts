@@ -15,7 +15,7 @@ import {
   type SimulationStep,
   type TopId,
   type TopSnapshot,
-} from "@game-pool/beyblade-core";
+} from "@cyberblade/core";
 
 interface ActiveTop {
   readonly id: TopId;

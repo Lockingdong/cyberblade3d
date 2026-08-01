@@ -1,4 +1,4 @@
-import type { BattleSnapshot, TopId } from "@game-pool/beyblade-core";
+import type { BattleSnapshot, TopId } from "@cyberblade/core";
 
 export interface CameraView {
   readonly position: readonly [number, number, number];

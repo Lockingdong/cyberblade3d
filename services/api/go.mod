@@ -1,4 +1,4 @@
-module github.com/game-pool/game-pool/games/beyblade/services/api
+module github.com/Lockingdong/cyberblade3d/services/api
 
 go 1.24.0
 

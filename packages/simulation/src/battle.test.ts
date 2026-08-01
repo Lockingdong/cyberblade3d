@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SimulationEvent } from "@game-pool/beyblade-core";
+import type { SimulationEvent } from "@cyberblade/core";
 import { CannonBattleSimulation } from "./index";
 
 function runBattle(seed: number) {

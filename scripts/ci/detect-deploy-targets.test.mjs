@@ -9,17 +9,17 @@ import {
 test("deploys only the web app for web runtime changes", () => {
   assert.deepEqual(classifyDeployTargets(["apps/web/src/App.tsx"]), {
     web: true,
-    server: false,
+    api: false,
     mobile: "none",
   });
 });
 
-test("deploys only the server for server implementation changes", () => {
+test("deploys only the api for api implementation changes", () => {
   assert.deepEqual(
     classifyDeployTargets(["services/api/internal/matchmaking/hub.go"]),
     {
       web: false,
-      server: true,
+      api: true,
       mobile: "none",
     },
   );
@@ -28,7 +28,7 @@ test("deploys only the server for server implementation changes", () => {
 test("publishes an OTA update for mobile JavaScript changes", () => {
   assert.deepEqual(classifyDeployTargets(["apps/mobile/App.tsx"]), {
     web: false,
-    server: false,
+    api: false,
     mobile: "ota",
   });
 });
@@ -36,7 +36,7 @@ test("publishes an OTA update for mobile JavaScript changes", () => {
 test("builds a native binary for mobile configuration changes", () => {
   assert.deepEqual(classifyDeployTargets(["apps/mobile/app.json"]), {
     web: false,
-    server: false,
+    api: false,
     mobile: "native",
   });
 });
@@ -46,7 +46,7 @@ test("deploys both clients for shared runtime changes", () => {
     classifyDeployTargets(["packages/core/src/index.ts"]),
     {
       web: true,
-      server: false,
+      api: false,
       mobile: "ota",
     },
   );
@@ -57,7 +57,7 @@ test("deploys every runtime when the wire protocol changes", () => {
     classifyDeployTargets(["packages/multiplayer/src/protocol.ts"]),
     {
       web: true,
-      server: true,
+      api: true,
       mobile: "ota",
     },
   );
@@ -66,7 +66,7 @@ test("deploys every runtime when the wire protocol changes", () => {
 test("rebuilds both containers when their shared Docker context changes", () => {
   assert.deepEqual(classifyDeployTargets([".dockerignore"]), {
     web: true,
-    server: true,
+    api: true,
     mobile: "none",
   });
 });
@@ -80,7 +80,7 @@ test("does not deploy for documentation and test-only changes", () => {
     ]),
     {
       web: false,
-      server: false,
+      api: false,
       mobile: "none",
     },
   );
@@ -89,12 +89,12 @@ test("does not deploy for documentation and test-only changes", () => {
 test("manual override selects exactly the requested target", () => {
   assert.deepEqual(
     overrideDeployTargets(
-      { web: true, server: true, mobile: "native" },
-      "server",
+      { web: true, api: true, mobile: "native" },
+      "api",
     ),
     {
       web: false,
-      server: true,
+      api: true,
       mobile: "none",
     },
   );

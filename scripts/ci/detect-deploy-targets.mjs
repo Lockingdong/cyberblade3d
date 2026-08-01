@@ -33,7 +33,7 @@ function promoteMobile(current, next) {
 
 export function classifyDeployTargets(changedFiles) {
   let web = false;
-  let server = false;
+  let api = false;
   let mobile = "none";
 
   for (const file of changedFiles) {
@@ -45,13 +45,13 @@ export function classifyDeployTargets(changedFiles) {
 
     if (wireProtocolChanged) {
       web = true;
-      server = true;
+      api = true;
       mobile = promoteMobile(mobile, "ota");
       continue;
     }
 
     if (file.startsWith("services/api/")) {
-      server = true;
+      api = true;
       continue;
     }
 
@@ -110,11 +110,11 @@ export function classifyDeployTargets(changedFiles) {
 
     if (file === ".dockerignore") {
       web = true;
-      server = true;
+      api = true;
     }
   }
 
-  return { web, server, mobile };
+  return { web, api, mobile };
 }
 
 export function overrideDeployTargets(targets, override) {
@@ -124,15 +124,15 @@ export function overrideDeployTargets(targets, override) {
     case "auto":
       return targets;
     case "web":
-      return { web: true, server: false, mobile: "none" };
-    case "server":
-      return { web: false, server: true, mobile: "none" };
+      return { web: true, api: false, mobile: "none" };
+    case "api":
+      return { web: false, api: true, mobile: "none" };
     case "mobile-ota":
-      return { web: false, server: false, mobile: "ota" };
+      return { web: false, api: false, mobile: "ota" };
     case "mobile-native":
-      return { web: false, server: false, mobile: "native" };
+      return { web: false, api: false, mobile: "native" };
     case "all":
-      return { web: true, server: true, mobile: "native" };
+      return { web: true, api: true, mobile: "native" };
     default:
       throw new Error(`Unknown deployment override: ${override}`);
   }
@@ -164,7 +164,7 @@ function main() {
   const targets = overrideDeployTargets(classifyDeployTargets(files), override);
 
   process.stdout.write(`web=${String(targets.web)}\n`);
-  process.stdout.write(`server=${String(targets.server)}\n`);
+  process.stdout.write(`api=${String(targets.api)}\n`);
   process.stdout.write(`mobile=${targets.mobile}\n`);
   process.stderr.write(
     `Deployment targets for ${files.length} changed file(s): ${JSON.stringify(targets)}\n`,

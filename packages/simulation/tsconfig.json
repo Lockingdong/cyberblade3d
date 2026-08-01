@@ -1,5 +1,5 @@
 {
-  "extends": "@game-pool/config-typescript/base.json",
+  "extends": "@cyberblade/config-typescript/base.json",
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src"

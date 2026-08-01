@@ -194,8 +194,8 @@ guest App
 以實際讀取程式碼為準：
 
 - Go API：`GAME_API_ADDR`、`ALLOWED_ORIGINS`
-- Web WebSocket：優先 `VITE_PUBLIC_WS_URL`，其次 `VITE_BEYBLADE_WS_URL`，未設定時使用同 host 的 `/ws`
-- Mobile WebSocket：`EXPO_PUBLIC_BEYBLADE_WS_URL`，實機開發需使用可從裝置連到的位址
+- Web WebSocket：`VITE_PUBLIC_WS_URL`，未設定時使用同 host 的 `/ws`
+- Mobile WebSocket：`EXPO_PUBLIC_WS_URL`，實機開發需使用可從裝置連到的位址；正式值存在 EAS production environment，不在此 repo
 
 新增或改名環境變數時，要同步實際程式與 `.env.example` 範例檔。
 

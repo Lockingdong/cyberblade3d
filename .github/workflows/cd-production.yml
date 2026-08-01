@@ -5,7 +5,7 @@ on:
     tags:
       - web-v*
       # Reserved for future production deployment workflows:
-      # - server-v*
+      # - api-v*
       # - mobile-v*
 
 permissions:

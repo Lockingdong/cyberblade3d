@@ -2,7 +2,7 @@ import type {
   GameEvent,
   GameRuntime,
   GameStatus,
-} from "@game-pool/game-runtime";
+} from "@cyberblade/game-runtime";
 
 export type BeybladeType = "attack" | "defense" | "stamina" | "balance";
 export type AiBehavior =

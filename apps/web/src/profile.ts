@@ -5,7 +5,7 @@ import {
   type BattleRecord,
   type CustomBeybladeConfig,
   type BeybladeType,
-} from "@game-pool/beyblade-core";
+} from "@cyberblade/core";
 
 const NAME_KEY = "cyberblade.playerName";
 const RECORD_KEY = "cyberblade.battleRecord";

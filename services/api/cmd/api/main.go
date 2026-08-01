@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/game-pool/game-pool/games/beyblade/services/api/internal/matchmaking"
+	"github.com/Lockingdong/cyberblade3d/services/api/internal/matchmaking"
 )
 
 func main() {

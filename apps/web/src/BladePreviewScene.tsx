@@ -1,8 +1,8 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, type JSX } from "react";
 import * as THREE from "three";
-import { BeybladePreviewWorld } from "@game-pool/beyblade-visuals";
-import type { BeybladeType, BeybladeSpec } from "@game-pool/beyblade-core";
+import { BeybladePreviewWorld } from "@cyberblade/visuals";
+import type { BeybladeType, BeybladeSpec } from "@cyberblade/core";
 
 export type CameraPreset = "default" | "top" | "side" | "bottom";
 

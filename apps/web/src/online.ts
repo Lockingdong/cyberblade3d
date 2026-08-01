@@ -1,11 +1,7 @@
-import type {
-  OnlinePhase,
-  WebSocketLike,
-} from "@game-pool/beyblade-multiplayer";
+import type { OnlinePhase, WebSocketLike } from "@cyberblade/multiplayer";
 
 export function resolveWebSocketUrl(
-  configured: string | undefined = import.meta.env.VITE_PUBLIC_WS_URL ??
-    import.meta.env.VITE_BEYBLADE_WS_URL,
+  configured: string | undefined = import.meta.env.VITE_PUBLIC_WS_URL,
   location: Pick<Location, "protocol" | "host"> = window.location,
 ): string {
   const value = configured?.trim();

@@ -1,5 +1,7 @@
 # Beyblade 戰鬥本地視角計畫
 
+> 歷史計畫（2026-07-18）。套件名稱已於 2026-08-01 變更，本文保留當時原文；現況以 AGENTS.md 為準。
+
 ## 1. 問題與目標
 
 目前 Host 與 Guest 雖然各自擁有 `localTopId`，但它只影響玩家 marker、HUD 與勝負文字；Web 與 Mobile 的 `BattleScene` 仍使用相同的 camera 方向與 midpoint tracking，因此雙方看到完全相同的戰鬥畫面。

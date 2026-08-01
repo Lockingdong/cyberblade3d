@@ -19,7 +19,7 @@ by CI but is not used by the tag-driven Production workflow.
 | Tag | Status | Target |
 | --- | --- | --- |
 | `web-v1.2.3` | Active | Web Production |
-| `server-v1.2.3` | Reserved | Server Production |
+| `api-v1.2.3` | Reserved | API Production |
 | `mobile-v1.2.3` | Reserved | iOS and Android Production |
 
 Only stable three-part semantic versions are accepted for Web releases. Create
@@ -30,7 +30,7 @@ git tag -a web-v1.2.3 -m "Release web-v1.2.3"
 git push origin web-v1.2.3
 ```
 
-Server and Mobile tag filters are intentionally left as comments in the
+API and Mobile tag filters are intentionally left as comments in the
 workflow until those deployment paths are enabled.
 
 ## GitHub Production environment
@@ -52,8 +52,8 @@ Configure these secrets:
 
 If `PUBLIC_WS_URL` is absent, the Web client falls back to `/ws` on its own
 host. The first static-only Workers release can therefore omit the variable,
-but online play will remain unavailable until `/ws` is proxied to the Server or
-the variable points to a deployed Server WebSocket endpoint.
+but online play will remain unavailable until `/ws` is proxied to the API
+service or the variable points to a deployed API WebSocket endpoint.
 
 ## Cloudflare Workers hosting
 
@@ -71,8 +71,7 @@ setting `ENABLE_MOBILE_DEPLOY=true`:
 1. Link the app to the intended EAS project with `eas init`.
 2. Configure EAS Update with `eas update:configure`. This adds the real project
    ID, updates URL, runtime version policy, and required native dependency.
-3. Create the EAS `production` environment variable
-   `EXPO_PUBLIC_BEYBLADE_WS_URL`.
+3. Create the EAS `production` environment variable `EXPO_PUBLIC_WS_URL`.
 4. Configure iOS and Android signing credentials.
 5. Complete the first App Store and Play Store submissions manually where the
    stores require it.

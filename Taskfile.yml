@@ -10,17 +10,11 @@ tasks:
       - go -C services/api mod download
 
   dev:
-    desc: Run PostgreSQL, platform API, game API and web/mobile apps
-    cmds:
-      - task: db:up
-      - cmd: task --parallel dev:platform dev:api dev:web dev:mobile
-
-  dev:platform:
-    desc: Start the platform API service
-    cmd: go run ../../platform/services/api/cmd/api
+    desc: Run the API service and the web/mobile apps
+    cmd: task --parallel dev:api dev:web dev:mobile
 
   dev:api:
-    desc: Start the game API service
+    desc: Start the API service
     cmd: go -C services/api run ./cmd/api
 
   dev:web:
@@ -30,18 +24,6 @@ tasks:
   dev:mobile:
     desc: Start the Expo application
     cmd: pnpm -C apps/mobile dev
-
-  db:up:
-    desc: Start the local PostgreSQL database
-    cmd: docker compose -f ../../infra/compose.yaml up -d --wait postgres
-
-  db:down:
-    desc: Stop local infrastructure
-    cmd: docker compose -f ../../infra/compose.yaml down
-
-  services:up:
-    desc: Build and run all containerized services
-    cmd: docker compose -f ../../infra/compose.yaml up --build
 
   check:
     desc: Run all static checks and tests
@@ -59,5 +41,5 @@ tasks:
   format:
     desc: Format TypeScript, JSON, YAML and Go
     cmds:
-      - pnpm -C ../.. prettier --write "games/beyblade/**/*.{ts,tsx,json,css,md,yml}"
+      - pnpm exec prettier --write "{apps,packages,scripts,docs}/**/*.{ts,tsx,json,css,md,yml}"
       - gofmt -w services/api

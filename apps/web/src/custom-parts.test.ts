@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   getCompatibleParts,
   type CustomBeybladeConfig,
-} from "@game-pool/beyblade-core";
+} from "@cyberblade/core";
 import { loadCustomParts, saveCustomParts } from "./profile";
 
 const values = new Map<string, string>();

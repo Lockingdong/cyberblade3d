@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { BattleSnapshot } from "@game-pool/beyblade-core";
+import type { BattleSnapshot } from "@cyberblade/core";
 import {
   getBattleCameraView,
   getLaunchCameraView,

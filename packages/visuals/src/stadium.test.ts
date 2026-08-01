@@ -4,7 +4,7 @@ import {
   STADIUMS,
   type StadiumTheme,
   type StadiumVariant,
-} from "@game-pool/beyblade-core";
+} from "@cyberblade/core";
 import { BeybladeVisualWorld } from "./index";
 
 const themes: StadiumTheme[] = ["neon", "toxic", "volcano"];

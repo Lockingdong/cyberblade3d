@@ -12,12 +12,12 @@ import {
   type SimulationEvent,
   type TopId,
   type EnvironmentScene,
-} from "@game-pool/beyblade-core";
+} from "@cyberblade/core";
 import {
   BeybladeVisualWorld,
   getBattleCameraView,
   getLaunchCameraView,
-} from "@game-pool/beyblade-visuals";
+} from "@cyberblade/visuals";
 
 interface Props {
   config: MatchConfig;

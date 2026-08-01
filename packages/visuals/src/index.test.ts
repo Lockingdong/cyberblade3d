@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { BEYBLADES, assembleBeybladeSpec, type BattleSnapshot, type TopId } from "@game-pool/beyblade-core";
+import { BEYBLADES, assembleBeybladeSpec, type BattleSnapshot, type TopId } from "@cyberblade/core";
 import {
   BeybladePreviewWorld,
   BeybladeVisualWorld,
