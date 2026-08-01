@@ -40,40 +40,28 @@ environment variables:
 
 | Variable | Purpose |
 | --- | --- |
-| `PUBLIC_WS_URL` | Public `wss://` endpoint embedded in the Web build |
-| `WEB_URL` | Public Web URL used by the smoke test |
+| `PUBLIC_WS_URL` | Optional public `wss://` endpoint embedded in the Web build |
+| `WEB_URL` | Optional public Web URL used by the post-deploy smoke test |
 
 Configure these secrets:
 
 | Secret | Purpose |
 | --- | --- |
-| `WEB_DEPLOY_HOOK_URL` | Web hosting deployment endpoint |
-| `WEB_DEPLOY_HOOK_TOKEN` | Optional bearer token for the endpoint |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account that owns the Worker |
+| `CLOUDFLARE_API_TOKEN` | Token with permission to deploy Workers scripts |
 
-## Hosting hook contract
+If `PUBLIC_WS_URL` is absent, the Web client falls back to `/ws` on its own
+host. The first static-only Workers release can therefore omit the variable,
+but online play will remain unavailable until `/ws` is proxied to the Server or
+the variable points to a deployed Server WebSocket endpoint.
 
-The Web job publishes an immutable image to GHCR:
+## Cloudflare Workers hosting
 
-```text
-ghcr.io/<owner>/<repository>/web:<commit-sha>
-```
-
-It then sends an authenticated `POST` request to the configured hook:
-
-```json
-{
-  "image": "ghcr.io/owner/repository/web:commit-sha",
-  "revision": "commit-sha"
-}
-```
-
-The hook must deploy the exact image, wait until the rollout is ready, and only
-then return a successful HTTP response. The workflow performs an external smoke
-test after the hook returns.
-
-The hook is the only provider-specific seam in the initial architecture.
-Replace it with a provider CLI or OIDC deployment later if the selected hosting
-platform supports a stronger integration.
+`apps/web/wrangler.jsonc` configures `apps/web/dist` as a Cloudflare Workers
+Static Assets single-page application. A Web release builds the Vite app and
+runs the project-pinned Wrangler version directly; Docker and a provider deploy
+hook are not involved. Add `WEB_URL` after the first deployment if the workflow
+should verify the public URL on every later release.
 
 ## Future Mobile activation
 

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
+    "deploy": "wrangler deploy",
     "dev": "vite --host",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit"
@@ -27,6 +28,7 @@
     "@types/react-dom": "^19.2.0",
     "@types/three": "^0.180.0",
     "@vitejs/plugin-react": "^5.0.0",
-    "vite": "^7.1.0"
+    "vite": "^7.1.0",
+    "wrangler": "4.118.0"
   }
 }
