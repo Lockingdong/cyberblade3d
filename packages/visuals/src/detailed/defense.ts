@@ -368,6 +368,13 @@ export function buildSilverAegisBlade(accentColor: number): THREE.Group {
   hub.translate(0, 0.04, 0);
   armorGeometries.push(hub);
 
+  // A continuous armor band bridges the four shield faces and overlaps the
+  // counter shoulders. The raised faces still define the cross silhouette,
+  // but the blade now reads as one sealed defensive ring from above.
+  const armorBand = new THREE.CylinderGeometry(0.46, 0.48, 0.065, 48);
+  armorBand.translate(0, 0.045, 0);
+  armorGeometries.push(armorBand);
+
   const shieldShape = new THREE.Shape();
   shieldShape.moveTo(-0.25, -0.11);
   shieldShape.lineTo(-0.2, 0.1);
