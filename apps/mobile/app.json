@@ -1,17 +1,17 @@
 {
   "expo": {
     "name": "CyberBlade 3D",
-    "slug": "game-pool-beyblade",
+    "slug": "cyberblade3d",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
-      "bundleIdentifier": "dev.gamepool.beyblade",
+      "bundleIdentifier": "com.cyberblade3d.game",
       "supportsTablet": true
     },
     "android": {
-      "package": "dev.gamepool.beyblade"
+      "package": "com.cyberblade3d.game"
     },
     "plugins": ["expo-sharing"]
   }
