@@ -15,9 +15,7 @@ describe("resolveMobileWebSocketUrl", () => {
   });
 
   it("rejects missing and non-WebSocket URLs", () => {
-    expect(() => resolveMobileWebSocketUrl("")).toThrow(
-      "EXPO_PUBLIC_BEYBLADE_WS_URL",
-    );
+    expect(() => resolveMobileWebSocketUrl("")).toThrow("EXPO_PUBLIC_WS_URL");
     expect(() => resolveMobileWebSocketUrl("https://game.example/ws")).toThrow(
       "ws:// 或 wss://",
     );

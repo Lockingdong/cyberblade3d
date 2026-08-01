@@ -1,6 +1,7 @@
 # CyberBlade 3D
 
-Beyblade-inspired 3D battle game implemented as a first-class Game Pool module.
+Beyblade-inspired 3D battle game. Standalone repository — the clients, the
+shared packages and the matchmaking service all live here.
 
 ## Architecture
 
@@ -16,8 +17,8 @@ design_docs/           future product and online-play plans
 
 Both clients use the same rules, physics snapshots, procedural models and battle
 events. Platform code owns only the canvas, controls, HUD and feedback adapter.
-Online matches use the game-owned WebSocket service and do not require the
-platform API or a database.
+Online matches use `services/api`, which holds room state in memory and needs no
+database.
 
 ## Gameplay
 
