@@ -9,10 +9,10 @@ export const BEYBLADE_ALLOWED_PARTS: Record<BeybladeType, AllowedPartsConfig> = 
     allowedChips: ["attack_core", "attack_drake_chip", "attack_bastion_chip"],
   },
   defense: {
-    allowedBlades: ["defense_shield"],
-    allowedRatchets: ["defense_standard"],
-    allowedBits: ["defense_ball"],
-    allowedChips: ["defense_core"],
+    allowedBlades: ["defense_shield", "defense_silver_aegis"],
+    allowedRatchets: ["defense_standard", "defense_crusader_ratchet"],
+    allowedBits: ["defense_ball", "defense_anchor_bit"],
+    allowedChips: ["defense_core", "defense_aegis_chip"],
   },
   stamina: {
     allowedBlades: ["stamina_solar"],

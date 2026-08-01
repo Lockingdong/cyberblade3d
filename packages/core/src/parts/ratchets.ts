@@ -35,6 +35,14 @@ export const RATCHET_PARTS: Record<string, RatchetPart> = {
     massContribution: 0.54,
   },
 
+  defense_crusader_ratchet: {
+    id: "defense_crusader_ratchet",
+    name: "聖堡棘輪",
+    englishName: "Citadel Ratchet",
+    maxStability: 150,
+    massContribution: 0.6,
+  },
+
   // Stamina
   stamina_standard: {
     id: "stamina_standard",

@@ -357,6 +357,231 @@ export function buildChip(accentColor: number): THREE.Group {
   return chipGroup;
 }
 
+// 1b. BLADE - 白銀聖盾刃: four broad shield faces with raised counter shoulders.
+export function buildSilverAegisBlade(accentColor: number): THREE.Group {
+  const group = new THREE.Group();
+  group.position.y = 0.052;
+  group.scale.y = 0.88;
+
+  const armorGeometries: THREE.BufferGeometry[] = [];
+  const hub = new THREE.CylinderGeometry(0.34, 0.37, 0.075, 40);
+  hub.translate(0, 0.04, 0);
+  armorGeometries.push(hub);
+
+  const shieldShape = new THREE.Shape();
+  shieldShape.moveTo(-0.25, -0.11);
+  shieldShape.lineTo(-0.2, 0.1);
+  shieldShape.quadraticCurveTo(0, 0.2, 0.2, 0.1);
+  shieldShape.lineTo(0.25, -0.11);
+  shieldShape.quadraticCurveTo(0, -0.17, -0.25, -0.11);
+  shieldShape.closePath();
+  for (let i = 0; i < 4; i += 1) {
+    const angle = (i * Math.PI) / 2;
+    const shield = extrudeDefense(shieldShape, 0.085, 0.016, 0.014);
+    shield.rotateY(angle);
+    shield.translate(Math.cos(angle) * 0.35, 0.035, Math.sin(angle) * 0.35);
+    armorGeometries.push(shield);
+  }
+
+  const silverArmor = new THREE.Mesh(
+    mergeStaticGeometries(armorGeometries),
+    new THREE.MeshStandardMaterial({
+      color: 0xdbe4ec,
+      roughness: 0.16,
+      metalness: 0.92,
+      emissive: 0x718096,
+      emissiveIntensity: 0.18,
+    }),
+  );
+  silverArmor.userData.outlineThickness = 0.015;
+  silverArmor.userData.smoothOutline = true;
+  group.add(silverArmor);
+
+  const shoulderGeometries: THREE.BufferGeometry[] = [];
+  const shoulder = new THREE.BoxGeometry(0.14, 0.095, 0.16);
+  for (let i = 0; i < 4; i += 1) {
+    const angle = (i * Math.PI) / 2 + Math.PI / 4;
+    const geometry = shoulder.clone();
+    geometry.rotateY(-angle);
+    geometry.translate(Math.cos(angle) * 0.48, 0.105, Math.sin(angle) * 0.48);
+    shoulderGeometries.push(geometry);
+  }
+  shoulder.dispose();
+  const shoulders = new THREE.Mesh(
+    mergeStaticGeometries(shoulderGeometries),
+    new THREE.MeshStandardMaterial({
+      color: 0x8896a5,
+      roughness: 0.22,
+      metalness: 0.9,
+    }),
+  );
+  shoulders.userData.outlineThickness = 0.012;
+  group.add(shoulders);
+
+  const inlayGeometries: THREE.BufferGeometry[] = [];
+  const inlay = new THREE.BoxGeometry(0.035, 0.025, 0.2);
+  for (let i = 0; i < 4; i += 1) {
+    const angle = (i * Math.PI) / 2;
+    const geometry = inlay.clone();
+    geometry.rotateY(-angle);
+    geometry.translate(Math.cos(angle) * 0.43, 0.135, Math.sin(angle) * 0.43);
+    inlayGeometries.push(geometry);
+  }
+  inlay.dispose();
+  const inlays = new THREE.Mesh(
+    mergeStaticGeometries(inlayGeometries),
+    new THREE.MeshStandardMaterial({
+      color: accentColor,
+      roughness: 0.2,
+      metalness: 0.75,
+      emissive: accentColor,
+      emissiveIntensity: 0.12,
+    }),
+  );
+  inlays.userData.outlineThickness = 0.008;
+  group.add(inlays);
+
+  return group;
+}
+
+// 2b. RATCHET - 聖堡棘輪: six thick armor teeth around a reinforced body.
+export function buildCrusaderRatchet(accentColor: number): THREE.Group {
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.32, 0.34, 0.065, 36),
+    new THREE.MeshStandardMaterial({
+      color: 0x253247,
+      roughness: 0.28,
+      metalness: 0.62,
+      transparent: true,
+      opacity: 0.92,
+    }),
+  );
+  body.position.y = 0.018;
+  body.userData.outlineThickness = 0.01;
+  group.add(body);
+
+  const teethGeometries: THREE.BufferGeometry[] = [];
+  const tooth = new THREE.BoxGeometry(0.12, 0.075, 0.13);
+  for (let i = 0; i < 6; i += 1) {
+    const angle = (i * Math.PI * 2) / 6;
+    const geometry = tooth.clone();
+    geometry.rotateY(-angle);
+    geometry.translate(Math.cos(angle) * 0.35, 0.02, Math.sin(angle) * 0.35);
+    teethGeometries.push(geometry);
+  }
+  tooth.dispose();
+  const teeth = new THREE.Mesh(
+    mergeStaticGeometries(teethGeometries),
+    new THREE.MeshStandardMaterial({
+      color: accentColor,
+      roughness: 0.2,
+      metalness: 0.82,
+    }),
+  );
+  teeth.userData.outlineThickness = 0.012;
+  group.add(teeth);
+  return group;
+}
+
+// 3b. BIT - 反擊錨軸: a broad rounded contact patch and weighted stabilizer collar.
+export function buildAnchorBit(accentColor: number): THREE.Group {
+  const group = new THREE.Group();
+  const gearGeometries: THREE.BufferGeometry[] = [];
+  const tooth = new THREE.BoxGeometry(0.035, 0.06, 0.065);
+  tooth.translate(0.17, -0.02, 0);
+  for (let i = 0; i < 8; i += 1) {
+    gearGeometries.push(tooth.clone().rotateY((i * Math.PI * 2) / 8));
+  }
+  tooth.dispose();
+  const gear = new THREE.Mesh(
+    mergeStaticGeometries(gearGeometries),
+    new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.24, metalness: 0.8 }),
+  );
+  gear.userData.outlineThickness = 0.01;
+  group.add(gear);
+
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.15, 0.095, 0.16, 10),
+    new THREE.MeshStandardMaterial({
+      color: 0xaab7c6,
+      roughness: 0.18,
+      metalness: 0.45,
+      transparent: true,
+      opacity: 0.78,
+    }),
+  );
+  body.position.y = -0.1;
+  body.userData.noOutline = true;
+  group.add(body);
+
+  const collarGeometry = new THREE.TorusGeometry(0.16, 0.042, 8, 20);
+  collarGeometry.rotateX(Math.PI / 2);
+  const collar = new THREE.Mesh(
+    collarGeometry,
+    new THREE.MeshStandardMaterial({ color: 0xdbe4ec, roughness: 0.16, metalness: 0.92 }),
+  );
+  collar.position.y = -0.075;
+  collar.userData.outlineThickness = 0.009;
+  group.add(collar);
+
+  const contact = new THREE.Mesh(
+    new THREE.SphereGeometry(0.085, 18, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
+    new THREE.MeshStandardMaterial({ color: 0x536171, roughness: 0.3, metalness: 0.82 }),
+  );
+  contact.scale.y = 0.65;
+  contact.position.y = -0.205;
+  contact.userData.outlineThickness = 0.012;
+  group.add(contact);
+  return group;
+}
+
+// 4b. CHIP - 聖盾核心: silver knight crest with a four-point crown bezel.
+export function buildAegisChip(accentColor: number): THREE.Group {
+  const group = new THREE.Group();
+  group.position.y = 0.165;
+
+  const baseGeometries: THREE.BufferGeometry[] = [
+    new THREE.CylinderGeometry(0.18, 0.19, 0.13, 24),
+  ];
+  const crownPoint = new THREE.BoxGeometry(0.055, 0.07, 0.055);
+  crownPoint.translate(0.185, 0.015, 0);
+  for (let i = 0; i < 4; i += 1) {
+    baseGeometries.push(crownPoint.clone().rotateY((i * Math.PI) / 2));
+  }
+  crownPoint.dispose();
+  const base = new THREE.Mesh(
+    mergeStaticGeometries(baseGeometries),
+    new THREE.MeshStandardMaterial({ color: 0xdbe4ec, roughness: 0.18, metalness: 0.9 }),
+  );
+  base.userData.outlineThickness = 0.014;
+  group.add(base);
+
+  const rimGeometry = new THREE.TorusGeometry(0.166, 0.016, 6, 24);
+  rimGeometry.rotateX(Math.PI / 2);
+  const rim = new THREE.Mesh(
+    rimGeometry,
+    new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.22, metalness: 0.78 }),
+  );
+  rim.position.y = 0.067;
+  rim.userData.noOutline = true;
+  group.add(rim);
+
+  const artGeometry = new THREE.CircleGeometry(0.148, 32);
+  artGeometry.rotateX(-Math.PI / 2);
+  const art = new THREE.Mesh(
+    artGeometry,
+    new THREE.MeshBasicMaterial({
+      map: getChipEmblemTexture("defense_aegis_chip", accentColor),
+      toneMapped: false,
+    }),
+  );
+  art.position.y = 0.068;
+  art.userData.noOutline = true;
+  group.add(art);
+  return group;
+}
+
 export const buildDefenseDetailed: DetailedBladeBuilder = (accentColor) => ({
   blade: buildBlade(accentColor),
   ratchet: buildRatchet(accentColor),

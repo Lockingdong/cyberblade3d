@@ -205,6 +205,39 @@ function shadeDefenseEmblem(x: number, y: number, accent: Rgb): Rgb {
   return color;
 }
 
+function shadeSilverAegisEmblem(x: number, y: number, accent: Rgb): Rgb {
+  const len = Math.hypot(x, y);
+
+  // Cold silver enamel gives this crest its own identity instead of reusing
+  // the graphite-and-teal Iron Core shield mark.
+  let color = mixRgb(
+    toRgb(0xdbe4ec),
+    toRgb(0x334155),
+    Math.min(1, len) ** 1.35,
+  );
+
+  // A tall knight shield with a cross-shaped reinforcing boss.
+  let sd = sdSegment(x, y, -0.4, -0.42, 0.4, -0.42) - 0.052;
+  sd = Math.min(sd, sdSegment(x, y, 0.4, -0.42, 0.34, 0.14) - 0.052);
+  sd = Math.min(sd, sdSegment(x, y, 0.34, 0.14, 0, 0.58) - 0.052);
+  sd = Math.min(sd, sdSegment(x, y, 0, 0.58, -0.34, 0.14) - 0.052);
+  sd = Math.min(sd, sdSegment(x, y, -0.34, 0.14, -0.4, -0.42) - 0.052);
+  sd = Math.min(sd, sdSegment(x, y, 0, -0.28, 0, 0.34) - 0.055);
+  sd = Math.min(sd, sdSegment(x, y, -0.25, -0.02, 0.25, -0.02) - 0.055);
+  color = paint(color, mixRgb(toRgb(0xffffff), accent, 0.28), sd);
+
+  // Four crown points echo the counter shoulders on the physical blade.
+  let crown = sdSegment(x, y, -0.34, -0.55, -0.18, -0.7) - 0.045;
+  crown = Math.min(crown, sdSegment(x, y, -0.18, -0.7, 0, -0.54) - 0.045);
+  crown = Math.min(crown, sdSegment(x, y, 0, -0.54, 0.18, -0.7) - 0.045);
+  crown = Math.min(crown, sdSegment(x, y, 0.18, -0.7, 0.34, -0.55) - 0.045);
+  color = paint(color, toRgb(0xf8fafc), crown);
+
+  color = paint(color, mixRgb(toRgb(0x93c5fd), accent, 0.35), Math.abs(len - 0.79) - 0.02);
+  color = paint(color, toRgb(0x172033), 0.92 - len);
+  return color;
+}
+
 function shadeStaminaEmblem(x: number, y: number, accent: Rgb): Rgb {
   const len = Math.hypot(x, y);
 
@@ -269,6 +302,7 @@ export function getChipEmblemTexture(
   let shader = shadeAttackEmblem;
   if (type.includes("drake")) shader = shadeDrakeEmblem;
   else if (type.includes("bastion")) shader = shadeBastionEmblem;
+  else if (type.includes("aegis")) shader = shadeSilverAegisEmblem;
   else if (type.startsWith("defense")) shader = shadeDefenseEmblem;
   else if (type.startsWith("stamina")) shader = shadeStaminaEmblem;
   else if (type.startsWith("balance")) shader = shadeBalanceEmblem;

@@ -47,6 +47,17 @@ export const BIT_PARTS: Record<string, BitPart> = {
     massContribution: 0.18,
   },
 
+  defense_anchor_bit: {
+    id: "defense_anchor_bit",
+    name: "反擊錨軸",
+    englishName: "Counter Anchor Bit",
+    maxRpm: 4700,
+    rpmDecay: 320,
+    speed: 5.5,
+    friction: 0.07,
+    massContribution: 0.2,
+  },
+
   // Stamina
   stamina_stamina: {
     id: "stamina_stamina",

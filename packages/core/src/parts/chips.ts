@@ -8,6 +8,7 @@ export const CHIP_PARTS: Record<string, ChipPart> = {
 
   // Defense
   defense_core: { id: "defense_core", name: "玄武核心", englishName: "Iron Core" },
+  defense_aegis_chip: { id: "defense_aegis_chip", name: "聖盾核心", englishName: "Aegis Core" },
 
   // Stamina
   stamina_core: { id: "stamina_core", name: "黃金核心", englishName: "Sol Core" },

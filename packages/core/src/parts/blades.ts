@@ -53,6 +53,19 @@ export const BLADE_PARTS: Record<string, BladePart> = {
     exclusiveTo: "defense",
   },
 
+  defense_silver_aegis: {
+    id: "defense_silver_aegis",
+    name: "白銀聖盾刃",
+    englishName: "Silver Aegis",
+    ai: "counterHold",
+    damageTaken: 0.52,
+    counteredBy: "stamina",
+    color: 0xc9d2dc,
+    massContribution: 1.14,
+    attackMultiplier: 1.2,
+    exclusiveTo: "defense",
+  },
+
   // Stamina (Gold/Yellow)
   stamina_solar: {
     id: "stamina_solar",

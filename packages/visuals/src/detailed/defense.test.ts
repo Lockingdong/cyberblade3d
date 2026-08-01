@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import { BEYBLADES } from "@game-pool/beyblade-core";
-import { buildDefenseDetailed } from "./defense";
+import {
+  buildAegisChip,
+  buildAnchorBit,
+  buildCrusaderRatchet,
+  buildDefenseDetailed,
+  buildSilverAegisBlade,
+} from "./defense";
 
 function meshes(object: THREE.Object3D): THREE.Mesh[] {
   const found: THREE.Mesh[] = [];
@@ -36,5 +42,18 @@ describe("buildDefenseDetailed", () => {
       meshes(parts.bit).length +
       meshes(parts.chip).length;
     expect(count).toBeLessThanOrEqual(14);
+  });
+
+  it("builds all four distinct Silver Aegis components", () => {
+    const parts = [
+      buildSilverAegisBlade(0xc9d2dc),
+      buildCrusaderRatchet(0xc9d2dc),
+      buildAnchorBit(0xc9d2dc),
+      buildAegisChip(0xc9d2dc),
+    ];
+    for (const part of parts) {
+      expect(part).toBeInstanceOf(THREE.Group);
+      expect(meshes(part).length).toBeGreaterThan(0);
+    }
   });
 });

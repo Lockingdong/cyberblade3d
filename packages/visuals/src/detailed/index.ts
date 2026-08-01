@@ -27,6 +27,10 @@ import {
   buildRatchet as buildDefenseRatchet,
   buildBit as buildDefenseBit,
   buildChip as buildDefenseChip,
+  buildSilverAegisBlade,
+  buildCrusaderRatchet,
+  buildAnchorBit,
+  buildAegisChip,
   buildDefenseDetailed,
 } from "./defense";
 import {
@@ -54,6 +58,7 @@ export const BLADE_BUILDERS: Record<string, (color: number) => THREE.Group> = {
   attack_ignis: buildIgnisBlade,
   attack_aegis: buildAegisBlade,
   defense_shield: buildDefenseBlade,
+  defense_silver_aegis: buildSilverAegisBlade,
   stamina_solar: buildStaminaBlade,
   balance_emerald: buildBalanceBlade,
 };
@@ -64,6 +69,7 @@ export const RATCHET_BUILDERS: Record<string, (color: number) => THREE.Group> = 
   attack_drake_ratchet: buildDrakeRatchet,
   attack_bastion_ratchet: buildBastionRatchet,
   defense_standard: buildDefenseRatchet,
+  defense_crusader_ratchet: buildCrusaderRatchet,
   stamina_standard: buildStaminaRatchet,
   balance_standard: buildBalanceRatchet,
 };
@@ -74,6 +80,7 @@ export const BIT_BUILDERS: Record<string, (color: number) => THREE.Group> = {
   attack_impact_bit: buildImpactBit,
   attack_guard_bit: buildGuardBit,
   defense_ball: buildDefenseBit,
+  defense_anchor_bit: buildAnchorBit,
   stamina_stamina: buildStaminaBit,
   balance_balance: buildBalanceBit,
 };
@@ -84,6 +91,7 @@ export const CHIP_BUILDERS: Record<string, (color: number) => THREE.Group> = {
   attack_drake_chip: buildDrakeChip,
   attack_bastion_chip: buildBastionChip,
   defense_core: buildDefenseChip,
+  defense_aegis_chip: buildAegisChip,
   stamina_core: buildStaminaChip,
   balance_core: buildBalanceChip,
 };

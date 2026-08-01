@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { BEYBLADES, type BattleSnapshot, type TopId } from "@game-pool/beyblade-core";
-import { BeybladePreviewWorld, BeybladeVisualWorld, BLADE_BUILDERS, disposeObject } from "./index";
+import { BEYBLADES, assembleBeybladeSpec, type BattleSnapshot, type TopId } from "@game-pool/beyblade-core";
+import {
+  BeybladePreviewWorld,
+  BeybladeVisualWorld,
+  BIT_BUILDERS,
+  BLADE_BUILDERS,
+  CHIP_BUILDERS,
+  RATCHET_BUILDERS,
+  disposeObject,
+} from "./index";
 
 function snapshot(): BattleSnapshot {
   const top = (id: TopId, x: number): BattleSnapshot[TopId] => ({
@@ -90,5 +98,24 @@ describe("BeybladePreviewWorld", () => {
     } finally {
       (BEYBLADES.attack as any).bladeId = originalSpec.bladeId;
     }
+  });
+
+  it("registers and renders the complete Silver Aegis set", () => {
+    expect(BLADE_BUILDERS.defense_silver_aegis).toBeDefined();
+    expect(RATCHET_BUILDERS.defense_crusader_ratchet).toBeDefined();
+    expect(BIT_BUILDERS.defense_anchor_bit).toBeDefined();
+    expect(CHIP_BUILDERS.defense_aegis_chip).toBeDefined();
+
+    const spec = assembleBeybladeSpec({
+      type: "defense",
+      bladeId: "defense_silver_aegis",
+      ratchetId: "defense_crusader_ratchet",
+      bitId: "defense_anchor_bit",
+      chipId: "defense_aegis_chip",
+    });
+    const world = new BeybladePreviewWorld("defense", undefined, spec);
+    expect(world.root.children).toHaveLength(1);
+    expect(world.root.children[0]!.children).toHaveLength(4);
+    world.dispose();
   });
 });
