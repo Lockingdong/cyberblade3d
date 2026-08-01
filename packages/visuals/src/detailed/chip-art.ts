@@ -261,6 +261,36 @@ function shadeStaminaEmblem(x: number, y: number, accent: Rgb): Rgb {
   return color;
 }
 
+function shadeGoldenFalconEmblem(x: number, y: number, accent: Rgb): Rgb {
+  const len = Math.hypot(x, y);
+  let color = mixRgb(
+    toRgb(0x047857),
+    toRgb(0x022c22),
+    Math.min(1, len) ** 1.15,
+  );
+
+  // A sharp falcon head with three swept feather strokes on either side.
+  let sd = sdSegment(x, y, -0.24, 0.18, 0.02, -0.22) - 0.065;
+  sd = Math.min(sd, sdSegment(x, y, 0.02, -0.22, 0.28, 0.14) - 0.065);
+  sd = Math.min(sd, sdSegment(x, y, 0.28, 0.14, 0.06, 0.05) - 0.055);
+  sd = Math.min(sd, sdCircle(x, y, 0.09, 0.03, 0.035));
+  for (let index = 0; index < 3; index += 1) {
+    const offset = index * 0.12;
+    sd = Math.min(
+      sd,
+      sdSegment(x, y, -0.14 - offset, 0.05, -0.62, 0.2 + offset) - 0.045,
+    );
+    sd = Math.min(
+      sd,
+      sdSegment(x, y, 0.14 + offset, 0.05, 0.62, 0.2 + offset) - 0.045,
+    );
+  }
+  color = paint(color, mixRgb(toRgb(0xfffbeb), accent, 0.14), sd);
+  color = paint(color, toRgb(0xf59e0b), Math.abs(len - 0.8) - 0.025);
+  color = paint(color, toRgb(0x064e3b), 0.92 - len);
+  return color;
+}
+
 function shadeBalanceEmblem(x: number, y: number, accent: Rgb): Rgb {
   const len = Math.hypot(x, y);
 
@@ -303,6 +333,7 @@ export function getChipEmblemTexture(
   if (type.includes("drake")) shader = shadeDrakeEmblem;
   else if (type.includes("bastion")) shader = shadeBastionEmblem;
   else if (type.includes("aegis")) shader = shadeSilverAegisEmblem;
+  else if (type.includes("sky_falcon")) shader = shadeGoldenFalconEmblem;
   else if (type.startsWith("defense")) shader = shadeDefenseEmblem;
   else if (type.startsWith("stamina")) shader = shadeStaminaEmblem;
   else if (type.startsWith("balance")) shader = shadeBalanceEmblem;

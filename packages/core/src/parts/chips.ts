@@ -12,6 +12,11 @@ export const CHIP_PARTS: Record<string, ChipPart> = {
 
   // Stamina
   stamina_core: { id: "stamina_core", name: "黃金核心", englishName: "Sol Core" },
+  stamina_sky_falcon_chip: {
+    id: "stamina_sky_falcon_chip",
+    name: "獵隼核心",
+    englishName: "Falcon Core",
+  },
 
   // Balance
   balance_core: { id: "balance_core", name: "翡翠核心", englishName: "Emerald Core" },

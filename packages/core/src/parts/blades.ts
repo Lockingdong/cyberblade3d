@@ -79,6 +79,18 @@ export const BLADE_PARTS: Record<string, BladePart> = {
     exclusiveTo: "stamina",
   },
 
+  stamina_sky_gale: {
+    id: "stamina_sky_gale",
+    name: "黃金獵隼刃",
+    englishName: "Golden Falcon Blade",
+    ai: "orbitEvade",
+    damageTaken: 0.78,
+    counteredBy: "attack",
+    color: 0xffc800,
+    massContribution: 0.7,
+    exclusiveTo: "stamina",
+  },
+
   // Balance (Emerald/Green)
   balance_emerald: {
     id: "balance_emerald",

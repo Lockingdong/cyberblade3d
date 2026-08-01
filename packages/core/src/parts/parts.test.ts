@@ -28,6 +28,21 @@ describe("parts module", () => {
     ]);
     expect(defenseParts.allowedBits).toEqual(["defense_ball", "defense_anchor_bit"]);
     expect(defenseParts.allowedChips).toEqual(["defense_core", "defense_aegis_chip"]);
+
+    const staminaParts = getCompatibleParts("stamina");
+    expect(staminaParts.allowedBlades).toEqual(["stamina_solar", "stamina_sky_gale"]);
+    expect(staminaParts.allowedRatchets).toEqual([
+      "stamina_standard",
+      "stamina_sky_ring_ratchet",
+    ]);
+    expect(staminaParts.allowedBits).toEqual([
+      "stamina_stamina",
+      "stamina_zephyr_needle_bit",
+    ]);
+    expect(staminaParts.allowedChips).toEqual([
+      "stamina_core",
+      "stamina_sky_falcon_chip",
+    ]);
   });
 
   it("validates compatible configs successfully", () => {
@@ -156,6 +171,68 @@ describe("parts module", () => {
       ratchetId: "defense_standard",
       bitId: "defense_ball",
       chipId: "defense_core",
+    });
+  });
+
+  it("assembles the Golden Falcon stamina set without replacing the Sol preset", () => {
+    const spec = assembleBeybladeSpec({
+      type: "stamina",
+      bladeId: "stamina_sky_gale",
+      ratchetId: "stamina_sky_ring_ratchet",
+      bitId: "stamina_zephyr_needle_bit",
+      chipId: "stamina_sky_falcon_chip",
+    });
+
+    expect(spec).toMatchObject({
+      type: "stamina",
+      name: "獵隼核心",
+      englishName: "Falcon Core",
+      mass: 1.22,
+      maxRpm: 5800,
+      rpmDecay: 335,
+      maxStability: 105,
+      speed: 8,
+      friction: 0.015,
+      color: 0xffc800,
+      damageTaken: 0.78,
+      ai: "orbitEvade",
+      counteredBy: "attack",
+    });
+    expect(spec.spinSteal).toBeUndefined();
+    expect(spec.attackMultiplier).toBeUndefined();
+    expect(BEYBLADES.stamina).toMatchObject({
+      bladeId: "stamina_solar",
+      ratchetId: "stamina_standard",
+      bitId: "stamina_stamina",
+      chipId: "stamina_core",
+    });
+  });
+
+  it("allows free mixing between the Sol and Golden Falcon stamina parts", () => {
+    const result = validatePartCompatibility({
+      type: "stamina",
+      bladeId: "stamina_sky_gale",
+      ratchetId: "stamina_standard",
+      bitId: "stamina_zephyr_needle_bit",
+      chipId: "stamina_core",
+    });
+    expect(result.valid).toBe(true);
+  });
+
+  it("keeps the Sol set first when correcting an invalid stamina config", () => {
+    const result = validatePartCompatibility({
+      type: "stamina",
+      bladeId: "missing_blade",
+      ratchetId: "missing_ratchet",
+      bitId: "missing_bit",
+      chipId: "missing_chip",
+    });
+    expect(result.valid).toBe(false);
+    expect(result.correctedConfig).toMatchObject({
+      bladeId: "stamina_solar",
+      ratchetId: "stamina_standard",
+      bitId: "stamina_stamina",
+      chipId: "stamina_core",
     });
   });
 });

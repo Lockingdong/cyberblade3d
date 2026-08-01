@@ -52,6 +52,14 @@ export const RATCHET_PARTS: Record<string, RatchetPart> = {
     massContribution: 0.24,
   },
 
+  stamina_sky_ring_ratchet: {
+    id: "stamina_sky_ring_ratchet",
+    name: "日輪棘輪",
+    englishName: "Solar Ring Ratchet",
+    maxStability: 105,
+    massContribution: 0.42,
+  },
+
   // Balance
   balance_standard: {
     id: "balance_standard",

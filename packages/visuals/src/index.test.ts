@@ -118,4 +118,23 @@ describe("BeybladePreviewWorld", () => {
     expect(world.root.children[0]!.children).toHaveLength(4);
     world.dispose();
   });
+
+  it("registers and renders the complete Golden Falcon set", () => {
+    expect(BLADE_BUILDERS.stamina_sky_gale).toBeDefined();
+    expect(RATCHET_BUILDERS.stamina_sky_ring_ratchet).toBeDefined();
+    expect(BIT_BUILDERS.stamina_zephyr_needle_bit).toBeDefined();
+    expect(CHIP_BUILDERS.stamina_sky_falcon_chip).toBeDefined();
+
+    const spec = assembleBeybladeSpec({
+      type: "stamina",
+      bladeId: "stamina_sky_gale",
+      ratchetId: "stamina_sky_ring_ratchet",
+      bitId: "stamina_zephyr_needle_bit",
+      chipId: "stamina_sky_falcon_chip",
+    });
+    const world = new BeybladePreviewWorld("stamina", undefined, spec);
+    expect(world.root.children).toHaveLength(1);
+    expect(world.root.children[0]!.children).toHaveLength(4);
+    world.dispose();
+  });
 });

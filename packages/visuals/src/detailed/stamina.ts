@@ -338,6 +338,241 @@ export function buildChip(accentColor: number): THREE.Group {
   return chipGroup;
 }
 
+// 1b. BLADE - 黃金獵隼刃: three swept golden falcon wings around an aerodynamic ring.
+export function buildGoldenFalconBlade(accentColor: number): THREE.Group {
+  const group = new THREE.Group();
+  group.position.y = 0.052;
+  group.scale.y = 0.82;
+
+  const chromeGeometries: THREE.BufferGeometry[] = [];
+  const outerRing = new THREE.TorusGeometry(0.41, 0.03, 10, 48);
+  outerRing.rotateX(Math.PI / 2);
+  outerRing.translate(0, 0.06, 0);
+  chromeGeometries.push(outerRing);
+  const hub = new THREE.CylinderGeometry(0.19, 0.23, 0.075, 36);
+  hub.translate(0, 0.045, 0);
+  chromeGeometries.push(hub);
+
+  const wingShape = new THREE.Shape();
+  wingShape.moveTo(0.17, -0.055);
+  wingShape.quadraticCurveTo(0.36, -0.11, 0.5, 0.015);
+  wingShape.quadraticCurveTo(0.42, 0.16, 0.22, 0.085);
+  wingShape.lineTo(0.13, 0.02);
+  wingShape.closePath();
+  for (let index = 0; index < 3; index += 1) {
+    const wing = extrudeStamina(wingShape, 0.035, 0.007, 0.008);
+    wing.rotateY((index * Math.PI * 2) / 3);
+    wing.translate(0, 0.055, 0);
+    chromeGeometries.push(wing);
+  }
+  const chromeBody = new THREE.Mesh(
+    mergeStaticGeometries(chromeGeometries),
+    new THREE.MeshStandardMaterial({
+      color: STAMINA_STYLE.brightChrome,
+      roughness: 0.12,
+      metalness: 0.92,
+      emissive: 0xcccccc,
+      emissiveIntensity: 0.35,
+    }),
+  );
+  chromeBody.userData.outlineThickness = 0.012;
+  chromeBody.userData.smoothOutline = true;
+  group.add(chromeBody);
+
+  const featherGeometries: THREE.BufferGeometry[] = [];
+  const featherShape = new THREE.Shape();
+  featherShape.moveTo(0.22, -0.018);
+  featherShape.quadraticCurveTo(0.36, -0.06, 0.44, 0.012);
+  featherShape.quadraticCurveTo(0.34, 0.07, 0.24, 0.042);
+  featherShape.closePath();
+  for (let index = 0; index < 3; index += 1) {
+    const feather = extrudeStamina(featherShape, 0.018, 0.003, 0.004);
+    feather.rotateY((index * Math.PI * 2) / 3);
+    feather.translate(0, 0.105, 0);
+    featherGeometries.push(feather);
+  }
+  const feathers = new THREE.Mesh(
+    mergeStaticGeometries(featherGeometries),
+    new THREE.MeshStandardMaterial({
+      color: accentColor,
+      roughness: 0.18,
+      metalness: 0.78,
+    }),
+  );
+  feathers.userData.outlineThickness = 0.008;
+  group.add(feathers);
+
+  return group;
+}
+
+// 2b. RATCHET - 日輪棘輪: a low continuous gold ring with six stabilizing vanes.
+export function buildSolarRingRatchet(accentColor: number): THREE.Group {
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.31, 0.33, 0.055, 40),
+    new THREE.MeshStandardMaterial({
+      color: STAMINA_STYLE.ratchetPolycarbonate,
+      roughness: 0.24,
+      metalness: 0.38,
+      transparent: true,
+      opacity: 0.88,
+    }),
+  );
+  body.position.y = 0.018;
+  body.userData.outlineThickness = 0.009;
+  group.add(body);
+
+  const vaneGeometries: THREE.BufferGeometry[] = [];
+  const vaneShape = new THREE.Shape();
+  vaneShape.moveTo(0.27, -0.035);
+  vaneShape.quadraticCurveTo(0.37, -0.02, 0.38, 0.025);
+  vaneShape.lineTo(0.28, 0.045);
+  vaneShape.closePath();
+  const vane = extrudeStamina(vaneShape, 0.04, 0.004, 0.005);
+  vane.translate(0, 0.008, 0);
+  for (let index = 0; index < 6; index += 1) {
+    vaneGeometries.push(vane.clone().rotateY((index * Math.PI) / 3));
+  }
+  vane.dispose();
+  const vanes = new THREE.Mesh(
+    mergeStaticGeometries(vaneGeometries),
+    new THREE.MeshStandardMaterial({
+      color: accentColor,
+      roughness: 0.2,
+      metalness: 0.72,
+    }),
+  );
+  vanes.userData.outlineThickness = 0.008;
+  group.add(vanes);
+  return group;
+}
+
+// 3b. BIT - 永恆針軸: a narrow needle contact protected by a broad endurance ring.
+export function buildEternalNeedleBit(accentColor: number): THREE.Group {
+  const group = new THREE.Group();
+  const gearGeometries: THREE.BufferGeometry[] = [];
+  const tooth = new THREE.BoxGeometry(0.024, 0.045, 0.035);
+  tooth.translate(0.16, -0.015, 0);
+  for (let index = 0; index < 12; index += 1) {
+    gearGeometries.push(tooth.clone().rotateY((index * Math.PI) / 6));
+  }
+  tooth.dispose();
+  const gear = new THREE.Mesh(
+    mergeStaticGeometries(gearGeometries),
+    new THREE.MeshStandardMaterial({
+      color: accentColor,
+      roughness: 0.18,
+      metalness: 0.78,
+    }),
+  );
+  gear.userData.outlineThickness = 0.007;
+  group.add(gear);
+
+  const driverGeometry = new THREE.CylinderGeometry(0.12, 0.055, 0.16, 12);
+  driverGeometry.translate(0, -0.095, 0);
+  const driver = new THREE.Mesh(
+    driverGeometry,
+    new THREE.MeshStandardMaterial({
+      color: STAMINA_STYLE.driverGlass,
+      transparent: true,
+      opacity: 0.68,
+      roughness: 0.15,
+      metalness: 0.12,
+      emissive: STAMINA_STYLE.driverGlassEmissive,
+      emissiveIntensity: 0.35,
+    }),
+  );
+  driver.userData.noOutline = true;
+  driver.userData.noShadow = true;
+  group.add(driver);
+
+  const needleGeometry = new THREE.CylinderGeometry(0.018, 0.006, 0.115, 10);
+  needleGeometry.translate(0, -0.225, 0);
+  const needle = new THREE.Mesh(
+    needleGeometry,
+    new THREE.MeshStandardMaterial({
+      color: STAMINA_STYLE.contact,
+      roughness: 0.12,
+      metalness: 0.9,
+    }),
+  );
+  needle.userData.outlineThickness = 0.009;
+  group.add(needle);
+
+  const airRingGeometry = new THREE.TorusGeometry(0.145, 0.025, 8, 28);
+  airRingGeometry.rotateX(Math.PI / 2);
+  const airRing = new THREE.Mesh(
+    airRingGeometry,
+    new THREE.MeshStandardMaterial({
+      color: accentColor,
+      roughness: 0.12,
+      metalness: 0.2,
+      transparent: true,
+      opacity: 0.75,
+      emissive: accentColor,
+      emissiveIntensity: 0.12,
+    }),
+  );
+  airRing.position.y = -0.055;
+  airRing.userData.noOutline = true;
+  airRing.userData.noShadow = true;
+  group.add(airRing);
+  return group;
+}
+
+// 4b. CHIP - 獵隼核心: a golden winged bezel surrounding the falcon crest.
+export function buildGoldenFalconChip(accentColor: number): THREE.Group {
+  const group = new THREE.Group();
+  group.position.y = 0.165;
+  const baseGeometries: THREE.BufferGeometry[] = [
+    new THREE.CylinderGeometry(0.18, 0.19, 0.13, 28),
+  ];
+  const wing = new THREE.BoxGeometry(0.11, 0.035, 0.045);
+  wing.translate(0.18, 0.025, 0);
+  for (let index = 0; index < 3; index += 1) {
+    baseGeometries.push(wing.clone().rotateY((index * Math.PI * 2) / 3));
+  }
+  wing.dispose();
+  const base = new THREE.Mesh(
+    mergeStaticGeometries(baseGeometries),
+    new THREE.MeshStandardMaterial({
+      color: STAMINA_STYLE.chipBase,
+      roughness: 0.16,
+      metalness: 0.9,
+    }),
+  );
+  base.userData.outlineThickness = 0.013;
+  group.add(base);
+
+  const rimGeometry = new THREE.TorusGeometry(0.165, 0.015, 6, 28);
+  rimGeometry.rotateX(Math.PI / 2);
+  const rim = new THREE.Mesh(
+    rimGeometry,
+    new THREE.MeshStandardMaterial({
+      color: accentColor,
+      roughness: 0.18,
+      metalness: 0.76,
+    }),
+  );
+  rim.position.y = 0.067;
+  rim.userData.noOutline = true;
+  group.add(rim);
+
+  const artGeometry = new THREE.CircleGeometry(0.148, 32);
+  artGeometry.rotateX(-Math.PI / 2);
+  const art = new THREE.Mesh(
+    artGeometry,
+    new THREE.MeshBasicMaterial({
+      map: getChipEmblemTexture("stamina_sky_falcon_chip", accentColor),
+      toneMapped: false,
+    }),
+  );
+  art.position.y = 0.068;
+  art.userData.noOutline = true;
+  group.add(art);
+  return group;
+}
+
 export const buildStaminaDetailed: DetailedBladeBuilder = (accentColor) => ({
   blade: buildBlade(accentColor),
   ratchet: buildRatchet(accentColor),

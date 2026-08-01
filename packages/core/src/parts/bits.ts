@@ -70,6 +70,17 @@ export const BIT_PARTS: Record<string, BitPart> = {
     massContribution: 0.08,
   },
 
+  stamina_zephyr_needle_bit: {
+    id: "stamina_zephyr_needle_bit",
+    name: "永恆針軸",
+    englishName: "Eternal Needle Bit",
+    maxRpm: 5800,
+    rpmDecay: 335,
+    speed: 8,
+    friction: 0.015,
+    massContribution: 0.1,
+  },
+
   // Balance
   balance_balance: {
     id: "balance_balance",

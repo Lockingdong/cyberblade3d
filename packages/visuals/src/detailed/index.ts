@@ -38,6 +38,10 @@ import {
   buildRatchet as buildStaminaRatchet,
   buildBit as buildStaminaBit,
   buildChip as buildStaminaChip,
+  buildGoldenFalconBlade,
+  buildSolarRingRatchet,
+  buildEternalNeedleBit,
+  buildGoldenFalconChip,
   buildStaminaDetailed,
 } from "./stamina";
 import type { DetailedBladeBuilder } from "./types";
@@ -60,6 +64,7 @@ export const BLADE_BUILDERS: Record<string, (color: number) => THREE.Group> = {
   defense_shield: buildDefenseBlade,
   defense_silver_aegis: buildSilverAegisBlade,
   stamina_solar: buildStaminaBlade,
+  stamina_sky_gale: buildGoldenFalconBlade,
   balance_emerald: buildBalanceBlade,
 };
 
@@ -71,6 +76,7 @@ export const RATCHET_BUILDERS: Record<string, (color: number) => THREE.Group> = 
   defense_standard: buildDefenseRatchet,
   defense_crusader_ratchet: buildCrusaderRatchet,
   stamina_standard: buildStaminaRatchet,
+  stamina_sky_ring_ratchet: buildSolarRingRatchet,
   balance_standard: buildBalanceRatchet,
 };
 
@@ -82,6 +88,7 @@ export const BIT_BUILDERS: Record<string, (color: number) => THREE.Group> = {
   defense_ball: buildDefenseBit,
   defense_anchor_bit: buildAnchorBit,
   stamina_stamina: buildStaminaBit,
+  stamina_zephyr_needle_bit: buildEternalNeedleBit,
   balance_balance: buildBalanceBit,
 };
 
@@ -93,5 +100,6 @@ export const CHIP_BUILDERS: Record<string, (color: number) => THREE.Group> = {
   defense_core: buildDefenseChip,
   defense_aegis_chip: buildAegisChip,
   stamina_core: buildStaminaChip,
+  stamina_sky_falcon_chip: buildGoldenFalconChip,
   balance_core: buildBalanceChip,
 };
