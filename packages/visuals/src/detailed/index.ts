@@ -1,4 +1,4 @@
-import type { BeybladeType } from "@game-pool/beyblade-core";
+import type { BeybladeType } from "@cyberblade/core";
 import * as THREE from "three";
 import {
   buildBlade as buildAttackBlade,

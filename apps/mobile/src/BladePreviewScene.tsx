@@ -1,7 +1,7 @@
 import { Canvas, useFrame } from "@react-three/fiber/native";
 import { useEffect, useMemo } from "react";
-import { BeybladePreviewWorld } from "@game-pool/beyblade-visuals";
-import type { BeybladeType } from "@game-pool/beyblade-core";
+import { BeybladePreviewWorld } from "@cyberblade/visuals";
+import type { BeybladeType } from "@cyberblade/core";
 
 export function BladePreviewScene({
   type,

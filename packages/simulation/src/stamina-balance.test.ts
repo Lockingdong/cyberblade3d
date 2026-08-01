@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { BeybladeType, FinishType, MatchConfig, WinnerId } from "@game-pool/beyblade-core";
+import type { BeybladeType, FinishType, MatchConfig, WinnerId } from "@cyberblade/core";
 import { CannonBattleSimulation } from "./index";
 
 const GOLDEN_FALCON_PARTS = {

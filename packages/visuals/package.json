@@ -1,5 +1,5 @@
 {
-  "name": "@game-pool/beyblade-visuals",
+  "name": "@cyberblade/visuals",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,11 +12,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@game-pool/beyblade-core": "workspace:*",
+    "@cyberblade/core": "workspace:*",
     "three": "^0.180.0"
   },
   "devDependencies": {
-    "@game-pool/config-typescript": "workspace:*",
+    "@cyberblade/config-typescript": "workspace:*",
     "@types/three": "^0.180.0"
   }
 }

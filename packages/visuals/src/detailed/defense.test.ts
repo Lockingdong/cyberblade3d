@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { BEYBLADES } from "@game-pool/beyblade-core";
+import { BEYBLADES } from "@cyberblade/core";
 import {
   buildAegisChip,
   buildAnchorBit,

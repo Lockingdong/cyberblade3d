@@ -1,5 +1,5 @@
-import type { SimulationEvent } from "@game-pool/beyblade-core";
-import type { BattleEventMessage } from "@game-pool/beyblade-multiplayer";
+import type { SimulationEvent } from "@cyberblade/core";
+import type { BattleEventMessage } from "@cyberblade/multiplayer";
 
 export class RemoteFeedbackDeduper {
   #lastEventId = -1;

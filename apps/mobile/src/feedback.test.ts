@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { BattleEventMessage } from "@game-pool/beyblade-multiplayer";
+import type { BattleEventMessage } from "@cyberblade/multiplayer";
 import { RemoteFeedbackDeduper } from "./feedback-deduper";
 
 const collision: BattleEventMessage = {

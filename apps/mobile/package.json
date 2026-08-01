@@ -1,5 +1,5 @@
 {
-  "name": "@game-pool/beyblade-mobile",
+  "name": "@cyberblade/mobile",
   "version": "0.0.0",
   "private": true,
   "main": "expo/AppEntry.js",
@@ -10,11 +10,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@game-pool/beyblade-core": "workspace:*",
-    "@game-pool/beyblade-multiplayer": "workspace:*",
-    "@game-pool/beyblade-simulation": "workspace:*",
-    "@game-pool/beyblade-visuals": "workspace:*",
-    "@game-pool/design-system": "workspace:*",
+    "@cyberblade/core": "workspace:*",
+    "@cyberblade/multiplayer": "workspace:*",
+    "@cyberblade/simulation": "workspace:*",
+    "@cyberblade/visuals": "workspace:*",
+    "@cyberblade/design-system": "workspace:*",
     "@react-three/fiber": "^9.3.0",
     "expo": "^57.0.6",
     "expo-asset": "~57.0.5",
@@ -30,7 +30,7 @@
     "three": "^0.180.0"
   },
   "devDependencies": {
-    "@game-pool/config-typescript": "workspace:*",
+    "@cyberblade/config-typescript": "workspace:*",
     "@types/react": "^19.2.0",
     "@types/three": "^0.180.0"
   }

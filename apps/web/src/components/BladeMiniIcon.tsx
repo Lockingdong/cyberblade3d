@@ -1,5 +1,5 @@
 import type { JSX } from "react";
-import type { BeybladeType } from "@game-pool/beyblade-core";
+import type { BeybladeType } from "@cyberblade/core";
 
 interface BladeMiniIconProps {
   readonly type: BeybladeType;

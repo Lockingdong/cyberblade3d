@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { BattleSnapshot, MatchResult } from "@game-pool/beyblade-core";
+import type { BattleSnapshot, MatchResult } from "@cyberblade/core";
 import type {
   MatchmakingClientEvent,
   ReadySelection,

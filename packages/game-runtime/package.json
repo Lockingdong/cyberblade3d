@@ -1,5 +1,5 @@
 {
-  "name": "@game-pool/game-runtime",
+  "name": "@cyberblade/game-runtime",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,6 +12,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
-    "@game-pool/config-typescript": "workspace:*"
+    "@cyberblade/config-typescript": "workspace:*"
   }
 }

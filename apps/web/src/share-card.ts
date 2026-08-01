@@ -1,10 +1,10 @@
 import * as THREE from "three";
-import { BeybladePreviewWorld } from "@game-pool/beyblade-visuals";
+import { BeybladePreviewWorld } from "@cyberblade/visuals";
 import {
   SHARE_CARD,
   type BeybladeType,
   type ShareCardData,
-} from "@game-pool/beyblade-core";
+} from "@cyberblade/core";
 
 declare global {
   interface CanvasRenderingContext2D {

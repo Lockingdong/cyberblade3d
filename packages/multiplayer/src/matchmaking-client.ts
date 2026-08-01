@@ -6,7 +6,7 @@ import type {
   SimulationEvent,
   StadiumTheme,
   WinnerId,
-} from "@game-pool/beyblade-core";
+} from "@cyberblade/core";
 import {
   PROTOCOL_VERSION,
   decodeServerMessage,

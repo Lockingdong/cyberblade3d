@@ -3,7 +3,7 @@ import * as THREE from "three";
 import {
   ENVIRONMENT_SCENES,
   type EnvironmentScene,
-} from "@game-pool/beyblade-core";
+} from "@cyberblade/core";
 import { BeybladeVisualWorld } from "./index";
 
 function countPoints(group: THREE.Object3D): number {

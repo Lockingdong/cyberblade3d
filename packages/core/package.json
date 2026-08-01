@@ -1,5 +1,5 @@
 {
-  "name": "@game-pool/beyblade-core",
+  "name": "@cyberblade/core",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,10 +12,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@game-pool/game-runtime": "workspace:*"
+    "@cyberblade/game-runtime": "workspace:*"
   },
   "devDependencies": {
-    "@game-pool/config-typescript": "workspace:*",
+    "@cyberblade/config-typescript": "workspace:*",
     "vitest": "^3.2.0"
   }
 }

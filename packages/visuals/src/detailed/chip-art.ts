@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { BeybladeType } from "@game-pool/beyblade-core";
+import type { BeybladeType } from "@cyberblade/core";
 
 // Emblem art for detailed face chips, rasterized on the CPU from composed 2D
 // signed-distance fields into a DataTexture. No canvas/DOM involved so the

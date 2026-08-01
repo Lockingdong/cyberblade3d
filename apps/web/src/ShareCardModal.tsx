@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { ShareCardData } from "@game-pool/beyblade-core";
+import type { ShareCardData } from "@cyberblade/core";
 import {
   canShareFile,
   composeShareCard,

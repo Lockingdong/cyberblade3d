@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native";
 import { captureRef } from "react-native-view-shot";
-import { SHARE_CARD, type ShareCardData } from "@game-pool/beyblade-core";
+import { SHARE_CARD, type ShareCardData } from "@cyberblade/core";
 import { PreviewContent } from "./BladePreviewScene";
 
 const CARD = SHARE_CARD;

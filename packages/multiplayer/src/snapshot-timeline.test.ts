@@ -4,7 +4,7 @@ import type {
   MatchEndMessage,
   StateMessage,
 } from "./protocol";
-import type { FinishType, WinnerId } from "@game-pool/beyblade-core";
+import type { FinishType, WinnerId } from "@cyberblade/core";
 import { SnapshotTimeline } from "./snapshot-timeline";
 
 function state(

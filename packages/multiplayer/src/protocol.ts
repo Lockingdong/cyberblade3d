@@ -5,7 +5,7 @@ import type {
   StadiumTheme,
   TopId,
   WinnerId,
-} from "@game-pool/beyblade-core";
+} from "@cyberblade/core";
 
 // v2: six new blade types — old clients would crash on an unknown blade id
 // mid-match, so the version gate rejects them cleanly at hello.

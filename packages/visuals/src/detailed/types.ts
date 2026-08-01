@@ -1,5 +1,5 @@
 import type * as THREE from "three";
-import type { BeybladeSpec } from "@game-pool/beyblade-core";
+import type { BeybladeSpec } from "@cyberblade/core";
 
 // The four burst-separable composites every top is assembled from according to Beyblade X system.
 export interface DetailedParts {

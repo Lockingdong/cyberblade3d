@@ -1,5 +1,5 @@
 {
-  "name": "@game-pool/beyblade-web",
+  "name": "@cyberblade/web",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,10 +11,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@game-pool/beyblade-core": "workspace:*",
-    "@game-pool/beyblade-multiplayer": "workspace:*",
-    "@game-pool/beyblade-simulation": "workspace:*",
-    "@game-pool/beyblade-visuals": "workspace:*",
+    "@cyberblade/core": "workspace:*",
+    "@cyberblade/multiplayer": "workspace:*",
+    "@cyberblade/simulation": "workspace:*",
+    "@cyberblade/visuals": "workspace:*",
     "@react-three/fiber": "^9.3.0",
     "@react-three/postprocessing": "^3.0.4",
     "postprocessing": "^6.39.2",
@@ -23,7 +23,7 @@
     "three": "^0.180.0"
   },
   "devDependencies": {
-    "@game-pool/config-typescript": "workspace:*",
+    "@cyberblade/config-typescript": "workspace:*",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@types/three": "^0.180.0",

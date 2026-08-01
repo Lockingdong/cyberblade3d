@@ -5,7 +5,7 @@ import type {
   MatchResult,
   SimulationEvent,
   TopId,
-} from "@game-pool/beyblade-core";
+} from "@cyberblade/core";
 import type {
   MatchmakingClientEvent,
   ReadySelection,

@@ -1,5 +1,5 @@
 {
-  "name": "@game-pool/beyblade-multiplayer",
+  "name": "@cyberblade/multiplayer",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,10 +12,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@game-pool/beyblade-core": "workspace:*"
+    "@cyberblade/core": "workspace:*"
   },
   "devDependencies": {
-    "@game-pool/config-typescript": "workspace:*",
+    "@cyberblade/config-typescript": "workspace:*",
     "vitest": "^3.2.0"
   }
 }

@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import type { SimulationEvent } from "@game-pool/beyblade-core";
+import type { SimulationEvent } from "@cyberblade/core";
 export { RemoteFeedbackDeduper } from "./feedback-deduper";
 
 export function selectionFeedback(): void {

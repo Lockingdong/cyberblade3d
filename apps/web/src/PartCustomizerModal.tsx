@@ -10,7 +10,7 @@ import {
   type BeybladeType,
   type CustomBeybladeConfig,
   type BeybladeSpec,
-} from "@game-pool/beyblade-core";
+} from "@cyberblade/core";
 import {
   BladePreviewScene,
   CAMERA_PRESETS,

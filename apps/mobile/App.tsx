@@ -36,14 +36,14 @@ import {
   pickRandomEnvironmentScene,
   stadiumVariantFromMatchId,
   stadiumVariantFromSeed,
-} from "@game-pool/beyblade-core";
+} from "@cyberblade/core";
 import {
   MatchmakingClient,
   OnlineMatchCoordinator,
   type OnlineMatchState,
-} from "@game-pool/beyblade-multiplayer";
-import { CannonBattleSimulation } from "@game-pool/beyblade-simulation";
-import { colors, radius, spacing } from "@game-pool/design-system";
+} from "@cyberblade/multiplayer";
+import { CannonBattleSimulation } from "@cyberblade/simulation";
+import { colors, radius, spacing } from "@cyberblade/design-system";
 import { BattleScene } from "./src/BattleScene";
 import { BladePreviewScene } from "./src/BladePreviewScene";
 import { ShareCardModal } from "./src/ShareCard";

@@ -31,13 +31,13 @@ import {
   stadiumVariantFromMatchId,
   stadiumVariantFromSeed,
   type CustomBeybladeConfig,
-} from "@game-pool/beyblade-core";
+} from "@cyberblade/core";
 import {
   MatchmakingClient,
   OnlineMatchCoordinator,
   type OnlineMatchState,
-} from "@game-pool/beyblade-multiplayer";
-import { CannonBattleSimulation } from "@game-pool/beyblade-simulation";
+} from "@cyberblade/multiplayer";
+import { CannonBattleSimulation } from "@cyberblade/simulation";
 import { BattleScene } from "./BattleScene";
 import { BladeMiniIcon } from "./components/BladeMiniIcon";
 import { GarageIcon } from "./components/CustomizerIcons";

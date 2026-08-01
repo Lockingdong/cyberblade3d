@@ -1,7 +1,7 @@
 import type {
   OnlinePhase,
   WebSocketLike,
-} from "@game-pool/beyblade-multiplayer";
+} from "@cyberblade/multiplayer";
 
 export function resolveMobileWebSocketUrl(
   configured: string | undefined = process.env.EXPO_PUBLIC_BEYBLADE_WS_URL,
