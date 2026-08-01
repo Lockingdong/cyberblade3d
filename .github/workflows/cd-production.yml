@@ -4,8 +4,8 @@ on:
   push:
     tags:
       - web-v*
+      - api-v*
       # Reserved for future production deployment workflows:
-      # - api-v*
       # - mobile-v*
 
 permissions:
@@ -21,12 +21,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate Web release tag
+      - name: Validate release tag
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          if [[ ! "$RELEASE_TAG" =~ ^web-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Web release tags must use web-v<major>.<minor>.<patch>."
+          if [[ ! "$RELEASE_TAG" =~ ^(web|api)-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tags must use web-v<major>.<minor>.<patch> or api-v<major>.<minor>.<patch>."
             exit 1
           fi
 
@@ -50,6 +50,7 @@ jobs:
 
   deploy-web:
     name: Deploy web
+    if: ${{ startsWith(github.ref_name, 'web-v') }}
     needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -93,3 +94,64 @@ jobs:
           curl --fail-with-body --retry 12 --retry-all-errors \
             --retry-delay 5 \
             "$WEB_URL"
+
+  deploy-api:
+    name: Deploy API
+    if: ${{ startsWith(github.ref_name, 'api-v') }}
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    concurrency:
+      group: production-api
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/api/go.mod
+          cache-dependency-path: services/api/go.sum
+
+      - name: Build Linux API binary
+        env:
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: amd64
+        run: >-
+          go -C services/api build -trimpath -ldflags="-s -w"
+          -o "$RUNNER_TEMP/cyberblade-api" ./cmd/api
+
+      - name: Configure deployment SSH key
+        env:
+          API_SSH_PRIVATE_KEY: ${{ secrets.API_SSH_PRIVATE_KEY }}
+          API_SSH_KNOWN_HOSTS: ${{ secrets.API_SSH_KNOWN_HOSTS }}
+        run: |
+          install -d -m 0700 "$HOME/.ssh"
+          printf '%s\n' "$API_SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$API_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 0600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
+          ssh-keygen -y -f "$HOME/.ssh/id_ed25519" > /dev/null
+
+      - name: Upload API release
+        env:
+          API_SSH_HOST: ${{ secrets.API_SSH_HOST }}
+          API_SSH_USER: ${{ secrets.API_SSH_USER }}
+        run: |
+          remote_artifact="/tmp/cyberblade-api-${GITHUB_SHA}"
+          scp "$RUNNER_TEMP/cyberblade-api" \
+            "${API_SSH_USER}@${API_SSH_HOST}:${remote_artifact}"
+          scp scripts/deploy/deploy-api.sh \
+            "${API_SSH_USER}@${API_SSH_HOST}:/tmp/deploy-api.sh"
+          ssh "${API_SSH_USER}@${API_SSH_HOST}" \
+            "bash /tmp/deploy-api.sh '${remote_artifact}'"
+
+      - name: Verify public API
+        env:
+          API_URL: ${{ vars.API_URL }}
+        run: |
+          test -n "$API_URL"
+          curl --fail-with-body --retry 12 --retry-all-errors \
+            --retry-delay 5 \
+            "${API_URL%/}/health"
