@@ -559,7 +559,11 @@ export function buildAegisChip(accentColor: number): THREE.Group {
   crownPoint.dispose();
   const base = new THREE.Mesh(
     mergeStaticGeometries(baseGeometries),
-    new THREE.MeshStandardMaterial({ color: 0xdbe4ec, roughness: 0.18, metalness: 0.9 }),
+    new THREE.MeshStandardMaterial({
+      color: DEFENSE_STYLE.chipBase,
+      roughness: 0.4,
+      metalness: 0.8,
+    }),
   );
   base.userData.outlineThickness = 0.014;
   group.add(base);

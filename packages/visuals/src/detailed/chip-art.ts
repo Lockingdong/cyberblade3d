@@ -248,11 +248,10 @@ function shadeDefenseEmblem(x: number, y: number, accent: Rgb): Rgb {
 function shadeSilverAegisEmblem(x: number, y: number, accent: Rgb): Rgb {
   const len = Math.hypot(x, y);
 
-  // Cold silver enamel gives this crest its own identity instead of reusing
-  // the graphite-and-teal Iron Core shield mark.
+  // Deep royal navy & midnight sapphire gradient background
   let color = mixRgb(
-    toRgb(0xdbe4ec),
-    toRgb(0x334155),
+    toRgb(0x1d4ed8),
+    toRgb(0x0b132b),
     Math.min(1, len) ** 1.35,
   );
 
@@ -264,17 +263,10 @@ function shadeSilverAegisEmblem(x: number, y: number, accent: Rgb): Rgb {
   sd = Math.min(sd, sdSegment(x, y, -0.34, 0.14, -0.4, -0.42) - 0.052);
   sd = Math.min(sd, sdSegment(x, y, 0, -0.28, 0, 0.34) - 0.055);
   sd = Math.min(sd, sdSegment(x, y, -0.25, -0.02, 0.25, -0.02) - 0.055);
-  color = paint(color, mixRgb(toRgb(0xffffff), accent, 0.28), sd);
+  color = paint(color, mixRgb(toRgb(0xf59e0b), accent, 0.28), sd);
 
-  // Four crown points echo the counter shoulders on the physical blade.
-  let crown = sdSegment(x, y, -0.34, -0.55, -0.18, -0.7) - 0.045;
-  crown = Math.min(crown, sdSegment(x, y, -0.18, -0.7, 0, -0.54) - 0.045);
-  crown = Math.min(crown, sdSegment(x, y, 0, -0.54, 0.18, -0.7) - 0.045);
-  crown = Math.min(crown, sdSegment(x, y, 0.18, -0.7, 0.34, -0.55) - 0.045);
-  color = paint(color, toRgb(0xf8fafc), crown);
-
-  color = paint(color, mixRgb(toRgb(0x93c5fd), accent, 0.35), Math.abs(len - 0.79) - 0.02);
-  color = paint(color, toRgb(0x172033), 0.92 - len);
+  color = paint(color, mixRgb(toRgb(0x38bdf8), accent, 0.35), Math.abs(len - 0.79) - 0.02);
+  color = paint(color, toRgb(0x030712), 0.92 - len);
   return color;
 }
 

@@ -1492,12 +1492,14 @@ function BladePicker({
                     role="option"
                     aria-selected={false}
                   >
-                    <span className="blade-type">???</span>
-                    <span className="blade-mini-preview upcoming">
-                      <i className="shadow" />
+                    <span className="blade-chip-emblem upcoming">
+                      <span className="chip-question">?</span>
                     </span>
-                    <strong>敬請期待</strong>
-                    <small>COMING SOON</small>
+                    <div className="blade-card-info">
+                      <span className="blade-type">???</span>
+                      <strong>敬請期待</strong>
+                      <small>COMING SOON</small>
+                    </div>
                   </button>
                 );
               }
@@ -1526,17 +1528,14 @@ function BladePicker({
                   role="option"
                   aria-selected={value === type}
                 >
-                  <span className="blade-type">{type.toUpperCase()}</span>
-                  <span
-                    className="blade-mini-preview"
-                    style={
-                      { "--blade-color": bladeColor } as React.CSSProperties
-                    }
-                  >
+                  <span className="blade-chip-emblem">
                     <BladeMiniIcon type={type} />
                   </span>
-                  <strong>{blade.name}</strong>
-                  <small>{blade.englishName}</small>
+                  <div className="blade-card-info">
+                    <span className="blade-type">{type.toUpperCase()}</span>
+                    <strong>{blade.name}</strong>
+                    <small>{blade.englishName}</small>
+                  </div>
                 </button>
               );
             })}
