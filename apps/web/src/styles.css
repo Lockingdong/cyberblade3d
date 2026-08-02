@@ -753,6 +753,7 @@ button:disabled {
   margin-top: 28px;
   gap: 10px;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 .online-overlay-actions button,
@@ -763,6 +764,124 @@ button:disabled {
   background: white;
   color: #1f2235;
   font-weight: 800;
+}
+
+/* The lobby can open on top of the still-mounted main menu, so unlike the
+   other online screens it has to float instead of stacking below it. */
+.lobby-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 7;
+  min-height: 100%;
+  overflow-y: auto;
+}
+
+.lobby-modes {
+  display: flex;
+  margin-top: 26px;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.lobby-modes button {
+  flex: 1 1 160px;
+  padding: 14px 18px;
+  border: 3px solid #1f2235;
+  border-radius: 4px;
+  background: white;
+  color: #1f2235;
+  font-weight: 800;
+}
+
+.lobby-join {
+  display: grid;
+  margin-top: 24px;
+  padding-top: 20px;
+  gap: 10px;
+  border-top: 3px dashed #d3d7e2;
+  text-align: left;
+}
+
+.lobby-join label {
+  color: #555b70;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.lobby-join-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lobby-join-row button {
+  padding: 12px 20px;
+  border: 3px solid #1f2235;
+  border-radius: 4px;
+  background: white;
+  color: #1f2235;
+  font-weight: 800;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.lobby-join-row button:disabled {
+  border-color: #b7bccb;
+  color: #b7bccb;
+}
+
+.room-code-input {
+  flex: 1 1 180px;
+  min-width: 0;
+  width: 100%;
+  padding: 12px 14px;
+  border: 3px solid #1f2235;
+  border-radius: 4px;
+  color: #1f2235;
+  font-family: ui-monospace, "SFMono-Regular", monospace;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.lobby-error {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border: 3px solid #e0245e;
+  border-radius: 4px;
+  color: #e0245e;
+  font-weight: 800;
+}
+
+.room-code-display {
+  margin: 22px 0 10px;
+  padding: 16px;
+  border: 4px solid #1f2235;
+  border-radius: 6px;
+  background: #ffea00;
+  color: #1f2235;
+  font-family: ui-monospace, "SFMono-Regular", monospace;
+  font-size: clamp(2rem, 11vw, 3.4rem);
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  /* The letter-spacing pushes the glyphs right; nudge them back to centre. */
+  text-indent: 0.22em;
+}
+
+.invite-link {
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 3px solid #d3d7e2;
+  border-radius: 4px;
+  color: #555b70;
+  font-size: 0.78rem;
+  text-align: center;
 }
 
 .connection-warning {
@@ -2027,6 +2146,12 @@ button:disabled {
     font-size: 1.2rem;
     padding: 2px;
   }
+  .online-card {
+    padding: 28px 18px;
+  }
+  .lobby-join-row button {
+    flex: 1 1 auto;
+  }
 }
 
 /* Homepage Collapsible Carousel for Battle Blades Selection */
@@ -2742,8 +2867,6 @@ button:disabled {
   color: #a0aec0;
 }
 
-
-
 /* ==========================================================================
    Part Customizer Modal (Garage) Styles
    ========================================================================== */
@@ -2785,7 +2908,9 @@ button:disabled {
   background: rgba(14, 18, 30, 0.94);
   border: 2px solid rgba(0, 155, 214, 0.4);
   border-radius: 12px;
-  box-shadow: 0 0 40px rgba(0, 155, 214, 0.25), 0 16px 32px rgba(0, 0, 0, 0.8);
+  box-shadow:
+    0 0 40px rgba(0, 155, 214, 0.25),
+    0 16px 32px rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   color: #ffffff;
@@ -2886,7 +3011,11 @@ button:disabled {
 }
 
 .customizer-tabs .tab-btn.active {
-  background: linear-gradient(135deg, rgba(0, 155, 214, 0.3), rgba(0, 229, 255, 0.1));
+  background: linear-gradient(
+    135deg,
+    rgba(0, 155, 214, 0.3),
+    rgba(0, 229, 255, 0.1)
+  );
   border-color: #00e5ff;
   color: #ffffff;
   box-shadow: 0 0 14px rgba(0, 229, 255, 0.25);
@@ -3060,7 +3189,11 @@ button:disabled {
 .customizer-top-3d-stage {
   width: 100%;
   height: 280px;
-  background: radial-gradient(circle at 50% 60%, rgba(16, 28, 50, 0.95) 0%, rgba(5, 8, 16, 0.98) 100%);
+  background: radial-gradient(
+    circle at 50% 60%,
+    rgba(16, 28, 50, 0.95) 0%,
+    rgba(5, 8, 16, 0.98) 100%
+  );
   border-bottom: 1px solid rgba(0, 229, 255, 0.25);
   overflow: hidden;
   position: relative;
@@ -3273,4 +3406,3 @@ button:disabled {
     font-size: 0.68rem;
   }
 }
-

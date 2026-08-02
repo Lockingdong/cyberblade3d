@@ -5,6 +5,7 @@ import {
   type MatchmakingClientEvent,
   type WebSocketLike,
 } from "./matchmaking-client";
+import { PROTOCOL_VERSION } from "./protocol";
 
 class FakeSocket implements WebSocketLike {
   readyState = 0;
@@ -70,7 +71,7 @@ describe("MatchmakingClient", () => {
     socket.emit("open");
     expect(JSON.parse(socket.sent[0]!)).toEqual({
       type: "hello",
-      protocolVersion: 4,
+      protocolVersion: PROTOCOL_VERSION,
     });
 
     const requestId = client.joinQueue();

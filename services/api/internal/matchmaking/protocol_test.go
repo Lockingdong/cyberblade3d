@@ -28,6 +28,13 @@ func TestDecodeMessageValidation(t *testing.T) {
 		{name: "unknown field", input: `{"type":"hello","protocolVersion":1,"extra":true}`, wantErr: true},
 		{name: "trailing JSON", input: `{"type":"hello","protocolVersion":1} {"type":"hello","protocolVersion":1}`, wantErr: true},
 		{name: "unknown type", input: `{"type":"nope"}`, wantErr: true},
+		{name: "create_room", input: `{"type":"create_room","requestId":"r_1"}`},
+		{name: "join_room", input: `{"type":"join_room","requestId":"r_1","code":"K7M2P9"}`},
+		{name: "lowercase room code", input: `{"type":"join_room","requestId":"r_1","code":"k7m2p9"}`, wantErr: true},
+		{name: "ambiguous room code", input: `{"type":"join_room","requestId":"r_1","code":"K7M2P0"}`, wantErr: true},
+		{name: "short room code", input: `{"type":"join_room","requestId":"r_1","code":"K7M2P"}`, wantErr: true},
+		{name: "rematch", input: `{"type":"rematch","matchId":"m_1"}`},
+		{name: "rematch without match", input: `{"type":"rematch","matchId":""}`, wantErr: true},
 	}
 
 	for _, test := range tests {

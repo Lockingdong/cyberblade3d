@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildMobileInviteMessage,
   resolveMobileWebSocketUrl,
   shouldHostLeaveForAppState,
 } from "./online";
@@ -18,6 +19,20 @@ describe("resolveMobileWebSocketUrl", () => {
     expect(() => resolveMobileWebSocketUrl("")).toThrow("EXPO_PUBLIC_WS_URL");
     expect(() => resolveMobileWebSocketUrl("https://game.example/ws")).toThrow(
       "ws:// 或 wss://",
+    );
+  });
+});
+
+describe("buildMobileInviteMessage", () => {
+  it("adds a web invite link when the base URL is configured", () => {
+    expect(buildMobileInviteMessage("k7m2p9", "https://game.example/")).toBe(
+      "來 CyberBlade 3D 跟我對戰！房號：K7M2P9\nhttps://game.example/?room=K7M2P9",
+    );
+  });
+
+  it("falls back to the bare code without a base URL", () => {
+    expect(buildMobileInviteMessage("K7M2P9", "")).toBe(
+      "來 CyberBlade 3D 跟我對戰！房號：K7M2P9",
     );
   });
 });

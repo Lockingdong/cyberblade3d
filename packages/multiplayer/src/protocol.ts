@@ -6,12 +6,14 @@ import type {
   TopId,
   WinnerId,
 } from "@cyberblade/core";
+import { isValidRoomCode } from "./room-code";
 
 // v2: six new blade types — old clients would crash on an unknown blade id
 // mid-match, so the version gate rejects them cleanly at hello.
 // v3: optional per-player accent color on ready/start.
 // v4: optional 4-part custom assembly (bladeId, ratchetId, bitId, chipId) on ready/start.
-export const PROTOCOL_VERSION = 4;
+// v5: friend rooms (create_room / join_room / room_created) and in-room rematch.
+export const PROTOCOL_VERSION = 5;
 
 export interface WireTopState {
   readonly p: readonly [number, number, number];
@@ -69,7 +71,16 @@ export interface MatchEndMessage {
 export type ClientMessage =
   | { readonly type: "hello"; readonly protocolVersion: number }
   | { readonly type: "join_queue"; readonly requestId: string }
+  // cancel_queue cancels whichever wait is pending: the FIFO queue or a friend
+  // room that has not been joined yet. Both are acked with queue_left.
   | { readonly type: "cancel_queue"; readonly requestId: string }
+  | { readonly type: "create_room"; readonly requestId: string }
+  | {
+      readonly type: "join_room";
+      readonly requestId: string;
+      readonly code: string;
+    }
+  | { readonly type: "rematch"; readonly matchId: string }
   | {
       readonly type: "ready";
       readonly matchId: string;
@@ -110,6 +121,13 @@ export type ServerMessage =
   | { readonly type: "queued"; readonly requestId: string }
   | { readonly type: "queue_left"; readonly requestId: string }
   | {
+      readonly type: "room_created";
+      readonly requestId: string;
+      readonly code: string;
+      readonly expiresInMs: number;
+    }
+  | { readonly type: "opponent_rematch"; readonly matchId: string }
+  | {
       readonly type: "matched";
       readonly matchId: string;
       readonly role: "host" | "guest";
@@ -128,7 +146,8 @@ export type ServerMessage =
   | {
       readonly type: "opponent_left";
       readonly matchId: string;
-      readonly phase: "matched" | "countdown" | "battle" | "ending";
+      readonly phase:
+        "matched" | "countdown" | "battle" | "ending" | "finished";
     }
   | { readonly type: "error"; readonly code: string; readonly message: string }
   | StateMessage
@@ -176,14 +195,38 @@ function decodeMessage(
         : invalid("invalid hello_ok");
     case "join_queue":
     case "cancel_queue":
+    case "create_room":
       return direction === "client" && isOpaque(value.requestId)
         ? valid(value as unknown as ClientMessage)
         : invalid(`invalid ${value.type}`);
+    case "join_room":
+      return direction === "client" &&
+        isOpaque(value.requestId) &&
+        isString(value.code) &&
+        isValidRoomCode(value.code)
+        ? valid(value as unknown as ClientMessage)
+        : invalid("invalid join_room");
+    case "rematch":
+      return direction === "client" && isOpaque(value.matchId)
+        ? valid(value as unknown as ClientMessage)
+        : invalid("invalid rematch");
     case "queued":
     case "queue_left":
       return direction === "server" && isOpaque(value.requestId)
         ? valid(value as unknown as ServerMessage)
         : invalid(`invalid ${value.type}`);
+    case "room_created":
+      return direction === "server" &&
+        isOpaque(value.requestId) &&
+        isString(value.code) &&
+        isValidRoomCode(value.code) &&
+        isNonNegativeInteger(value.expiresInMs)
+        ? valid(value as unknown as ServerMessage)
+        : invalid("invalid room_created");
+    case "opponent_rematch":
+      return direction === "server" && isOpaque(value.matchId)
+        ? valid(value as unknown as ServerMessage)
+        : invalid("invalid opponent_rematch");
     case "matched":
       return direction === "server" &&
         isOpaque(value.matchId) &&
@@ -230,7 +273,7 @@ function decodeMessage(
     case "opponent_left":
       return direction === "server" &&
         isOpaque(value.matchId) &&
-        ["matched", "countdown", "battle", "ending"].includes(
+        ["matched", "countdown", "battle", "ending", "finished"].includes(
           String(value.phase),
         )
         ? valid(value as unknown as ServerMessage)

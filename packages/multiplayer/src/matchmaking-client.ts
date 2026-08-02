@@ -17,6 +17,7 @@ import {
   type StateMessage,
   type WireBattleEvent,
 } from "./protocol";
+import { normalizeRoomCode } from "./room-code";
 
 export interface WebSocketLike {
   readonly readyState: number;
@@ -90,9 +91,28 @@ export class MatchmakingClient {
     return requestId;
   }
 
+  createRoom(): string {
+    const requestId = `r_${++this.#idCounter}`;
+    this.#requestId = requestId;
+    this.#send({ type: "create_room", requestId });
+    return requestId;
+  }
+
+  joinRoom(code: string): string {
+    const requestId = `j_${++this.#idCounter}`;
+    this.#requestId = requestId;
+    this.#send({ type: "join_room", requestId, code: normalizeRoomCode(code) });
+    return requestId;
+  }
+
   cancelQueue(): void {
     if (!this.#requestId) return;
     this.#send({ type: "cancel_queue", requestId: this.#requestId });
+  }
+
+  rematch(): void {
+    if (!this.#matchId) return;
+    this.#send({ type: "rematch", matchId: this.#matchId });
   }
 
   ready(selection: ReadySelection): void {

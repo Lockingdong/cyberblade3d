@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildInviteUrl,
   isActiveOnlineRoom,
   onlinePageExitAction,
+  readRoomCodeFromLocation,
   resolveWebSocketUrl,
 } from "./online";
 
@@ -47,8 +49,30 @@ describe("onlinePageExitAction", () => {
   it("cancels matchmaking and leaves active rooms", () => {
     expect(onlinePageExitAction("connecting")).toBe("cancel_queue");
     expect(onlinePageExitAction("queued")).toBe("cancel_queue");
+    expect(onlinePageExitAction("hosting")).toBe("cancel_queue");
+    expect(onlinePageExitAction("joining")).toBe("cancel_queue");
     expect(onlinePageExitAction("countdown")).toBe("leave");
     expect(onlinePageExitAction("battle")).toBe("leave");
-    expect(onlinePageExitAction("result")).toBeNull();
+    // The room outlives match_end for the rematch offer, so it must be released.
+    expect(onlinePageExitAction("result")).toBe("leave");
+    expect(onlinePageExitAction("lobby")).toBeNull();
+  });
+});
+
+describe("invite links", () => {
+  it("builds a link on the current page", () => {
+    expect(
+      buildInviteUrl("k7m2p9", {
+        origin: "https://game.example",
+        pathname: "/play",
+      }),
+    ).toBe("https://game.example/play?room=K7M2P9");
+  });
+
+  it("reads only well-formed codes back out", () => {
+    expect(readRoomCodeFromLocation("?room=k7m2-p9")).toBe("K7M2P9");
+    expect(readRoomCodeFromLocation("?room=K7M2P0")).toBeNull();
+    expect(readRoomCodeFromLocation("?other=1")).toBeNull();
+    expect(readRoomCodeFromLocation("")).toBeNull();
   });
 });

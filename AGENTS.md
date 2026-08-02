@@ -56,6 +56,7 @@ TypeScript 與 Go 各自有一份線上協定定義，兩邊必須保持一致�
 | 分享卡資料內容 | `packages/core/src/share-card.ts` | Web：`ShareCardModal.tsx`、`share-card.ts`；Mobile：`src/ShareCard.tsx` |
 | WebSocket URL 或平台連線差異 | Web：`apps/web/src/online.ts`；Mobile：`apps/mobile/src/online.ts` | `.env.example`、部署設定 |
 | 配對 client、線上 phase、host／guest 協調 | `packages/multiplayer/src/matchmaking-client.ts`、`online-match-coordinator.ts` | 兩端 `App.tsx`、multiplayer tests |
+| 好友房、房號、邀請連結、再戰 | 房號規則：`packages/multiplayer/src/room-code.ts`；狀態機：`online-match-coordinator.ts`；房間生命週期：`services/api/internal/matchmaking/hub.go` | Web：`apps/web/src/OnlineLobby.tsx`、`online.ts`；Mobile：`apps/mobile/App.tsx`、`src/online.ts`；兩邊 protocol |
 | guest 畫面插值、外插、網路不穩判斷 | `packages/multiplayer/src/snapshot-timeline.ts` | `snapshot-timeline.test.ts` |
 | WebSocket 訊息格式 | TS：`packages/multiplayer/src/protocol.ts`；Go：`services/api/internal/matchmaking/protocol.go` | 兩邊 protocol tests、client、hub；必要時同步升級兩邊 `PROTOCOL_VERSION` / `ProtocolVersion` |
 | 配對順序、房間 phase、timeout、轉送與限流 | `services/api/internal/matchmaking/hub.go`、`room.go` | `hub_test.go`、`server_test.go` |
@@ -114,6 +115,7 @@ Web 與 Mobile UI 是兩份實作。改平台 UI 時只改目標 app；改遊戲
 ### `packages/multiplayer/`
 
 - `src/protocol.ts`：TypeScript wire message、runtime decoder 與 protocol version。
+- `src/room-code.ts`：好友房房號字母表、normalize 與驗證，Web／Mobile／protocol 共用。
 - `src/matchmaking-client.ts`：低階 WebSocket transport，負責 handshake、序號與訊息序列化。
 - `src/online-match-coordinator.ts`：平台中立的線上對戰狀態機。
 - `src/snapshot-timeline.ts`：guest 端 snapshot buffer、插值／有限外插、事件釋放與 trail 衍生。
@@ -150,8 +152,8 @@ App UI
 
 ```text
 兩端 MatchmakingClient
-  -> Go Hub FIFO 配對
-  -> host = p1，guest = p2
+  -> Go Hub FIFO 配對（或好友房：create_room 拿房號、join_room 兌換房號）
+  -> host = p1（好友房為建房者），guest = p2
   -> 雙方 ready，server 選定 environment 並發送 start
 
 host App
@@ -164,6 +166,11 @@ guest App
   -> 插值 / 有限外插 + 遠端事件
   -> BattleScene
 ```
+
+`match_end` 之後房間不會立刻關閉：它進入 `finished` phase 並保留一段 rematch
+window（預設 60 秒）。雙方都送出 `rematch` 時，server 以**新的 matchId** 重新發送
+`matched`，角色不變；任一方離開、斷線或 window 逾時則關房並通知對方。房間存活期間
+不接受任何戰鬥訊息。
 
 這不是 server-authoritative simulation。只有 host 執行戰鬥物理；Go server 是配對與受控 relay。任何可能造成 host／guest 顯示不一致的修改，都要同時檢查 coordinator、timeline、協定與兩端 App 的 host／guest 分支。
 
@@ -187,7 +194,10 @@ guest App
    - Go protocol validator 與 `pickRandomEnvironment`
 4. `BattleSnapshot` 或 `SimulationEvent` 改動會影響 simulation、visuals、multiplayer wire conversion、timeline 與兩端場景。
 5. 不要修改 `dist/`、`.turbo/`、`.expo/` 或 `node_modules/`；它們是生成物或依賴。
-6. 工作樹可能已有使用者變更。先看 `git status --short`，不要覆蓋、格式化或回復不屬於當前任務的修改。
+6. 房號規則（字母表、長度）改動時，`packages/multiplayer/src/room-code.ts` 與
+   `services/api/internal/matchmaking/protocol.go` 的 `roomCodeAlphabet`／`validRoomCode`
+   必須一致，否則 client 送得出去、server 會拒收。
+7. 工作樹可能已有使用者變更。先看 `git status --short`，不要覆蓋、格式化或回復不屬於當前任務的修改。
 
 ## 環境變數
 
@@ -196,6 +206,7 @@ guest App
 - Go API：`GAME_API_ADDR`、`ALLOWED_ORIGINS`
 - Web WebSocket：`VITE_PUBLIC_WS_URL`，未設定時使用同 host 的 `/ws`
 - Mobile WebSocket：`EXPO_PUBLIC_WS_URL`，實機開發需使用可從裝置連到的位址；正式值存在 EAS production environment，不在此 repo
+- Mobile 好友房邀請連結：`EXPO_PUBLIC_INVITE_BASE_URL`（Web 版網址，例如 `https://game.example`）。未設定時分享訊息只帶房號，不帶連結
 
 新增或改名環境變數時，要同步實際程式與 `.env.example` 範例檔。
 

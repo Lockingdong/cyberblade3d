@@ -29,6 +29,9 @@ type Client struct {
 	// recentMatches is owned by the hub goroutine. It lets late frames from a
 	// closed room be ignored instead of affecting a client's next match.
 	recentMatches []string
+
+	// joinFailures is owned by the hub goroutine and caps room code guessing.
+	joinFailures int
 }
 
 func (c *Client) rememberMatch(matchID string) {

@@ -7,21 +7,30 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"strings"
 )
 
 // v2: six new blade types — old clients would crash on an unknown blade id
 // mid-match, so the version gate rejects them cleanly at hello.
 // v3: optional per-player accent color on ready/start.
 // v4: optional 4-part custom assembly (bladeId, ratchetId, bitId, chipId) on ready/start.
-const ProtocolVersion = 4
+// v5: friend rooms (create_room / join_room / room_created) and in-room rematch.
+const ProtocolVersion = 5
+
+// roomCodeAlphabet drops the characters players confuse when reading a code
+// aloud or out of a chat message: I, L, O, 0 and 1.
+const (
+	roomCodeAlphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+	roomCodeLength   = 6
+)
 
 var (
 	validBlades = map[string]bool{
 		"attack": true, "defense": true, "stamina": true, "balance": true,
 	}
-	validStadiums = map[string]bool{"neon": true, "toxic": true, "volcano": true}
+	validStadiums     = map[string]bool{"neon": true, "toxic": true, "volcano": true}
 	validEnvironments = []string{"space", "sunset", "deep-sea", "neon-city", "glacier"}
-	validFinishes = map[string]bool{
+	validFinishes     = map[string]bool{
 		"BURST FINISH": true,
 		"OVER FINISH":  true,
 		"SPIN FINISH":  true,
@@ -41,6 +50,12 @@ type helloMessage struct {
 type queueMessage struct {
 	Type      string `json:"type"`
 	RequestID string `json:"requestId"`
+}
+
+type joinRoomMessage struct {
+	Type      string `json:"type"`
+	RequestID string `json:"requestId"`
+	Code      string `json:"code"`
 }
 
 type matchMessage struct {
@@ -136,11 +151,13 @@ func decodeMessage(data []byte) (any, error) {
 	switch env.Type {
 	case "hello":
 		value = &helloMessage{}
-	case "join_queue", "cancel_queue":
+	case "join_queue", "cancel_queue", "create_room":
 		value = &queueMessage{}
+	case "join_room":
+		value = &joinRoomMessage{}
 	case "ready":
 		value = &readyMessage{}
-	case "leave":
+	case "leave", "rematch":
 		value = &matchMessage{}
 	case "state":
 		value = &stateMessage{}
@@ -170,6 +187,13 @@ func validateMessage(message any) error {
 	case *queueMessage:
 		if !opaque(value.RequestID) {
 			return errors.New("invalid requestId")
+		}
+	case *joinRoomMessage:
+		if !opaque(value.RequestID) {
+			return errors.New("invalid requestId")
+		}
+		if !validRoomCode(value.Code) {
+			return errors.New("invalid room code")
 		}
 	case *matchMessage:
 		if !opaque(value.MatchID) {
@@ -248,6 +272,18 @@ const maxRecordCount = 1_000_000
 
 func validRecordCount(value int64) bool {
 	return value >= 0 && value <= maxRecordCount
+}
+
+func validRoomCode(value string) bool {
+	if len(value) != roomCodeLength {
+		return false
+	}
+	for _, letter := range value {
+		if !strings.ContainsRune(roomCodeAlphabet, letter) {
+			return false
+		}
+	}
+	return true
 }
 
 func opaque(value string) bool {

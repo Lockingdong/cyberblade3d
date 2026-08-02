@@ -20,6 +20,9 @@ describe("protocol decoders", () => {
       { type: "hello", protocolVersion: 1 },
       { type: "join_queue", requestId: "q1" },
       { type: "cancel_queue", requestId: "q1" },
+      { type: "create_room", requestId: "r1" },
+      { type: "join_room", requestId: "j1", code: "K7M2P9" },
+      { type: "rematch", matchId: "m1" },
       {
         type: "ready",
         matchId: "m1",
@@ -64,8 +67,15 @@ describe("protocol decoders", () => {
       { type: "hello_ok", protocolVersion: 1 },
       { type: "queued", requestId: "q1" },
       { type: "queue_left", requestId: "q1" },
+      {
+        type: "room_created",
+        requestId: "r1",
+        code: "K7M2P9",
+        expiresInMs: 600000,
+      },
       { type: "matched", matchId: "m1", role: "guest", localTopId: "p2" },
       { type: "opponent_ready", matchId: "m1" },
+      { type: "opponent_rematch", matchId: "m1" },
       {
         type: "start",
         matchId: "m1",
@@ -91,6 +101,21 @@ describe("protocol decoders", () => {
         ok: true,
         value: message,
       });
+  });
+
+  it("rejects room codes outside the unambiguous alphabet", () => {
+    for (const code of ["k7m2p9", "K7M2P0", "K7M2P", "K7M2P99"])
+      expect(
+        decodeClientMessage({ type: "join_room", requestId: "j1", code }).ok,
+      ).toBe(false);
+    expect(
+      decodeServerMessage({
+        type: "room_created",
+        requestId: "r1",
+        code: "K7M2PO",
+        expiresInMs: 1000,
+      }).ok,
+    ).toBe(false);
   });
 
   it("rejects unknown enums, non-finite numbers and malformed arrays", () => {
@@ -170,7 +195,16 @@ describe("protocol decoders", () => {
       countdownMs: 3000,
       stadium: "neon",
       environment: "space",
-      p1: { blade: "attack", power: 90, angle: 10, color: 0xb026ff, bladeId: "b1", ratchetId: "r1", bitId: "bt1", chipId: "c1" },
+      p1: {
+        blade: "attack",
+        power: 90,
+        angle: 10,
+        color: 0xb026ff,
+        bladeId: "b1",
+        ratchetId: "r1",
+        bitId: "bt1",
+        chipId: "c1",
+      },
       p2: { blade: "defense", power: 80, angle: -10 },
     } as const;
     expect(decodeServerMessage(start).ok).toBe(true);

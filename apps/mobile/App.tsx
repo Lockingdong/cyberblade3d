@@ -5,9 +5,11 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
+  Share,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import {
@@ -41,6 +43,10 @@ import {
 import {
   MatchmakingClient,
   OnlineMatchCoordinator,
+  ROOM_CODE_LENGTH,
+  isValidRoomCode,
+  normalizeRoomCode,
+  type OnlineIntent,
   type OnlineMatchState,
 } from "@cyberblade/multiplayer";
 import { CannonBattleSimulation } from "@cyberblade/simulation";
@@ -54,6 +60,7 @@ import {
   selectionFeedback,
 } from "./src/feedback";
 import {
+  buildMobileInviteMessage,
   createMobileWebSocket,
   resolveMobileWebSocketUrl,
   shouldHostLeaveForAppState,
@@ -88,6 +95,7 @@ export default function App() {
   const [power, setPower] = useState(20);
   const [countdownNow, setCountdownNow] = useState(0);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [lobbyOpen, setLobbyOpen] = useState(false);
 
   const modeRef = useRef<AppMode>("menu");
   const direction = useRef(1);
@@ -502,18 +510,38 @@ export default function App() {
     });
   }
 
-  function startOnline(): void {
+  function openOnlineLobby(): void {
     selectionFeedback();
+    setLobbyOpen(true);
+  }
+
+  function beginOnline(intent: OnlineIntent): void {
+    selectionFeedback();
+    setLobbyOpen(false);
+    // A rejected room code keeps the socket open in the lobby phase, so the
+    // next attempt reuses that connection instead of reconnecting.
+    if (modeRef.current === "online" && coordinator.state.phase === "lobby") {
+      if (intent.kind === "join") coordinator.joinRoom(intent.code);
+      else if (intent.kind === "create") coordinator.createRoom();
+      else coordinator.joinQueue();
+      return;
+    }
     resetMatchRefs();
     modeRef.current = "online";
     setMode("online");
     try {
-      coordinator.connect(resolveMobileWebSocketUrl());
+      coordinator.connect(resolveMobileWebSocketUrl(), intent);
     } catch (error) {
       setConnectionError(
         error instanceof Error ? error.message : "無法讀取線上對戰設定。",
       );
     }
+  }
+
+  function rematchOnline(): void {
+    selectionFeedback();
+    resetMatchRefs();
+    coordinator.requestRematch();
   }
 
   function readyOnline(): void {
@@ -617,7 +645,22 @@ export default function App() {
           onCustomColor={setCustomColor}
           record={record}
           onLocal={prepareLocal}
-          onOnline={startOnline}
+          onOnline={openOnlineLobby}
+        />
+      )}
+
+      {(lobbyOpen || (mode === "online" && online.phase === "lobby")) && (
+        <OnlineLobby
+          error={online.phase === "lobby" ? online.error : null}
+          onSelect={beginOnline}
+          onClose={returnToMenu}
+        />
+      )}
+
+      {mode === "online" && online.phase === "hosting" && online.roomCode && (
+        <RoomCodePanel
+          code={online.roomCode}
+          onCancel={() => coordinator.cancelQueue()}
         />
       )}
 
@@ -627,22 +670,23 @@ export default function App() {
 
       {mode === "online" &&
         !connectionError &&
-        ["connecting", "queued"].includes(online.phase) && (
+        ["connecting", "queued", "joining"].includes(online.phase) && (
           <Overlay
-            eyebrow={
-              online.phase === "connecting" ? "CONNECTING" : "MATCHMAKING"
-            }
+            eyebrow={online.phase === "queued" ? "MATCHMAKING" : "CONNECTING"}
             title={
-              online.phase === "connecting"
-                ? "正在連線至競技場"
-                : "正在尋找對手"
+              online.phase === "queued"
+                ? "正在尋找對手"
+                : online.phase === "joining"
+                  ? "正在加入好友房"
+                  : "正在連線至競技場"
             }
-            detail="找到對手前會持續等待。"
+            detail={
+              online.phase === "queued"
+                ? "找到對手前會持續等待。"
+                : "請稍候片刻。"
+            }
           >
-            <Action
-              label="取消配對"
-              onPress={() => coordinator.cancelQueue()}
-            />
+            <Action label="取消" onPress={() => coordinator.cancelQueue()} />
           </Overlay>
         )}
 
@@ -729,6 +773,13 @@ export default function App() {
               ? online.start?.p1.color
               : online.start?.p2.color
           }
+          {...(online.rematchAvailable
+            ? {
+                onRematch: rematchOnline,
+                rematchRequested: online.rematchRequested,
+                opponentRematch: online.opponentRematch,
+              }
+            : {})}
           onMenu={returnToMenu}
         />
       )}
@@ -1083,6 +1134,8 @@ function ResultScreen({
   record,
   playerColor,
   onRematch,
+  rematchRequested = false,
+  opponentRematch = false,
   onMenu,
 }: {
   result: MatchResult;
@@ -1093,6 +1146,8 @@ function ResultScreen({
   record?: BattleRecord;
   playerColor?: number | null | undefined;
   onRematch?: () => void;
+  rematchRequested?: boolean;
+  opponentRematch?: boolean;
   onMenu: () => void;
 }) {
   const outcome = localMatchOutcome(result.winnerId, localTopId);
@@ -1150,8 +1205,21 @@ function ResultScreen({
         {outcome === "victory" && battle && (
           <Action label="分享戰績" primary onPress={() => setShareOpen(true)} />
         )}
-        {!online && onRematch && (
-          <Action label="再戰一局" primary onPress={onRematch} />
+        {onRematch && (
+          <Action
+            label={
+              !online
+                ? "再戰一局"
+                : rematchRequested
+                  ? "等待對手回應…"
+                  : opponentRematch
+                    ? "對手想再戰，接受"
+                    : "再來一場"
+            }
+            primary
+            disabled={rematchRequested}
+            onPress={onRematch}
+          />
         )}
         <Action label="返回主選單" primary={online} onPress={onMenu} />
       </View>
@@ -1168,6 +1236,85 @@ function ResultScreen({
           onClose={() => setShareOpen(false)}
         />
       )}
+    </SafeAreaView>
+  );
+}
+
+function OnlineLobby({
+  error,
+  onSelect,
+  onClose,
+}: {
+  error?: string | null;
+  onSelect: (intent: OnlineIntent) => void;
+  onClose: () => void;
+}) {
+  const [code, setCode] = useState("");
+  const canJoin = isValidRoomCode(code);
+  return (
+    <SafeAreaView style={styles.overlay}>
+      <View style={styles.resultCard}>
+        <Text style={styles.eyebrow}>ONLINE</Text>
+        <Text style={styles.overlayTitle}>選擇對戰方式</Text>
+        {error && <Text style={styles.lobbyError}>{error}</Text>}
+        <Action
+          label="隨機配對"
+          primary
+          onPress={() => onSelect({ kind: "quick" })}
+        />
+        <Action
+          label="建立好友房"
+          onPress={() => onSelect({ kind: "create" })}
+        />
+        <Text style={styles.muted}>輸入好友的房號</Text>
+        <TextInput
+          style={styles.roomCodeInput}
+          value={code}
+          // Normalizing on input keeps the field showing exactly what will be
+          // sent, so a pasted "k7m2-p9" becomes K7M2P9 as you type.
+          onChangeText={(value) =>
+            setCode(normalizeRoomCode(value).slice(0, ROOM_CODE_LENGTH))
+          }
+          placeholder={"A".repeat(ROOM_CODE_LENGTH)}
+          placeholderTextColor="#b7bccb"
+          autoCapitalize="characters"
+          autoCorrect={false}
+          maxLength={ROOM_CODE_LENGTH}
+        />
+        <Action
+          label="加入"
+          disabled={!canJoin}
+          onPress={() => onSelect({ kind: "join", code })}
+        />
+        <Action label="返回主選單" onPress={onClose} />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function RoomCodePanel({
+  code,
+  onCancel,
+}: {
+  code: string;
+  onCancel: () => void;
+}) {
+  return (
+    <SafeAreaView style={styles.overlay}>
+      <View style={styles.resultCard}>
+        <Text style={styles.eyebrow}>FRIEND ROOM</Text>
+        <Text style={styles.overlayTitle}>等待好友加入</Text>
+        <Text style={styles.roomCode}>{code}</Text>
+        <Text style={styles.muted}>把房號傳給朋友，他加入後就會自動開始。</Text>
+        <Action
+          label="分享邀請"
+          primary
+          onPress={() => {
+            void Share.share({ message: buildMobileInviteMessage(code) });
+          }}
+        />
+        <Action label="取消" onPress={onCancel} />
+      </View>
     </SafeAreaView>
   );
 }
@@ -1474,6 +1621,34 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   muted: { marginTop: 6, color: colors.muted, textAlign: "center" },
+  lobbyError: {
+    marginTop: 10,
+    color: colors.danger,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  roomCodeInput: {
+    width: "100%",
+    marginTop: 8,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#414a69",
+    borderRadius: radius.md,
+    backgroundColor: "#101426",
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: "900",
+    letterSpacing: 6,
+    textAlign: "center",
+  },
+  roomCode: {
+    marginTop: 14,
+    color: colors.accent,
+    fontSize: 42,
+    fontWeight: "900",
+    letterSpacing: 8,
+    textAlign: "center",
+  },
   powerCard: {
     padding: spacing.lg,
     borderWidth: 1,

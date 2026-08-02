@@ -52,11 +52,18 @@ import { PartCustomizerModal } from "./PartCustomizerModal";
 import { ShareCardModal } from "./ShareCardModal";
 import { synth } from "./audio";
 import {
+  clearRoomParamFromUrl,
   createWebSocket,
   isActiveOnlineRoom,
   onlinePageExitAction,
+  readRoomCodeFromLocation,
   resolveWebSocketUrl,
 } from "./online";
+import {
+  OnlineLobby,
+  OnlineRoomCode,
+  type OnlineLobbyChoice,
+} from "./OnlineLobby";
 import {
   loadBattleRecord,
   loadCustomParts,
@@ -204,6 +211,7 @@ export function App() {
   const [countdownNow, setCountdownNow] = useState(0);
   const [showIntro, setShowIntro] = useState(true);
   const [upcomingModalOpen, setUpcomingModalOpen] = useState(false);
+  const [lobbyOpen, setLobbyOpen] = useState(false);
   const [scene, setScene] = useState<EnvironmentScene>(() =>
     pickRandomEnvironmentScene(),
   );
@@ -493,6 +501,22 @@ export function App() {
     }
   }, [mode, online.phase]);
 
+  // An invite link (?room=CODE) goes straight into the friend room. The
+  // parameter is dropped so reloading later does not rejoin a dead room.
+  const invitedRoom = useRef(false);
+  useEffect(() => {
+    if (invitedRoom.current) return;
+    invitedRoom.current = true;
+    const code = readRoomCodeFromLocation();
+    if (!code) return;
+    clearRoomParamFromUrl();
+    resetMatchRefs();
+    modeRef.current = "online";
+    setMode("online");
+    coordinator.connect(resolveWebSocketUrl(), { kind: "join", code });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coordinator]);
+
   useEffect(() => {
     const leaveActiveSession = (): void => {
       const current = coordinator.state;
@@ -655,12 +679,37 @@ export function App() {
     });
   }
 
-  function startOnline(): void {
+  function openOnlineLobby(): void {
     synth.click();
+    setLobbyOpen(true);
+  }
+
+  function beginOnline(choice: OnlineLobbyChoice): void {
+    synth.click();
+    setLobbyOpen(false);
+    // A rejected room code keeps the socket open in the lobby phase, so the
+    // next attempt reuses that connection instead of reconnecting.
+    if (modeRef.current === "online" && coordinator.state.phase === "lobby") {
+      if (choice.kind === "join") coordinator.joinRoom(choice.code);
+      else if (choice.kind === "create") coordinator.createRoom();
+      else coordinator.joinQueue();
+      return;
+    }
     resetMatchRefs();
     modeRef.current = "online";
     setMode("online");
-    coordinator.connect(resolveWebSocketUrl());
+    coordinator.connect(
+      resolveWebSocketUrl(),
+      choice.kind === "join"
+        ? { kind: "join", code: choice.code }
+        : { kind: choice.kind },
+    );
+  }
+
+  function rematchOnline(): void {
+    synth.click();
+    resetMatchRefs();
+    coordinator.requestRematch();
   }
 
   function readyOnline(): void {
@@ -793,7 +842,7 @@ export function App() {
           onCustomColorChange={setCustomColor}
           record={record}
           onLocal={prepareLocal}
-          onOnline={startOnline}
+          onOnline={openOnlineLobby}
           onUpcomingClick={() => setUpcomingModalOpen(true)}
           customSpec={customSpec}
           selectedBladeId={selectedBladeId}
@@ -816,19 +865,39 @@ export function App() {
         <LaunchScreen powerRef={powerRef} onLaunch={launchLocal} />
       )}
 
+      {(lobbyOpen || (mode === "online" && onlinePhase === "lobby")) && (
+        <OnlineLobby
+          error={onlinePhase === "lobby" ? online.error : null}
+          onSelect={beginOnline}
+          onClose={returnToMenu}
+        />
+      )}
+
+      {mode === "online" && onlinePhase === "hosting" && online.roomCode && (
+        <OnlineRoomCode code={online.roomCode} onCancel={cancelQueue} />
+      )}
+
       {mode === "online" &&
-        (onlinePhase === "connecting" || onlinePhase === "queued") && (
+        (onlinePhase === "connecting" ||
+          onlinePhase === "queued" ||
+          onlinePhase === "joining") && (
           <OnlineOverlay
-            eyebrow={
-              onlinePhase === "connecting" ? "CONNECTING" : "MATCHMAKING"
-            }
+            eyebrow={onlinePhase === "queued" ? "MATCHMAKING" : "CONNECTING"}
             title={
-              onlinePhase === "connecting" ? "正在連線至競技場" : "正在尋找對手"
+              onlinePhase === "queued"
+                ? "正在尋找對手"
+                : onlinePhase === "joining"
+                  ? "正在加入好友房"
+                  : "正在連線至競技場"
             }
-            detail="找到對手前會持續等待。"
+            detail={
+              onlinePhase === "queued"
+                ? "找到對手前會持續等待。"
+                : "請稍候片刻。"
+            }
             busy
           >
-            <button onClick={cancelQueue}>取消配對</button>
+            <button onClick={cancelQueue}>取消</button>
           </OnlineOverlay>
         )}
 
@@ -907,6 +976,13 @@ export function App() {
               ? online.start?.p1.color
               : online.start?.p2.color
           }
+          {...(online.rematchAvailable
+            ? {
+                onRematch: rematchOnline,
+                rematchRequested: online.rematchRequested,
+                opponentRematch: online.opponentRematch,
+              }
+            : {})}
           onMenu={returnToMenu}
         />
       )}
@@ -1843,6 +1919,8 @@ function ResultScreen({
   record,
   playerColor,
   onRematch,
+  rematchRequested = false,
+  opponentRematch = false,
   onMenu,
 }: {
   result: MatchResult;
@@ -1853,6 +1931,8 @@ function ResultScreen({
   record?: BattleRecord;
   playerColor?: number | null | undefined;
   onRematch?: () => void;
+  rematchRequested?: boolean;
+  opponentRematch?: boolean;
   onMenu: () => void;
 }) {
   const outcome = localMatchOutcome(result.winnerId, localTopId);
@@ -1925,9 +2005,19 @@ function ResultScreen({
               分享戰績
             </button>
           )}
-          {!online && onRematch && (
-            <button className="primary" onClick={onRematch}>
-              再戰一局
+          {onRematch && (
+            <button
+              className="primary"
+              disabled={rematchRequested}
+              onClick={onRematch}
+            >
+              {!online
+                ? "再戰一局"
+                : rematchRequested
+                  ? "等待對手回應…"
+                  : opponentRematch
+                    ? "對手想再戰，接受"
+                    : "再來一場"}
             </button>
           )}
           <button className={online ? "primary" : ""} onClick={onMenu}>

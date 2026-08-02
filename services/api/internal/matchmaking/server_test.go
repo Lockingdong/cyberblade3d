@@ -173,16 +173,97 @@ func TestMatchReadyRelayAndEndIntegration(t *testing.T) {
 	writeJSON(t, host, matchEnd)
 	expectType(t, guest, "match_end")
 
-	// Duplicate terminal and stale state frames are ignored, while a completed
-	// room releases both clients so they can enter a fresh match.
+	// Duplicate terminal and stale state frames are ignored. A finished room
+	// stays open for a rematch, so both clients leave before queueing again.
 	writeJSON(t, host, matchEnd)
 	writeJSON(t, host, statePayload(matchID, 2))
+	writeJSON(t, host, map[string]any{"type": "leave", "matchId": matchID})
+	expectType(t, guest, "opponent_left")
+	writeJSON(t, guest, map[string]any{"type": "leave", "matchId": matchID})
 	writeJSON(t, host, map[string]any{"type": "join_queue", "requestId": "q_host_2"})
 	expectType(t, host, "queued")
 	writeJSON(t, guest, map[string]any{"type": "join_queue", "requestId": "q_guest_2"})
 	expectType(t, guest, "queued")
 	expectType(t, host, "matched")
 	expectType(t, guest, "matched")
+}
+
+func TestFriendRoomJoinByCodeIntegration(t *testing.T) {
+	t.Parallel()
+	service := newTestService(t, nil)
+	host := service.dial(t)
+	guest := service.dial(t)
+
+	writeJSON(t, host, map[string]any{"type": "create_room", "requestId": "r_host"})
+	created := expectType(t, host, "room_created")
+	code, ok := created["code"].(string)
+	if !ok || !validRoomCode(code) {
+		t.Fatalf("room_created = %#v, want a valid code", created)
+	}
+	if created["requestId"] != "r_host" || created["expiresInMs"].(float64) <= 0 {
+		t.Fatalf("room_created = %#v", created)
+	}
+
+	writeJSON(t, guest, map[string]any{"type": "join_room", "requestId": "j_guest", "code": code})
+	hostMatched := expectType(t, host, "matched")
+	guestMatched := expectType(t, guest, "matched")
+	if hostMatched["matchId"] != guestMatched["matchId"] {
+		t.Fatalf("match id mismatch: host=%#v guest=%#v", hostMatched, guestMatched)
+	}
+	if hostMatched["role"] != "host" || guestMatched["role"] != "guest" {
+		t.Fatalf("friend room roles: host=%v guest=%v", hostMatched["role"], guestMatched["role"])
+	}
+
+	// The code is consumed by the first joiner.
+	third := service.dial(t)
+	writeJSON(t, third, map[string]any{"type": "join_room", "requestId": "j_third", "code": code})
+	if failure := expectType(t, third, "error"); failure["code"] != "ROOM_NOT_FOUND" {
+		t.Fatalf("redeemed code = %#v, want ROOM_NOT_FOUND", failure)
+	}
+}
+
+func TestRematchIntegration(t *testing.T) {
+	t.Parallel()
+	service := newTestService(t, nil)
+	host := service.dial(t)
+	guest := service.dial(t)
+
+	writeJSON(t, host, map[string]any{"type": "create_room", "requestId": "r_host"})
+	code := expectType(t, host, "room_created")["code"].(string)
+	writeJSON(t, guest, map[string]any{"type": "join_room", "requestId": "j_guest", "code": code})
+	matchID := expectType(t, host, "matched")["matchId"].(string)
+	expectType(t, guest, "matched")
+
+	writeJSON(t, guest, readyPayload(matchID, "stamina", 76, 12, "toxic"))
+	expectType(t, host, "opponent_ready")
+	writeJSON(t, host, readyPayload(matchID, "attack", 88, -23, "neon"))
+	expectType(t, guest, "opponent_ready")
+	expectType(t, host, "start")
+	expectType(t, guest, "start")
+	time.Sleep(10 * time.Millisecond)
+
+	writeJSON(t, host, map[string]any{
+		"type": "battle_event", "matchId": matchID, "eventId": 1, "stateSeq": 0, "t": 1,
+		"event": map[string]any{"kind": "ending", "winnerId": "p1", "finishType": "SPIN FINISH"},
+	})
+	expectType(t, guest, "battle_event")
+	writeJSON(t, host, map[string]any{
+		"type": "match_end", "matchId": matchID, "stateSeq": 0, "t": 1,
+		"winnerId": "p1", "finishType": "SPIN FINISH", "duration": 1, "finalRpm": 100,
+	})
+	expectType(t, guest, "match_end")
+
+	writeJSON(t, host, map[string]any{"type": "rematch", "matchId": matchID})
+	if notice := expectType(t, guest, "opponent_rematch"); notice["matchId"] != matchID {
+		t.Fatalf("opponent_rematch = %#v", notice)
+	}
+	writeJSON(t, guest, map[string]any{"type": "rematch", "matchId": matchID})
+	expectType(t, host, "opponent_rematch")
+	rematched := expectType(t, host, "matched")
+	expectType(t, guest, "matched")
+	if rematched["matchId"] == matchID || rematched["role"] != "host" {
+		t.Fatalf("rematch = %#v, want a new id and the original host role", rematched)
+	}
 }
 
 func TestFIFOQueueCancelAndDisconnectCleanup(t *testing.T) {

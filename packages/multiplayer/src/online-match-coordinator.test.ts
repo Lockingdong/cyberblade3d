@@ -15,6 +15,9 @@ class FakeTransport implements OnlineTransport {
   connected = "";
   disposed = false;
   joined = 0;
+  created = 0;
+  joinedCodes: string[] = [];
+  rematches = 0;
 
   connect(url: string): void {
     this.connected = url;
@@ -23,11 +26,22 @@ class FakeTransport implements OnlineTransport {
     this.joined += 1;
     return "q1";
   }
+  createRoom(): string {
+    this.created += 1;
+    return "r1";
+  }
+  joinRoom(code: string): string {
+    this.joinedCodes.push(code);
+    return "j1";
+  }
   cancelQueue(): void {}
   ready(_selection: ReadySelection): void {
     void _selection;
   }
   leave(): void {}
+  rematch(): void {
+    this.rematches += 1;
+  }
   sendHostSnapshot(snapshot: BattleSnapshot): number {
     this.snapshots.push(snapshot);
     return this.snapshots.length;
@@ -254,6 +268,176 @@ describe("OnlineMatchCoordinator", () => {
       1,
     );
     expect(coordinator.state.termination).toBe("completed");
+  });
+
+  it("hosts a friend room and keeps the lobby usable after a bad code", () => {
+    const transport = new FakeTransport();
+    const coordinator = new OnlineMatchCoordinator(transport, () => 0);
+    coordinator.connect("ws://test", { kind: "create" });
+    transport.emit(message({ type: "hello_ok", protocolVersion: 5 }));
+    expect(transport.created).toBe(1);
+    expect(transport.joined).toBe(0);
+    transport.emit(
+      message({
+        type: "room_created",
+        requestId: "r1",
+        code: "K7M2P9",
+        expiresInMs: 600000,
+      }),
+    );
+    expect(coordinator.state.phase).toBe("hosting");
+    expect(coordinator.state.roomCode).toBe("K7M2P9");
+
+    transport.emit(
+      message({
+        type: "matched",
+        matchId: "m1",
+        role: "host",
+        localTopId: "p1",
+      }),
+    );
+    expect(coordinator.state.phase).toBe("matched");
+    expect(coordinator.state.roomCode).toBeNull();
+  });
+
+  it("returns a rejected room code to the lobby without dropping the socket", () => {
+    const transport = new FakeTransport();
+    const coordinator = new OnlineMatchCoordinator(transport, () => 0);
+    coordinator.connect("ws://test", { kind: "join", code: "K7M2P9" });
+    transport.emit(message({ type: "hello_ok", protocolVersion: 5 }));
+    expect(transport.joinedCodes).toEqual(["K7M2P9"]);
+    expect(coordinator.state.phase).toBe("joining");
+
+    transport.emit(
+      message({
+        type: "error",
+        code: "ROOM_NOT_FOUND",
+        message: "找不到這個房號",
+      }),
+    );
+    expect(coordinator.state.phase).toBe("lobby");
+    expect(coordinator.state.errorCode).toBe("ROOM_NOT_FOUND");
+    expect(transport.disposed).toBe(false);
+
+    coordinator.joinRoom("QRS234");
+    expect(transport.joinedCodes).toEqual(["K7M2P9", "QRS234"]);
+    expect(coordinator.state.error).toBeNull();
+
+    // Non-room errors still end the session.
+    transport.emit(
+      message({ type: "error", code: "RATE_LIMIT", message: "too fast" }),
+    );
+    expect(coordinator.state.phase).toBe("error");
+  });
+
+  it("clears the finished match when a rematch is accepted", () => {
+    const transport = new FakeTransport();
+    const coordinator = new OnlineMatchCoordinator(transport, () => 0);
+    coordinator.connect("ws://test", { kind: "create" });
+    transport.emit(
+      message({
+        type: "matched",
+        matchId: "m1",
+        role: "guest",
+        localTopId: "p2",
+      }),
+    );
+    transport.emit(
+      message({
+        type: "start",
+        matchId: "m1",
+        countdownMs: 0,
+        stadium: "neon",
+        environment: "space",
+        p1: { blade: "attack", power: 90, angle: 0 },
+        p2: { blade: "defense", power: 80, angle: 0 },
+      }),
+    );
+    transport.emit(
+      message({
+        type: "match_end",
+        matchId: "m1",
+        stateSeq: 1,
+        t: 1,
+        winnerId: "p1",
+        finishType: "SPIN FINISH",
+        duration: 1,
+        finalRpm: 100,
+      }),
+    );
+    expect(coordinator.state.phase).toBe("result");
+
+    expect(coordinator.state.rematchAvailable).toBe(true);
+    transport.emit(message({ type: "opponent_rematch", matchId: "m1" }));
+    expect(coordinator.state.opponentRematch).toBe(true);
+    coordinator.requestRematch();
+    coordinator.requestRematch();
+    expect(transport.rematches).toBe(1);
+    expect(coordinator.state.rematchRequested).toBe(true);
+
+    transport.emit(
+      message({
+        type: "matched",
+        matchId: "m2",
+        role: "guest",
+        localTopId: "p2",
+      }),
+    );
+    expect(coordinator.state).toMatchObject({
+      phase: "matched",
+      matchId: "m2",
+      opponentRematch: false,
+      rematchRequested: false,
+      termination: null,
+      start: null,
+    });
+    expect(coordinator.state.view.result).toBeNull();
+  });
+
+  it("withdraws the rematch offer without discarding a completed result", () => {
+    const transport = new FakeTransport();
+    const coordinator = new OnlineMatchCoordinator(transport, () => 0);
+    coordinator.connect("ws://test", { kind: "create" });
+    transport.emit(
+      message({
+        type: "matched",
+        matchId: "m1",
+        role: "host",
+        localTopId: "p1",
+      }),
+    );
+    transport.emit(
+      message({
+        type: "start",
+        matchId: "m1",
+        countdownMs: 0,
+        stadium: "neon",
+        environment: "space",
+        p1: { blade: "attack", power: 90, angle: 0 },
+        p2: { blade: "defense", power: 80, angle: 0 },
+      }),
+    );
+    coordinator.update();
+    coordinator.publishMatchEnd(
+      { winnerId: "p1", finishType: "SPIN FINISH", duration: 1, finalRpm: 100 },
+      1,
+      1,
+    );
+    coordinator.requestRematch();
+
+    transport.emit(
+      message({ type: "opponent_left", matchId: "m1", phase: "finished" }),
+    );
+    expect(coordinator.state).toMatchObject({
+      phase: "result",
+      termination: "completed",
+      rematchAvailable: false,
+      rematchRequested: false,
+    });
+    expect(coordinator.state.view.result?.winnerId).toBe("p1");
+
+    coordinator.requestRematch();
+    expect(transport.rematches).toBe(1);
   });
 
   it("shows the result when match_end arrives before the final snapshot", () => {
