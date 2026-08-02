@@ -1213,7 +1213,7 @@ function MainMenu({
           </button>
         </div>
         <div className="menu-drawer-footer">
-          <p>© 2026 Game Pool. All rights reserved.</p>
+          <p>© 2026 DONGSTUDIO. All rights reserved.</p>
         </div>
       </div>
 
@@ -1247,7 +1247,7 @@ function MainMenu({
                   <h3>4. 著作權聲明</h3>
                   <p>
                     本遊戲內的所有美術資產、音樂、3D
-                    模型、物理模擬引擎及代碼，均屬 Game Pool
+                    模型、物理模擬引擎及代碼，均屬 DONGSTUDIO
                     智慧財產權所有，受相關著作權法保護。
                   </p>
                   <h3>5. 免責聲明</h3>
@@ -1285,7 +1285,7 @@ function MainMenu({
                   </p>
                   <h3>4. 聯絡我們</h3>
                   <p>
-                    若您對本隱私權政策有任何疑問，歡迎透過 Game Pool
+                    若您對本隱私權政策有任何疑問，歡迎透過 DONGSTUDIO
                     官方平台與我們聯繫。
                   </p>
                 </div>
@@ -1373,7 +1373,7 @@ function MainMenu({
 function Logo() {
   return (
     <header className="logo">
-      <p className="eyebrow">GAME POOL PRESENTS</p>
+      <p className="eyebrow">DONGSTUDIO PRESENTS</p>
       <h1>CYBERBLADE 3D</h1>
       <p>極限爆裂對決</p>
     </header>
@@ -2060,7 +2060,7 @@ function IntroScreen({ onComplete }: { onComplete: () => void }) {
     <div className={`intro-screen ${isFading ? "fade-out" : ""}`}>
       <div className="intro-grid-overlay" />
       <div className="intro-content">
-        <p className="eyebrow glow">GAME POOL PRESENTS</p>
+        <p className="eyebrow glow">DONGSTUDIO PRESENTS</p>
         <h1 className="intro-title">CYBERBLADE 3D</h1>
         <p className="intro-subtitle">極限爆裂對決</p>
 

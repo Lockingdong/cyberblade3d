@@ -771,7 +771,7 @@ function Menu({
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.menu}>
-        <Text style={styles.eyebrow}>GAME POOL PRESENTS</Text>
+        <Text style={styles.eyebrow}>DONGSTUDIO PRESENTS</Text>
         <Text style={styles.title}>CYBERBLADE 3D</Text>
         <Text style={styles.subtitle}>極限爆裂對決</Text>
         {(record.wins > 0 || record.losses > 0) && (
