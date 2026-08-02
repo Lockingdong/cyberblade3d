@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   BEYBLADES,
+  BEYBLADE_DESCRIPTIONS,
   BeybladeRuntime,
   darkenColor,
   applyBattleOutcome,
@@ -67,12 +68,7 @@ import {
   savePlayerName,
 } from "./profile";
 
-const descriptions: Record<BeybladeType, string> = {
-  attack: "赤紅斬刃：速度快、撞擊力極強，可配備烈焰暴龍刃、龍骨棘輪與狂暴衝壓軸特化為重型高爆發形態，亦可配備熔壁犀刃、磐岩棘輪與重甲穩軸轉為以守代攻的磐岩形態。",
-  defense: "玄武鐵壁：重量極重、底座穩固，可配備白銀聖盾，以重甲承受衝擊並伺機反擊。",
-  stamina: "黃金巨星：低摩擦底軸帶來驚人持久力；可自由混裝黃金獵隼刃、日輪棘輪、永恆針軸與獵隼核心，以抗撞續航撐過爆發並在長局保有轉速。",
-  balance: "翡翠疾風：四翼攻防均衡；可改裝幻彩變色龍刃、幻鱗棘輪、幻步錐軸與變色龍核心，轉為高速輕量的靈巧迴避形態。",
-};
+
 
 const LOCAL_TOP_ID: TopId = "p1";
 type AppMode = "menu" | "local" | "online";
@@ -1644,7 +1640,7 @@ function BladeDetails({
       <div className="blade-detail-copy">
         <p className="eyebrow">{selected.englishName}</p>
         <h3>{selected.name}</h3>
-        <p>{descriptions[value]}</p>
+        <p>{selected.description ?? BEYBLADE_DESCRIPTIONS[value]}</p>
       </div>
       <div className="stat-grid">
         {stats.map((stat) => (

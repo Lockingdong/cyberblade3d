@@ -47,6 +47,7 @@ export interface CustomBeybladeConfig {
   readonly chipId: string;
   readonly name?: string;
   readonly englishName?: string;
+  readonly description?: string;
 }
 
 export interface AllowedPartsConfig {

@@ -25,6 +25,7 @@ export interface BeybladeSpec {
   readonly chipId: string;
   name: string;
   englishName: string;
+  readonly description?: string;
   mass: number;
   maxRpm: number;
   rpmDecay: number;
@@ -243,6 +244,13 @@ export type BeybladeInput =
 import { assembleBeybladeSpec, type CustomBeybladeConfig } from "./parts";
 export * from "./parts";
 
+export const BEYBLADE_DESCRIPTIONS: Record<BeybladeType, string> = {
+  attack: "赤紅龍焰：攻擊力強大、速度極快，能以猛烈撞擊將對手擊出場外。",
+  defense: "玄武鐵壁：重量極重、底座穩固，可配備白銀聖盾，以重甲承受衝擊並伺機反擊。",
+  stamina: "太陽極星：持久力極佳、風阻極低，具備持久轉速優勢與防守彈性。",
+  balance: "翡翠變色龍：兼具攻擊與防禦，能依對手類型靈活變換戰術。",
+};
+
 const PRESET_ORDER: BeybladeType[] = [
   "attack",
   "defense",
@@ -251,10 +259,46 @@ const PRESET_ORDER: BeybladeType[] = [
 ];
 
 const PRESET_CONFIGS: Record<BeybladeType, CustomBeybladeConfig> = {
-  attack: { type: "attack", bladeId: "attack_slash", ratchetId: "attack_standard", bitId: "attack_flat", chipId: "attack_core" },
-  defense: { type: "defense", bladeId: "defense_shield", ratchetId: "defense_standard", bitId: "defense_ball", chipId: "defense_core" },
-  stamina: { type: "stamina", bladeId: "stamina_solar", ratchetId: "stamina_standard", bitId: "stamina_stamina", chipId: "stamina_core" },
-  balance: { type: "balance", bladeId: "balance_emerald", ratchetId: "balance_standard", bitId: "balance_balance", chipId: "balance_core" },
+  attack: {
+    type: "attack",
+    bladeId: "attack_slash",
+    ratchetId: "attack_standard",
+    bitId: "attack_flat",
+    chipId: "attack_core",
+    name: "赤紅狂龍",
+    englishName: "Crimson Drake",
+    description: BEYBLADE_DESCRIPTIONS.attack,
+  },
+  defense: {
+    type: "defense",
+    bladeId: "defense_shield",
+    ratchetId: "defense_standard",
+    bitId: "defense_ball",
+    chipId: "defense_core",
+    name: "鐵臂玄武",
+    englishName: "Iron Fortress",
+    description: BEYBLADE_DESCRIPTIONS.defense,
+  },
+  stamina: {
+    type: "stamina",
+    bladeId: "stamina_solar",
+    ratchetId: "stamina_standard",
+    bitId: "stamina_stamina",
+    chipId: "stamina_core",
+    name: "耀陽神隼",
+    englishName: "Solar Falcon",
+    description: BEYBLADE_DESCRIPTIONS.stamina,
+  },
+  balance: {
+    type: "balance",
+    bladeId: "balance_emerald",
+    ratchetId: "balance_standard",
+    bitId: "balance_balance",
+    chipId: "balance_core",
+    name: "翡翠幻獸",
+    englishName: "Jade Chameleon",
+    description: BEYBLADE_DESCRIPTIONS.balance,
+  },
 };
 
 export const BEYBLADES: Record<BeybladeType, BeybladeSpec> = PRESET_ORDER.reduce(

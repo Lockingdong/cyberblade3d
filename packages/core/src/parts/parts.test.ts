@@ -114,8 +114,8 @@ describe("parts module", () => {
       bitId: "attack_flat",
       chipId: "attack_core",
     });
-    expect(specOriginal.name).toBe("赤紅核心");
-    expect(specOriginal.englishName).toBe("Crimson Core");
+    expect(specOriginal.name).toBe("赤紅狂龍");
+    expect(specOriginal.englishName).toBe("Crimson Drake");
 
     const specDrake = assembleBeybladeSpec({
       type: "attack",
@@ -123,9 +123,11 @@ describe("parts module", () => {
       ratchetId: "attack_drake_ratchet",
       bitId: "attack_impact_bit",
       chipId: "attack_drake_chip",
+      name: "龍焰暴龍",
+      englishName: "Drake Ignis",
     });
-    expect(specDrake.name).toBe("龍焰核心");
-    expect(specDrake.englishName).toBe("Drake Core");
+    expect(specDrake.name).toBe("龍焰暴龍");
+    expect(specDrake.englishName).toBe("Drake Ignis");
     expect(specDrake.attackMultiplier).toBe(1.4);
     expect(specDrake.mass).toBe(1.17);
 
@@ -136,8 +138,8 @@ describe("parts module", () => {
       bitId: "attack_guard_bit",
       chipId: "attack_bastion_chip",
     });
-    expect(specBastion.name).toBe("磐岩核心");
-    expect(specBastion.englishName).toBe("Bastion Core");
+    expect(specBastion.name).toBe("赤紅狂龍");
+    expect(specBastion.englishName).toBe("Crimson Drake");
     expect(specBastion.attackMultiplier).toBe(1.15);
     expect(specBastion.damageTaken).toBe(0.55);
     expect(specBastion.maxStability).toBe(105);
@@ -155,8 +157,8 @@ describe("parts module", () => {
 
     expect(spec).toMatchObject({
       type: "defense",
-      name: "聖盾核心",
-      englishName: "Aegis Core",
+      name: "鐵臂玄武",
+      englishName: "Iron Fortress",
       mass: 1.94,
       maxRpm: 4700,
       rpmDecay: 320,
@@ -203,8 +205,8 @@ describe("parts module", () => {
 
     expect(spec).toMatchObject({
       type: "stamina",
-      name: "獵隼核心",
-      englishName: "Falcon Core",
+      name: "耀陽神隼",
+      englishName: "Solar Falcon",
       mass: 1.22,
       maxRpm: 5800,
       rpmDecay: 335,
@@ -265,8 +267,8 @@ describe("parts module", () => {
 
     expect(spec).toMatchObject({
       type: "balance",
-      name: "變色龍核心",
-      englishName: "Chameleon Core",
+      name: "翡翠幻獸",
+      englishName: "Jade Chameleon",
       mass: 1.05,
       maxRpm: 5550,
       rpmDecay: 350,

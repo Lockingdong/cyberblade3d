@@ -30,13 +30,13 @@ const battle: BattleSnapshot = {
 
 describe("formatWinnerName", () => {
   it("maps online p2 winner labels from the guest perspective", () => {
-    expect(formatWinnerName("p2", battle, "p2", true)).toBe("玄武核心 (你)");
-    expect(formatWinnerName("p1", battle, "p2", true)).toBe("赤紅核心 (對手)");
+    expect(formatWinnerName("p2", battle, "p2", true)).toBe("鐵臂玄武 (你)");
+    expect(formatWinnerName("p1", battle, "p2", true)).toBe("赤紅狂龍 (對手)");
   });
 
   it("keeps the local player and AI labels", () => {
-    expect(formatWinnerName("p1", battle, "p1")).toBe("赤紅核心 (玩家)");
-    expect(formatWinnerName("p2", battle, "p1")).toBe("玄武核心 (AI)");
+    expect(formatWinnerName("p1", battle, "p1")).toBe("赤紅狂龍 (玩家)");
+    expect(formatWinnerName("p2", battle, "p1")).toBe("鐵臂玄武 (AI)");
   });
 
   it("handles null battle snapshot by falling back gracefully", () => {

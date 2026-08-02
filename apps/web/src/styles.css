@@ -102,7 +102,7 @@ button:disabled {
 .menu-screen {
   width: min(1180px, 94vw);
   margin: auto;
-  padding: 52px 0 32px;
+  padding: 76px 0 32px;
   text-align: center;
 }
 
@@ -920,7 +920,7 @@ button:disabled {
 
 @media (max-width: 800px) {
   .menu-screen {
-    padding-top: 34px;
+    padding-top: 50px;
   }
 
   .blade-grid {
@@ -1591,6 +1591,14 @@ button:disabled {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.82);
   box-shadow: -8px 8px 0 #1f2235;
+}
+
+.standalone-blade-detail .blade-detail-copy {
+  text-align: center;
+}
+
+.standalone-blade-detail .blade-detail-copy > p:last-of-type {
+  margin: 0 auto;
 }
 
 .standalone-blade-detail .stat-grid {

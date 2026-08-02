@@ -73,37 +73,58 @@ function paint(base: Rgb, color: Rgb, sd: number): Rgb {
 // picker shows in BladeMiniIcon (for attack: a hub dot with three radiating
 // strokes), drawn bold in warm white over a red gradient with a gold ring
 // border. Keeping the two in sync makes the chip read as "this blade's mark".
-// 1. 赤紅核心 (Crimson Core) Emblem: 3-Blade Radiating Slash Mark (No Cross)
+// 1. 赤強晶片 (attack_core) Emblem: 狂龍皇冠 (Crimson Dragon Crown Crest)
 function shadeAttackEmblem(x: number, y: number, accent: Rgb): Rgb {
   const len = Math.hypot(x, y);
 
-  // Background: hot red alloy with a dark forged edge.
+  // Background: Deep magma crimson gradient
   let color = mixRgb(
-    toRgb(0xd94841),
-    toRgb(0x350d16),
-    Math.min(1, len) ** 1.2,
+    toRgb(0xd92222),
+    toRgb(0x260307),
+    Math.min(1, len) ** 1.25,
   );
 
-  // Glyph: 3-Blade Radiating Curved Slash (3-way rotational symmetry: 30°, 150°, 270°, no cross)
-  let sd = sdCircle(x, y, 0, 0, 0.12);
-  // 3 radiating slashing arms
-  sd = Math.min(sd, sdSegment(x, y, 0, -0.08, 0, -0.58) - 0.07);
-  sd = Math.min(sd, sdSegment(x, y, -0.07, 0.04, -0.50, 0.29) - 0.07);
-  sd = Math.min(sd, sdSegment(x, y, 0.07, 0.04, 0.50, 0.29) - 0.07);
-  // 3 sweeping arc tips
-  sd = Math.min(sd, sdSegment(x, y, 0, -0.58, -0.42, -0.36) - 0.05);
-  sd = Math.min(sd, sdSegment(x, y, -0.50, 0.29, 0.10, 0.56) - 0.05);
-  sd = Math.min(sd, sdSegment(x, y, 0.50, 0.29, 0.32, -0.44) - 0.05);
+  // Center vertical offset for perfect vertical centering
+  const cy = y + 0.02;
 
-  color = paint(color, mixRgb(toRgb(0xfff1df), accent, 0.1), sd);
+  // Central Glowing Dragon Pearl / Core Orb
+  let sd = sdCircle(x, cy, 0, 0, 0.08);
 
-  // Border: thin gold ring inside a narrow deep-red outer band.
-  color = paint(color, toRgb(0xecb452), Math.abs(len - 0.8) - 0.02);
+  // Dragon Eye Diamond Frame
+  sd = Math.min(sd, sdSegment(x, cy, -0.28, 0, 0, 0.15) - 0.045);
+  sd = Math.min(sd, sdSegment(x, cy, 0, 0.15, 0.28, 0) - 0.045);
+  sd = Math.min(sd, sdSegment(x, cy, 0.28, 0, 0, -0.15) - 0.045);
+  sd = Math.min(sd, sdSegment(x, cy, 0, -0.15, -0.28, 0) - 0.045);
+
+  // Triple Dragon Horn Crown (上揚三叉龍角)
+  // Center main dragon horn
+  sd = Math.min(sd, sdSegment(x, cy, 0, 0.12, 0, 0.36) - 0.048);
+  // Left dragon horn
+  sd = Math.min(sd, sdSegment(x, cy, -0.12, 0.08, -0.42, 0.46) - 0.048);
+  sd = Math.min(sd, sdSegment(x, cy, -0.42, 0.46, -0.24, 0.42) - 0.035);
+  // Right dragon horn
+  sd = Math.min(sd, sdSegment(x, cy, 0.12, 0.08, 0.42, 0.46) - 0.048);
+  sd = Math.min(sd, sdSegment(x, cy, 0.42, 0.46, 0.24, 0.42) - 0.035);
+
+  // Dragon Jaw & Fangs (下顎與龍牙)
+  // Left fang
+  sd = Math.min(sd, sdSegment(x, cy, -0.18, -0.08, -0.32, -0.42) - 0.045);
+  sd = Math.min(sd, sdSegment(x, cy, -0.32, -0.42, -0.15, -0.48) - 0.038);
+  // Right fang
+  sd = Math.min(sd, sdSegment(x, cy, 0.18, -0.08, 0.32, -0.42) - 0.045);
+  sd = Math.min(sd, sdSegment(x, cy, 0.32, -0.42, 0.15, -0.48) - 0.038);
+  // Center lower spine
+  sd = Math.min(sd, sdSegment(x, cy, 0, -0.15, 0, -0.54) - 0.048);
+
+  color = paint(color, mixRgb(toRgb(0xfff1df), accent, 0.18), sd);
+
+  // Border: Glowing gold ring inside a narrow deep-red outer band.
+  color = paint(color, toRgb(0xf59e0b), Math.abs(len - 0.8) - 0.02);
   color = paint(color, toRgb(0x47101c), 0.92 - len);
   return color;
 }
 
-// 1b. 龍焰核心 (Drake Core) Emblem: Dragon Eye & Ascending Wings Emblem
+// 1b. 龍焰晶片 (attack_drake_chip) Emblem: 龍首展翅 (Dragon Head & Wings - Perfectly Centered)
 function shadeDrakeEmblem(x: number, y: number, accent: Rgb): Rgb {
   const len = Math.hypot(x, y);
 
@@ -114,22 +135,32 @@ function shadeDrakeEmblem(x: number, y: number, accent: Rgb): Rgb {
     Math.min(1, len) ** 1.3,
   );
 
-  // Central Dragon Eye Pupil
-  let sd = sdCircle(x, y, 0, 0, 0.07);
-  // Dragon Eye Diamond Frame
-  sd = Math.min(sd, sdSegment(x, y, -0.36, 0, 0, 0.18) - 0.045);
-  sd = Math.min(sd, sdSegment(x, y, 0, 0.18, 0.36, 0) - 0.045);
-  sd = Math.min(sd, sdSegment(x, y, 0.36, 0, 0, -0.18) - 0.045);
-  sd = Math.min(sd, sdSegment(x, y, 0, -0.18, -0.36, 0) - 0.045);
+  // Offset Y so the whole dragon head & wings glyph is perfectly centered vertically
+  const cy = y + 0.02;
 
-  // Ascending Flame Dragon Wings / Horns (Left & Right)
-  sd = Math.min(sd, sdSegment(x, y, -0.24, 0.08, -0.55, 0.48) - 0.055);
-  sd = Math.min(sd, sdSegment(x, y, -0.55, 0.48, -0.28, 0.52) - 0.04);
-  sd = Math.min(sd, sdSegment(x, y, 0.24, 0.08, 0.55, 0.48) - 0.055);
-  sd = Math.min(sd, sdSegment(x, y, 0.55, 0.48, 0.28, 0.52) - 0.04);
+  // Central Dragon Eye Pupil & Diamond Core
+  let sd = sdCircle(x, cy, 0, 0, 0.065);
+  sd = Math.min(sd, sdSegment(x, cy, -0.30, 0, 0, 0.16) - 0.04);
+  sd = Math.min(sd, sdSegment(x, cy, 0, 0.16, 0.30, 0) - 0.04);
+  sd = Math.min(sd, sdSegment(x, cy, 0.30, 0, 0, -0.16) - 0.04);
+  sd = Math.min(sd, sdSegment(x, cy, 0, -0.16, -0.30, 0) - 0.04);
 
-  // Lower Dragon Jaw / Flame Spine
-  sd = Math.min(sd, sdSegment(x, y, 0, -0.18, 0, -0.54) - 0.05);
+  // Dragon Snout & Fangs (Lower Half)
+  sd = Math.min(sd, sdSegment(x, cy, 0, 0, 0, -0.42) - 0.045);
+  sd = Math.min(sd, sdSegment(x, cy, -0.15, -0.26, 0, -0.42) - 0.038);
+  sd = Math.min(sd, sdSegment(x, cy, 0.15, -0.26, 0, -0.42) - 0.038);
+
+  // Dragon Horns Crown (Upper Half)
+  sd = Math.min(sd, sdSegment(x, cy, -0.12, 0.12, -0.38, 0.48) - 0.048);
+  sd = Math.min(sd, sdSegment(x, cy, -0.38, 0.48, -0.22, 0.44) - 0.035);
+  sd = Math.min(sd, sdSegment(x, cy, 0.12, 0.12, 0.38, 0.48) - 0.048);
+  sd = Math.min(sd, sdSegment(x, cy, 0.38, 0.48, 0.22, 0.44) - 0.035);
+
+  // Sweeping Dragon Flame Wings (Left & Right Wings)
+  sd = Math.min(sd, sdSegment(x, cy, -0.24, 0.08, -0.56, 0.32) - 0.048);
+  sd = Math.min(sd, sdSegment(x, cy, -0.56, 0.32, -0.42, 0.02) - 0.038);
+  sd = Math.min(sd, sdSegment(x, cy, 0.24, 0.08, 0.56, 0.32) - 0.048);
+  sd = Math.min(sd, sdSegment(x, cy, 0.56, 0.32, 0.42, 0.02) - 0.038);
 
   color = paint(color, mixRgb(toRgb(0xffe2b3), accent, 0.2), sd);
 
@@ -139,31 +170,40 @@ function shadeDrakeEmblem(x: number, y: number, accent: Rgb): Rgb {
   return color;
 }
 
-// 1c. 磐岩核心 (Bastion Core) Emblem: Riveted Shield-Boss with a braced center bar
+// 1c. 磐岩晶片 (attack_bastion_chip) Emblem: 龍鱗龍角盾 (Dragon Scale & Horn Shield)
 function shadeBastionEmblem(x: number, y: number, accent: Rgb): Rgb {
   const len = Math.hypot(x, y);
 
-  // Background: warm bronze/amber forged armor - stays in the attack color family
-  // but leans metallic and grounded rather than hot-blooded.
+  // Background: warm bronze/amber forged dragon armor
   let color = mixRgb(
     toRgb(0xb5651d),
     toRgb(0x2a1608),
     Math.min(1, len) ** 1.25,
   );
 
-  // Glyph: a bilateral shield outline (steadfast stance) with a braced center bar
-  // and four rivet dots, echoing the riveted armor plates on the physical chip.
-  let sd = sdSegment(x, y, -0.4, -0.3, 0.4, -0.3) - 0.05;
-  sd = Math.min(sd, sdSegment(x, y, 0.4, -0.3, 0.32, 0.14) - 0.05);
-  sd = Math.min(sd, sdSegment(x, y, 0.32, 0.14, 0, 0.5) - 0.05);
-  sd = Math.min(sd, sdSegment(x, y, 0, 0.5, -0.32, 0.14) - 0.05);
-  sd = Math.min(sd, sdSegment(x, y, -0.32, 0.14, -0.4, -0.3) - 0.05);
-  sd = Math.min(sd, sdSegment(x, y, -0.2, -0.05, 0.2, -0.05) - 0.045);
-  sd = Math.min(sd, sdSegment(x, y, 0, -0.22, 0, 0.28) - 0.04);
-  sd = Math.min(sd, sdCircle(x, y, -0.22, -0.18, 0.035));
-  sd = Math.min(sd, sdCircle(x, y, 0.22, -0.18, 0.035));
-  sd = Math.min(sd, sdCircle(x, y, -0.18, 0.28, 0.035));
-  sd = Math.min(sd, sdCircle(x, y, 0.18, 0.28, 0.035));
+  // Dragon Horn Shield Frame
+  let sd = sdSegment(x, y, -0.42, -0.3, 0.42, -0.3) - 0.05;
+  sd = Math.min(sd, sdSegment(x, y, 0.42, -0.3, 0.35, 0.15) - 0.05);
+  sd = Math.min(sd, sdSegment(x, y, 0.35, 0.15, 0, 0.54) - 0.05);
+  sd = Math.min(sd, sdSegment(x, y, 0, 0.54, -0.35, 0.15) - 0.05);
+  sd = Math.min(sd, sdSegment(x, y, -0.35, 0.15, -0.42, -0.3) - 0.05);
+
+  // Dragon Horn Crests at Top Corners
+  sd = Math.min(sd, sdSegment(x, y, -0.38, -0.3, -0.56, -0.5) - 0.045);
+  sd = Math.min(sd, sdSegment(x, y, -0.56, -0.5, -0.4, -0.42) - 0.035);
+  sd = Math.min(sd, sdSegment(x, y, 0.38, -0.3, 0.56, -0.5) - 0.045);
+  sd = Math.min(sd, sdSegment(x, y, 0.56, -0.5, 0.4, -0.42) - 0.035);
+
+  // Dragon Scale Overlapping Armor Lines (Nested V-Shapes)
+  sd = Math.min(sd, sdSegment(x, y, -0.22, -0.15, 0, -0.02) - 0.04);
+  sd = Math.min(sd, sdSegment(x, y, 0, -0.02, 0.22, -0.15) - 0.04);
+  sd = Math.min(sd, sdSegment(x, y, -0.2, 0.06, 0, 0.18) - 0.04);
+  sd = Math.min(sd, sdSegment(x, y, 0, 0.18, 0.2, 0.06) - 0.04);
+  sd = Math.min(sd, sdSegment(x, y, -0.14, 0.26, 0, 0.38) - 0.035);
+  sd = Math.min(sd, sdSegment(x, y, 0, 0.38, 0.14, 0.26) - 0.035);
+
+  // Central Dragon Spine
+  sd = Math.min(sd, sdSegment(x, y, 0, -0.24, 0, 0.42) - 0.035);
 
   color = paint(color, mixRgb(toRgb(0xffe8c2), accent, 0.15), sd);
 
