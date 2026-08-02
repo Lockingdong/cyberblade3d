@@ -8,14 +8,13 @@ import type { DetailedBladeBuilder } from "./types";
 // a translucent emerald PC inner guide ring, a 4-60 low-profile ratchet, a dual-stage Taper Bit, and a hurricane gale chip emblem.
 
 const BALANCE_STYLE = {
-  chrome: 0xaeb7c4,
+  chrome: 0xd1d5db,
+  gunmetal: 0x1f2937,
+  gold: 0xf59e0b,
   emeraldAccent: 0xb5e61d, // Bright emerald / lime accent
-  chipBase: 0x0c2513,
+  chipBase: 0x111827,
   driverGlass: 0x84cc16,
-  driverGlassEmissive: 0x14532d,
-  spindle: 0x1f2937,
-  contact: 0x374151,
-  ratchetPolycarbonate: 0x0d381e,
+  driverGlassEmissive: 0x15803d,
 };
 
 const CHAMELEON_STYLE = {
@@ -258,43 +257,78 @@ export function buildChameleonBlade(accentColor: number): THREE.Group {
   return bladeGroup;
 }
 
-// 2. RATCHET (ラチェット) - 4-60 Low-profile Ratchet Ring
+// 2. RATCHET (ラチェット) - 4-60 Low-profile Ratchet Ring with 3-Layer Structure
 export function buildRatchet(accentColor: number): THREE.Group {
   const ratchetGroup = new THREE.Group();
 
-  const baseRing = new THREE.CylinderGeometry(0.34, 0.32, 0.05, 32);
-  baseRing.translate(0, 0.025, 0);
+  // Layer 1: Inner Mechanical Core (Gunmetal Steel)
+  const coreMesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.25, 0.25, 0.048, 32),
+    new THREE.MeshStandardMaterial({
+      color: BALANCE_STYLE.gunmetal,
+      roughness: 0.22,
+      metalness: 0.85,
+    }),
+  );
+  coreMesh.position.y = 0.024;
+  coreMesh.userData.outlineThickness = 0.009;
+  ratchetGroup.add(coreMesh);
 
-  const nodeGeometries: THREE.BufferGeometry[] = [baseRing];
+  // Layer 2: Outer Polycarbonate Shell & 4-60 Teeth (Translucent Emerald PC)
+  const shellGeo = new THREE.CylinderGeometry(0.34, 0.32, 0.038, 32);
+  shellGeo.translate(0, 0.021, 0);
+
+  const toothGeometries: THREE.BufferGeometry[] = [shellGeo];
   for (let i = 0; i < 4; i += 1) {
     const angle = (i * Math.PI) / 2;
-    const node = new THREE.BoxGeometry(0.09, 0.048, 0.12);
-    node.rotateY(angle);
-    node.translate(Math.cos(angle) * 0.34, 0.025, Math.sin(angle) * 0.34);
-    nodeGeometries.push(node);
+    const tooth = new THREE.BoxGeometry(0.085, 0.044, 0.115);
+    tooth.rotateY(angle);
+    tooth.translate(Math.cos(angle) * 0.335, 0.022, Math.sin(angle) * 0.335);
+    toothGeometries.push(tooth);
   }
 
-  const ratchetMesh = new THREE.Mesh(
-    mergeStaticGeometries(nodeGeometries),
-    new THREE.MeshStandardMaterial({
-      color: BALANCE_STYLE.ratchetPolycarbonate,
-      roughness: 0.3,
-      metalness: 0.2,
-    }),
-  );
-
-  // Accent detail ring on top of ratchet
-  const accentRing = new THREE.Mesh(
-    new THREE.TorusGeometry(0.28, 0.01, 8, 24).rotateX(Math.PI / 2),
-    new THREE.MeshStandardMaterial({
+  const pcMesh = new THREE.Mesh(
+    mergeStaticGeometries(toothGeometries),
+    new THREE.MeshPhysicalMaterial({
       color: accentColor,
-      roughness: 0.2,
-      metalness: 0.4,
+      roughness: 0.15,
+      metalness: 0.1,
+      transmission: 0.65,
+      transparent: true,
+      opacity: 0.88,
+      ior: 1.5,
+      thickness: 0.04,
+      emissive: accentColor,
+      emissiveIntensity: 0.18,
     }),
   );
-  accentRing.position.y = 0.048;
+  pcMesh.userData.outlineThickness = 0.008;
+  ratchetGroup.add(pcMesh);
 
-  ratchetGroup.add(ratchetMesh, accentRing);
+  // Layer 3a: Champagne Gold Top Accent Ring
+  const goldRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.285, 0.01, 8, 32).rotateX(Math.PI / 2),
+    new THREE.MeshStandardMaterial({
+      color: BALANCE_STYLE.gold,
+      roughness: 0.15,
+      metalness: 0.85,
+    }),
+  );
+  goldRing.position.y = 0.046;
+  goldRing.userData.outlineThickness = 0.005;
+
+  // Layer 3b: Titanium Silver Inner Bezel Ring
+  const silverRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.252, 0.007, 8, 32).rotateX(Math.PI / 2),
+    new THREE.MeshStandardMaterial({
+      color: BALANCE_STYLE.chrome,
+      roughness: 0.12,
+      metalness: 0.9,
+    }),
+  );
+  silverRing.position.y = 0.048;
+
+  ratchetGroup.add(goldRing, silverRing);
   return ratchetGroup;
 }
 
@@ -355,40 +389,73 @@ export function buildMirageRatchet(accentColor: number): THREE.Group {
   return ratchetGroup;
 }
 
-// 3. BIT (ビット) - Dual-stage Tapered Point Bit with central Emerald tip
+// 3. BIT (ビット) - Dual-stage Tapered Point Bit with 3-Layer Structure
 export function buildBit(accentColor: number): THREE.Group {
   const bitGroup = new THREE.Group();
 
-  // Spindle body
-  const spindleGeom = new THREE.CylinderGeometry(0.18, 0.12, 0.06, 24);
-  spindleGeom.translate(0, -0.03, 0);
+  // Layer 1: Titanium Silver Friction Contact Gear Ring (12 teeth)
+  const gearGeom = new THREE.CylinderGeometry(0.245, 0.225, 0.028, 12);
+  gearGeom.translate(0, -0.014, 0);
 
-  // Friction contact gear ring
-  const gearGeom = new THREE.CylinderGeometry(0.24, 0.22, 0.03, 12);
-  gearGeom.translate(0, -0.015, 0);
+  const gearMesh = new THREE.Mesh(
+    gearGeom,
+    new THREE.MeshStandardMaterial({
+      color: BALANCE_STYLE.chrome,
+      roughness: 0.15,
+      metalness: 0.85,
+    }),
+  );
+  gearMesh.userData.outlineThickness = 0.007;
+  bitGroup.add(gearMesh);
 
-  // Dual-stage tapered tip (Point Bit)
+  // Layer 2: Translucent Emerald PC Spindle Body
+  const spindleGeom = new THREE.CylinderGeometry(0.18, 0.11, 0.058, 24);
+  spindleGeom.translate(0, -0.032, 0);
+
+  const pcMesh = new THREE.Mesh(
+    spindleGeom,
+    new THREE.MeshPhysicalMaterial({
+      color: accentColor,
+      roughness: 0.15,
+      metalness: 0.1,
+      transmission: 0.65,
+      transparent: true,
+      opacity: 0.88,
+      ior: 1.5,
+      thickness: 0.03,
+      emissive: accentColor,
+      emissiveIntensity: 0.18,
+    }),
+  );
+  pcMesh.userData.outlineThickness = 0.007;
+  bitGroup.add(pcMesh);
+
+  // Layer 3a: Steel Core Shaft & Dual-Stage Tapered Tip Cone (Titanium Silver Chrome)
+  const coreShaft = new THREE.CylinderGeometry(0.06, 0.06, 0.08, 16);
+  coreShaft.translate(0, -0.04, 0);
+
   const taperCone = new THREE.ConeGeometry(0.1, 0.07, 24);
   taperCone.rotateX(Math.PI);
   taperCone.translate(0, -0.075, 0);
 
   const metalMesh = new THREE.Mesh(
-    mergeStaticGeometries([spindleGeom, gearGeom, taperCone]),
+    mergeStaticGeometries([coreShaft, taperCone]),
     new THREE.MeshStandardMaterial({
-      color: BALANCE_STYLE.spindle,
-      roughness: 0.4,
-      metalness: 0.7,
+      color: BALANCE_STYLE.chrome,
+      roughness: 0.15,
+      metalness: 0.85,
     }),
   );
+  metalMesh.userData.outlineThickness = 0.008;
   bitGroup.add(metalMesh);
 
-  // Central Translucent Emerald Tip Crystal
+  // Layer 3b: Central Translucent Emerald Tip Crystal
   const glassTip = new THREE.Mesh(
     new THREE.SphereGeometry(0.04, 16, 16),
     new THREE.MeshStandardMaterial({
       color: BALANCE_STYLE.driverGlass,
       emissive: BALANCE_STYLE.driverGlassEmissive,
-      emissiveIntensity: 0.6,
+      emissiveIntensity: 0.8,
       roughness: 0.1,
       metalness: 0.3,
       transparent: true,
@@ -473,27 +540,28 @@ export function buildPhantomTaperBit(accentColor: number): THREE.Group {
   return bitGroup;
 }
 
-// 4. CHIP (フェイスチップ) - Central Emerald Chip with Gale Emblem
+// 4. CHIP (フェイスチップ) - Central Emerald Chip with Gale Emblem & Layered Rims
 export function buildChip(accentColor: number): THREE.Group {
   const chipGroup = new THREE.Group();
   chipGroup.position.y = 0.055;
 
+  // Gunmetal steel base cylinder
   const baseMesh = new THREE.Mesh(
     new THREE.CylinderGeometry(0.17, 0.17, 0.06, 32),
     new THREE.MeshStandardMaterial({
       color: BALANCE_STYLE.chipBase,
-      roughness: 0.2,
-      metalness: 0.3,
+      roughness: 0.22,
+      metalness: 0.75,
     }),
   );
   baseMesh.position.y = 0.07;
   chipGroup.add(baseMesh);
 
-  // Gold metallic border ring
+  // Champagne gold metallic border ring
   const borderRing = new THREE.Mesh(
     new THREE.TorusGeometry(0.165, 0.012, 12, 32).rotateX(Math.PI / 2),
     new THREE.MeshStandardMaterial({
-      color: 0xf59e0b,
+      color: BALANCE_STYLE.gold,
       roughness: 0.15,
       metalness: 0.85,
     }),
@@ -501,17 +569,29 @@ export function buildChip(accentColor: number): THREE.Group {
   borderRing.position.y = 0.1;
   chipGroup.add(borderRing);
 
+  // Titanium silver inner accent bezel ring
+  const innerSilverRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.156, 0.006, 8, 32).rotateX(Math.PI / 2),
+    new THREE.MeshStandardMaterial({
+      color: BALANCE_STYLE.chrome,
+      roughness: 0.12,
+      metalness: 0.9,
+    }),
+  );
+  innerSilverRing.position.y = 0.101;
+  chipGroup.add(innerSilverRing);
+
   // Printed emblem texture face
   const texture = getChipEmblemTexture("balance", accentColor);
   const emblemMesh = new THREE.Mesh(
-    new THREE.CircleGeometry(0.155, 32).rotateX(-Math.PI / 2),
+    new THREE.CircleGeometry(0.15, 32).rotateX(-Math.PI / 2),
     new THREE.MeshStandardMaterial({
       map: texture,
       roughness: 0.2,
       metalness: 0.1,
     }),
   );
-  emblemMesh.position.y = 0.101;
+  emblemMesh.position.y = 0.102;
   chipGroup.add(emblemMesh);
 
   return chipGroup;
