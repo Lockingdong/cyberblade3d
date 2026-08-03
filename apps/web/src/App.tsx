@@ -738,6 +738,7 @@ export function App() {
 
   function returnToMenu(): void {
     synth.click();
+    setLobbyOpen(false);
     if (modeRef.current === "online") {
       const current = coordinator.state;
       if (current.phase === "battle" || current.phase === "ending")

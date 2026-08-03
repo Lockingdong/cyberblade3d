@@ -561,6 +561,7 @@ export default function App() {
 
   function returnToMenu(): void {
     selectionFeedback();
+    setLobbyOpen(false);
     if (modeRef.current === "online") {
       const current = coordinator.state;
       if (current.phase === "battle" || current.phase === "ending")
