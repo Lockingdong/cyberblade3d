@@ -2163,26 +2163,26 @@ button:disabled {
   margin-top: 18px;
   margin-inline: auto;
   position: relative;
-  gap: 12px;
+  gap: 16px;
 }
 
 .blade-carousel-view {
   overflow: hidden;
-  width: min(840px, 85vw);
-  padding-block: 20px;
+  width: min(860px, 88vw);
+  padding-block: 24px;
   position: relative;
   mask-image: linear-gradient(
     to right,
     transparent,
-    white 15%,
-    white 85%,
+    white 12%,
+    white 88%,
     transparent
   );
   -webkit-mask-image: linear-gradient(
     to right,
     transparent,
-    white 15%,
-    white 85%,
+    white 12%,
+    white 88%,
     transparent
   );
 }
@@ -2200,7 +2200,7 @@ button:disabled {
 }
 
 .carousel-arrow {
-  background: white;
+  background: #ffffff;
   border: 3px solid #1f2235;
   border-radius: 50%;
   width: 44px;
@@ -2219,45 +2219,61 @@ button:disabled {
 
 .carousel-arrow:hover:not(:disabled) {
   background: #009bd6;
-  color: white;
+  color: #ffffff;
   transform: translate(2px, -2px);
   box-shadow: -5px 5px 0px #1f2235;
+}
+
+.carousel-arrow:active:not(:disabled) {
+  transform: translate(-1px, 1px);
+  box-shadow: -1px 1px 0px #1f2235;
 }
 
 .carousel-arrow:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
-/* Adjust card visual styling in carousel */
+/* Clean Neo-Brutalism Card Styling in Carousel */
 .blade-carousel-track .blade-card {
   width: var(--card-width, 220px);
   flex-shrink: 0;
-  opacity: 0.45;
-  transform: skewX(-5deg) scale(0.9);
+  opacity: 0.5;
+  border: 3px solid #1f2235;
+  border-radius: 6px;
+  background: #ffffff;
+  transform: skewX(-5deg) scale(0.92);
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   box-shadow: -4px 4px 0px rgba(31, 34, 53, 0.2);
 }
 
 .blade-carousel-track .blade-card:hover {
-  opacity: 0.75;
-  transform: skewX(-5deg) scale(0.94);
+  opacity: 0.85;
+  transform: skewX(-5deg) scale(0.96) translateY(-4px);
+  box-shadow: -6px 6px 0px #1f2235;
 }
 
 .blade-carousel-track .blade-card.active {
   opacity: 1;
   transform: skewX(-5deg) scale(1.05) translateY(-8px);
-  box-shadow: -10px 10px 0px #1f2235;
+  border-color: #1f2235;
+  background: color-mix(in srgb, var(--blade-color) 8%, #ffffff 92%);
+  box-shadow: -8px 8px 0px #1f2235;
+}
+
+.blade-carousel-track .blade-card.active .blade-chip-emblem {
+  border-color: #1f2235;
 }
 
 .blade-carousel-track .blade-card.active:hover {
-  transform: skewX(-5deg) scale(1.05) translateY(-14px);
-  box-shadow: -12px 12px 0px #1f2235;
+  transform: skewX(-5deg) scale(1.05) translateY(-12px);
+  box-shadow: -10px 10px 0px #1f2235;
 }
 
 @media (max-width: 580px) {
   .blade-carousel-view {
-    padding-block: 16px;
+    padding-block: 18px;
   }
   .carousel-arrow {
     width: 36px;
