@@ -15,7 +15,10 @@ import (
 // v3: optional per-player accent color on ready/start.
 // v4: optional 4-part custom assembly (bladeId, ratchetId, bitId, chipId) on ready/start.
 // v5: friend rooms (create_room / join_room / room_created) and in-room rematch.
-const ProtocolVersion = 5
+// v6: arena theme now selects a matching dedicated environment; adds toxic
+// refinery and volcano caldera environment ids.
+// v7: adds the rare Xinyi Night environment for Neon matches.
+const ProtocolVersion = 7
 
 // roomCodeAlphabet drops the characters players confuse when reading a code
 // aloud or out of a chat message: I, L, O, 0 and 1.
@@ -29,7 +32,8 @@ var (
 		"attack": true, "defense": true, "stamina": true, "balance": true,
 	}
 	validStadiums     = map[string]bool{"neon": true, "toxic": true, "volcano": true}
-	validEnvironments = []string{"space", "sunset", "deep-sea", "neon-city", "glacier"}
+	validStadiumList  = []string{"neon", "toxic", "volcano"}
+	validEnvironments = []string{"space", "sunset", "deep-sea", "neon-city", "glacier", "xinyi-night", "toxic-refinery", "volcano-caldera"}
 	validFinishes     = map[string]bool{
 		"BURST FINISH": true,
 		"OVER FINISH":  true,

@@ -128,14 +128,17 @@ func TestMatchReadyRelayAndEndIntegration(t *testing.T) {
 	expectType(t, guest, "opponent_ready")
 	hostStart := expectType(t, host, "start")
 	guestStart := expectType(t, guest, "start")
-	if hostStart["stadium"] != "neon" || guestStart["stadium"] != "neon" {
-		t.Fatalf("host stadium was not selected: %#v %#v", hostStart, guestStart)
+	if hostStart["stadium"] != guestStart["stadium"] {
+		t.Fatalf("stadium mismatch: host=%v guest=%v", hostStart["stadium"], guestStart["stadium"])
 	}
 	if hostStart["environment"] != guestStart["environment"] {
 		t.Fatalf("environment mismatch: host=%v guest=%v", hostStart["environment"], guestStart["environment"])
 	}
 	if !isValidEnvironment(hostStart["environment"].(string)) {
 		t.Fatalf("host environment is not valid: %v", hostStart["environment"])
+	}
+	if !isEnvironmentForStadium(hostStart["stadium"].(string), hostStart["environment"].(string)) {
+		t.Fatalf("environment does not match stadium: %#v", hostStart)
 	}
 
 	time.Sleep(10 * time.Millisecond)
@@ -343,14 +346,18 @@ func TestDuplicateReadyInvalidReadyAndHostOnly(t *testing.T) {
 	expectType(t, host, "opponent_ready")
 	hostStart := expectType(t, host, "start")
 	guestStart := expectType(t, guest, "start")
-	if hostStart["stadium"] != "volcano" {
-		t.Fatalf("duplicate ready did not overwrite selection: %#v", hostStart)
+	p1 := hostStart["p1"].(map[string]any)
+	if p1["blade"] != "balance" || p1["power"] != float64(90) {
+		t.Fatalf("duplicate ready did not overwrite player selection: %#v", hostStart)
 	}
 	if hostStart["environment"] != guestStart["environment"] {
 		t.Fatalf("environment mismatch: host=%v guest=%v", hostStart["environment"], guestStart["environment"])
 	}
 	if !isValidEnvironment(hostStart["environment"].(string)) {
 		t.Fatalf("host environment is not valid: %v", hostStart["environment"])
+	}
+	if !isEnvironmentForStadium(hostStart["stadium"].(string), hostStart["environment"].(string)) {
+		t.Fatalf("environment does not match stadium: %#v", hostStart)
 	}
 
 	time.Sleep(10 * time.Millisecond)
@@ -468,6 +475,19 @@ func isValidEnvironment(value string) bool {
 		}
 	}
 	return false
+}
+
+func isEnvironmentForStadium(stadium, environment string) bool {
+	switch stadium {
+	case "neon":
+		return environment == "neon-city" || environment == "xinyi-night"
+	case "toxic":
+		return environment == "toxic-refinery"
+	case "volcano":
+		return environment == "volcano-caldera"
+	default:
+		return false
+	}
 }
 
 func statePayload(matchID string, seq int) map[string]any {

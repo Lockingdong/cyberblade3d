@@ -218,6 +218,19 @@ func mustMarshal(t *testing.T, value any) []byte {
 	return raw
 }
 
+func TestEnvironmentForStadium(t *testing.T) {
+	cases := map[string]string{
+		"neon":    "neon-city",
+		"toxic":   "toxic-refinery",
+		"volcano": "volcano-caldera",
+	}
+	for stadium, want := range cases {
+		if got := environmentForStadium(stadium); got != want {
+			t.Errorf("environmentForStadium(%q) = %q, want %q", stadium, got, want)
+		}
+	}
+}
+
 func newTestHub(t *testing.T, config Config) (*Hub, *slog.Logger) {
 	t.Helper()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))

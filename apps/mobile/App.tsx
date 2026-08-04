@@ -36,7 +36,9 @@ import {
   type TopSnapshot,
   type WinnerId,
   type EnvironmentScene,
-  pickRandomEnvironmentScene,
+  environmentSceneForStadium,
+  environmentSceneForMatch,
+  stadiumThemeFromSeed,
   stadiumVariantFromMatchId,
   stadiumVariantFromSeed,
 } from "@cyberblade/core";
@@ -90,7 +92,7 @@ export default function App() {
   // app restart. Web persists its record in localStorage.
   const [record, setRecord] = useState<BattleRecord>(EMPTY_BATTLE_RECORD);
   const [scene, setScene] = useState<EnvironmentScene>(() =>
-    pickRandomEnvironmentScene(),
+    environmentSceneForStadium("neon"),
   );
   const [power, setPower] = useState(20);
   const [countdownNow, setCountdownNow] = useState(0);
@@ -127,7 +129,7 @@ export default function App() {
     return {
       p1Type: online.start.p1.blade,
       p2Type: online.start.p2.blade,
-      stadiumTheme: "neon",
+      stadiumTheme: online.start.stadium,
       stadiumVariant: stadiumVariantFromMatchId(online.matchId),
       perfectLaunchTopIds: ["p1", "p2"],
       ...(online.start.p1.color !== undefined
@@ -476,16 +478,17 @@ export default function App() {
     resetMatchRefs();
     modeRef.current = "local";
     setMode("local");
-    setScene(pickRandomEnvironmentScene());
     const types = Object.keys(BEYBLADES) as BeybladeType[];
     const randomAiType = types[Math.floor(Math.random() * types.length)]!;
     const seed = Math.floor(Math.random() * 0x1_0000_0000);
+    const stadiumTheme = stadiumThemeFromSeed(seed);
+    setScene(environmentSceneForMatch(stadiumTheme, seed));
     runtime.dispatch({
       type: "prepare",
       config: {
         p1Type: playerType,
         p2Type: randomAiType,
-        stadiumTheme: "neon",
+        stadiumTheme,
         stadiumVariant: stadiumVariantFromSeed(seed),
         seed,
         perfectLaunchTopIds: [LOCAL_TOP_ID],

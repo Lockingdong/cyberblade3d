@@ -45,7 +45,7 @@ TypeScript 與 Go 各自有一份線上協定定義，兩邊必須保持一致�
 | 陀螺種類、名稱、能力值、剋制、顯示數值、組裝零件與限定規則 | `packages/core/src/parts/` 的 `blades.ts`/`ratchets.ts`/`bits.ts`/`chips.ts` 零件庫、`compatibility.ts` 限定與相容性驗證、`assembly.ts` 的 `assembleBeybladeSpec`、`packages/core/src/index.ts` 的 `BEYBLADES` | `packages/simulation/src/index.ts`、兩端 `App.tsx` 的 `descriptions`、協定驗證 |
 | 戰鬥物理、AI 移動、撞擊傷害、轉速衰減、出界判定 | `packages/simulation/src/index.ts` | `packages/simulation/src/battle.test.ts`、`index.test.ts`；若勝負規則改變再看 `core` |
 | 勝負條件、遊戲 phase、runtime 狀態轉換 | `packages/core/src/index.ts` 的 `resolveMatchFinish`、`BeybladeRuntime` | `packages/core/src/index.test.ts`、兩端 `App.tsx` |
-| 陀螺 3D 模型、場館、特效、背景環境 | `packages/visuals/src/index.ts` | `packages/visuals/src/detailed/*`、`geometry-utils.ts`、相關 visuals tests |
+| 陀螺 3D 模型、場館、特效、背景環境 | `packages/visuals/src/index.ts`；標準競技場與專屬背景映射：`packages/core/src/index.ts` 的 `environmentSceneForStadium` | `packages/visuals/src/detailed/*`、`geometry-utils.ts`、相關 visuals tests |
 | 高精度陀螺零件、3D 樣式拼裝與註冊 | `packages/visuals/src/detailed/` 的 `detailed/index.ts`（包含 `BLADE_BUILDERS`/`RATCHET_BUILDERS`/`BIT_BUILDERS`/`CHIP_BUILDERS`） | 各陀螺類型在 `detailed/` 擁有獨立 builder，並於 `index.ts` 進行零件註冊與導出 |
 | 戰鬥／發射鏡頭 | `packages/visuals/src/camera.ts` | `apps/web/src/BattleScene.tsx`、`apps/mobile/src/BattleScene.tsx` |
 | Web 頁面流程、選單、HUD、結果頁 | `apps/web/src/App.tsx` | `apps/web/src/styles.css`、對應元件與 `App.test.tsx` |
@@ -91,7 +91,7 @@ Web 與 Mobile UI 是兩份實作。改平台 UI 時只改目標 app；改遊戲
 
 ### `packages/core/`
 
-- `src/index.ts`：陀螺與場館目錄、共用快照／事件／設定型別、勝負規則、戰績工具、環境場景目錄，以及 `BeybladeRuntime` 狀態機（部分零件 API 重新導出自 `parts/`）。
+- `src/index.ts`：陀螺與場館目錄、共用快照／事件／設定型別、勝負規則、戰績工具、環境場景目錄、標準競技場到專屬背景的映射，以及 `BeybladeRuntime` 狀態機（部分零件 API 重新導出自 `parts/`）。
 - `src/parts/`：陀螺零件資料庫（`blades.ts`, `ratchets.ts`, `bits.ts`, `chips.ts`）、特定陀螺限定與相容性驗證（`compatibility.ts`）、以及動態數值組裝（`assembly.ts`）。
 - `src/share-card.ts`：平台中立的分享卡 view model 與尺寸常數。
 
@@ -154,7 +154,7 @@ App UI
 兩端 MatchmakingClient
   -> Go Hub FIFO 配對（或好友房：create_room 拿房號、join_room 兌換房號）
   -> host = p1（好友房為建房者），guest = p2
-  -> 雙方 ready，server 選定 environment 並發送 start
+  -> 雙方 ready，server 選定 stadium，依主題映射專屬 environment（Neon 可能抽到稀有 Xinyi Night）並發送 start
 
 host App
   -> 本機 BeybladeRuntime + CannonBattleSimulation
@@ -190,6 +190,7 @@ window（預設 60 秒）。雙方都送出 `rematch` 時，server 以**新的 m
 3. 新增環境場景時，至少檢查：
    - `EnvironmentScene`、`ENVIRONMENT_SCENES`
    - visuals 的 environment builder／選擇邏輯
+   - 若屬於標準競技場背景，更新 `environmentSceneForStadium` 與 Go `environmentForStadium`
    - TS protocol validator
    - Go protocol validator 與 `pickRandomEnvironment`
 4. `BattleSnapshot` 或 `SimulationEvent` 改動會影響 simulation、visuals、multiplayer wire conversion、timeline 與兩端場景。

@@ -473,6 +473,15 @@ export function stadiumVariantFromSeed(seed: number): StadiumVariant {
   return (hash >>> 0) % 2 === 0 ? "light" : "dark";
 }
 
+/** Maps a match seed to one of the three arena themes deterministically. */
+export function stadiumThemeFromSeed(seed: number): StadiumTheme {
+  let hash = (Math.trunc(seed) >>> 0) ^ 0x517cc1b7;
+  hash ^= hash >>> 16;
+  hash = Math.imul(hash, 0x45d9f3b);
+  hash ^= hash >>> 15;
+  return (["neon", "toxic", "volcano"] as const)[(hash >>> 0) % 3]!;
+}
+
 /** Uses a deterministic string hash so both online clients choose identically. */
 export function stadiumVariantFromMatchId(matchId: string): StadiumVariant {
   let hash = 0x811c9dc5;
@@ -784,7 +793,14 @@ export class BeybladeRuntime implements GameRuntime<
 }
 
 export type EnvironmentScene =
-  "space" | "sunset" | "deep-sea" | "neon-city" | "glacier";
+  | "space"
+  | "sunset"
+  | "deep-sea"
+  | "neon-city"
+  | "glacier"
+  | "xinyi-night"
+  | "toxic-refinery"
+  | "volcano-caldera";
 
 export interface EnvironmentSceneConfig {
   readonly id: EnvironmentScene;
@@ -830,7 +846,55 @@ export const ENVIRONMENT_SCENES: ReadonlyArray<EnvironmentSceneConfig> = [
     backgroundColor: 0x08131a,
     fogDensity: 0.022,
   },
+  {
+    id: "toxic-refinery",
+    name: "毒霧煉製廠",
+    englishName: "Toxic Refinery",
+    backgroundColor: 0x101807,
+    fogDensity: 0.027,
+  },
+  {
+    id: "xinyi-night",
+    name: "信義夜都",
+    englishName: "Xinyi Night",
+    backgroundColor: 0x030711,
+    fogDensity: 0.018,
+  },
+  {
+    id: "volcano-caldera",
+    name: "熔岩火山口",
+    englishName: "Volcano Caldera",
+    backgroundColor: 0x1b0704,
+    fogDensity: 0.023,
+  },
 ];
+
+/** Dedicated environment used by each standard arena theme. */
+export function environmentSceneForStadium(
+  theme: StadiumTheme,
+): EnvironmentScene {
+  switch (theme) {
+    case "neon":
+      return "neon-city";
+    case "toxic":
+      return "toxic-refinery";
+    case "volcano":
+      return "volcano-caldera";
+  }
+}
+
+/** Selects a standard arena environment, including rare theme variants. */
+export function environmentSceneForMatch(
+  theme: StadiumTheme,
+  seed: number,
+): EnvironmentScene {
+  if (theme !== "neon") return environmentSceneForStadium(theme);
+  let hash = (Math.trunc(seed) >>> 0) ^ 0x68bc21eb;
+  hash ^= hash >>> 15;
+  hash = Math.imul(hash, 0x2c1b3c6d);
+  hash ^= hash >>> 12;
+  return (hash >>> 0) % 4 === 0 ? "xinyi-night" : "neon-city";
+}
 
 export function getEnvironmentSceneConfig(
   id: EnvironmentScene,

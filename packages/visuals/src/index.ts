@@ -388,8 +388,17 @@ export class BeybladeVisualWorld {
       case "neon-city":
         scene = createNeonCityEnvironment();
         break;
+      case "xinyi-night":
+        scene = createXinyiNightEnvironment();
+        break;
       case "glacier":
         scene = createGlacierEnvironment();
+        break;
+      case "toxic-refinery":
+        scene = createToxicRefineryEnvironment();
+        break;
+      case "volcano-caldera":
+        scene = createVolcanoCalderaEnvironment();
         break;
       default: {
         const _exhaustive: never = this.#sceneType;
@@ -957,6 +966,63 @@ export class BeybladePreviewWorld {
   }
 }
 
+function createStadiumFloatingBase(theme: StadiumTheme): THREE.Group {
+  const palette: Record<
+    StadiumTheme,
+    { plate: number; edge: number; underglow: number }
+  > = {
+    neon: { plate: 0x130c24, edge: 0x28d9ff, underglow: 0x714bff },
+    toxic: { plate: 0x18200b, edge: 0xa8cc2b, underglow: 0x72e53b },
+    volcano: { plate: 0x2a0d08, edge: 0xff681c, underglow: 0xff3518 },
+  };
+  const colors = palette[theme];
+  const group = new THREE.Group();
+  group.name = `stadium-${theme}-floating-base`;
+
+  // The bowl radius is 8. Keep the plate only 6% wider and about 3% of the
+  // stadium diameter thick so it reads as a slim platform on mobile screens.
+  const plate = new THREE.Mesh(
+    new THREE.CylinderGeometry(8.48, 8.48, 0.44, 48),
+    new THREE.MeshStandardMaterial({
+      color: colors.plate,
+      metalness: 0.65,
+      roughness: 0.38,
+    }),
+  );
+  plate.position.y = -0.4;
+  plate.name = `stadium-${theme}-base-plate`;
+
+  const edge = new THREE.Mesh(
+    new THREE.TorusGeometry(8.42, 0.055, 6, 48),
+    new THREE.MeshBasicMaterial({
+      color: colors.edge,
+      toneMapped: false,
+    }),
+  );
+  edge.rotation.x = -Math.PI / 2;
+  edge.position.y = -0.17;
+  edge.name = `stadium-${theme}-base-edge`;
+
+  // A narrow illuminated skirt sits under the plate instead of spreading a
+  // floor ring outward, avoiding the large translucent layer seen before.
+  const underglow = new THREE.Mesh(
+    new THREE.CylinderGeometry(8.1, 7.75, 0.1, 48, 1, true),
+    new THREE.MeshBasicMaterial({
+      color: colors.underglow,
+      transparent: true,
+      opacity: 0.18,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      toneMapped: false,
+    }),
+  );
+  underglow.position.y = -0.67;
+  underglow.name = `stadium-${theme}-base-underglow`;
+
+  group.add(plate, edge, underglow);
+  return group;
+}
+
 function createStadium(
   theme: StadiumTheme,
   variant: StadiumVariant = "dark",
@@ -1003,7 +1069,7 @@ function createStadium(
   }
 
   // Two emissive glow rings around the center emblem, batched into one mesh
-  const glowGeometries = [1.0, 2.5].map((radius) => {
+  const glowGeometries = [0.8, 2.0].map((radius) => {
     const glowGeometry = new THREE.RingGeometry(radius, radius + 0.03, 64);
     glowGeometry.rotateX(-Math.PI / 2);
     glowGeometry.translate(0, 0.03, 0);
@@ -1052,6 +1118,7 @@ function createStadium(
       }),
     );
     wall.position.y = wallY;
+    wall.name = `stadium-wall-arc-${index}`;
     group.add(wall);
 
     // Double emissive piping along the top of the wall (inner + outer).
@@ -1122,69 +1189,10 @@ function createStadium(
       toneMapped: false,
     }),
   );
+  bars.name = "stadium-danger-zone-bars";
   group.add(bars);
-
-  // Dark pocket openings with emissive inner glow + outline edges. Each of
-  // the four layers is batched across all four pockets into one draw call.
-  const pocketRadius = 7.5;
-  const pocketGeometries: THREE.BufferGeometry[] = [];
-  const innerGlowGeometries: THREE.BufferGeometry[] = [];
-  const borderGeometries: THREE.BufferGeometry[] = [];
-  const pocketEdgeGeometries: THREE.BufferGeometry[] = [];
-  for (const angle of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) {
-    const x = Math.cos(angle) * pocketRadius;
-    const z = Math.sin(angle) * pocketRadius;
-
-    const pocket = new THREE.CircleGeometry(0.8, 16);
-    pocket.rotateX(-Math.PI / 2);
-    pocket.translate(x, 1.06, z);
-    pocketGeometries.push(pocket);
-
-    const innerGlow = new THREE.CircleGeometry(0.7, 24);
-    innerGlow.rotateX(-Math.PI / 2);
-    innerGlow.translate(x, 1.05, z);
-    innerGlowGeometries.push(innerGlow);
-
-    const border = new THREE.RingGeometry(0.78, 0.82, 16);
-    border.rotateX(-Math.PI / 2);
-    border.translate(x, 1.07, z);
-    borderGeometries.push(border);
-
-    const edgeSource = new THREE.CircleGeometry(0.8, 24);
-    const pocketEdges = new THREE.EdgesGeometry(edgeSource);
-    edgeSource.dispose();
-    pocketEdges.rotateX(-Math.PI / 2);
-    pocketEdges.translate(x, 1.08, z);
-    pocketEdgeGeometries.push(pocketEdges);
-  }
-  group.add(
-    new THREE.Mesh(
-      mergeStaticGeometries(pocketGeometries),
-      new THREE.MeshBasicMaterial({ color: 0x020105 }),
-    ),
-    new THREE.Mesh(
-      mergeStaticGeometries(innerGlowGeometries),
-      new THREE.MeshBasicMaterial({
-        color: stadium.primary,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.5,
-        toneMapped: false,
-      }),
-    ),
-    new THREE.Mesh(
-      mergeStaticGeometries(borderGeometries),
-      new THREE.MeshBasicMaterial({
-        color: stadium.secondary,
-        side: THREE.DoubleSide,
-      }),
-    ),
-    new THREE.LineSegments(
-      mergeStaticGeometries(pocketEdgeGeometries),
-      new THREE.LineBasicMaterial({ color: 0x020106 }),
-    ),
-  );
   applyToonAndOutline(group, 0.04, 0x020106);
+  group.add(createStadiumFloatingBase(theme));
   return group;
 }
 
@@ -1195,6 +1203,7 @@ function createFloorPattern(stadium: {
   secondary: number;
 }): THREE.Group {
   const group = new THREE.Group();
+  group.name = `stadium-${stadium.type}-floor-pattern`;
   if (stadium.type === "neon") {
     // Concentric static rings + 24 emissive tick marks at the outer ring.
     // Rings share one mesh and the ticks another.
@@ -1314,6 +1323,7 @@ function createCenterEmblem(stadium: {
   floorEmissive: number;
 }): THREE.Group {
   const group = new THREE.Group();
+  group.name = `stadium-${stadium.type}-center-emblem`;
   group.position.y = 0.05;
 
   // Base disc
@@ -2115,10 +2125,8 @@ function createDeepSeaEnvironment(): THREE.Group {
 function createNeonCityEnvironment(): THREE.Group {
   const group = new THREE.Group();
   group.name = "neon-city-environment";
-  // Synthwave sky: hot pink at the horizon, magenta/purple mid, dark navy
-  // at the top. The camera mostly sees bands 0-1 so they have to carry the
-  // signature neon glow that backlights the city silhouette.
-  group.add(createGradientSkydome([0xff3a7a, 0xc01a4a, 0x4a0a2a, 0x0a0a2a]));
+  // Keep the sky itself dark so the stadium's inner lighting stays readable.
+  group.add(createGradientSkydome([0x23082f, 0x35103f, 0x220c36, 0x080918]));
   // Synthwave sun: a bright magenta disc sitting on the horizon, behind the
   // city. Two additive halos mimic the classic gradient-sun look without any
   // textures or extra draw calls beyond the halos.
@@ -2161,32 +2169,13 @@ function createNeonCityEnvironment(): THREE.Group {
     ring.name = "neon-sun-halo";
     group.add(ring);
   }
-  // Hot-pink ground glow at the horizon line. Same trick as the sunset's
-  // horizon glow: a flat ring on the ground with additive blending.
-  const horizonGlow = new THREE.Mesh(
-    new THREE.RingGeometry(14, 55, 48),
-    new THREE.MeshBasicMaterial({
-      color: 0xff4a8a,
-      transparent: true,
-      opacity: 0.4,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-      toneMapped: false,
-      fog: false,
-    }),
-  );
-  horizonGlow.rotation.x = -Math.PI / 2;
-  horizonGlow.position.y = 0.2;
-  horizonGlow.name = "neon-horizon-glow";
-  group.add(horizonGlow);
   // City skyline: ~24 boxes arranged in a 200° arc behind the arena,
   // merged into a single draw call. Color nudged up from the old 0x140820
   // (indistinguishable from the sky) so the silhouette reads against the
   // bright horizon.
   const boxGeoms: THREE.BufferGeometry[] = [];
   const skylineSpecs: Array<{
-    angle: number;
+    phi: number;
     h: number;
     w: number;
     d: number;
@@ -2196,27 +2185,27 @@ function createNeonCityEnvironment(): THREE.Group {
     seed = (seed * 9301 + 49297) % 233280;
     return seed / 233280;
   };
-  const boxCount = 24;
-  for (let i = 0; i < boxCount; i += 1) {
-    const t = i / (boxCount - 1);
-    // 200° arc centred behind the arena (-Z).
-    const angle = -Math.PI * 0.55 + t * Math.PI * 1.1;
-    const h = 6 + rand() * 14;
-    const w = 2 + rand() * 3;
-    const d = 1.5 + rand() * 1.5;
-    const r = 32;
-    const box = new THREE.BoxGeometry(w, h, d);
-    box.translate(Math.sin(angle) * r, h * 0.5 - 1.5, -Math.cos(angle) * r);
-    boxGeoms.push(box);
-    skylineSpecs.push({ angle, h, w, d });
+  const buildingsPerSide = 11;
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < buildingsPerSide; i += 1) {
+      const t = i / (buildingsPerSide - 1);
+      const offset = -Math.PI * 0.28 + t * Math.PI * 0.56;
+      const phi = side === 1 ? offset : Math.PI - offset;
+      const h = 8 + rand() * 10;
+      const w = 2 + rand() * 3;
+      const d = 1.5 + rand() * 1.5;
+      const r = 22;
+      const box = new THREE.BoxGeometry(w, h, d);
+      box.rotateY(-phi);
+      box.translate(Math.cos(phi) * r, -h * 0.5 - 2, Math.sin(phi) * r);
+      boxGeoms.push(box);
+      skylineSpecs.push({ phi, h, w, d });
+    }
   }
   const cityMerged = mergeStaticGeometries(boxGeoms);
   const cityMat = new THREE.MeshBasicMaterial({
-    color: 0x0a0210,
-    transparent: true,
-    opacity: 0.96,
-    depthWrite: false,
-    fog: true,
+    color: 0x2c1238,
+    fog: false,
   });
   const city = new THREE.Mesh(cityMerged, cityMat);
   city.name = "neon-skyline";
@@ -2226,18 +2215,24 @@ function createNeonCityEnvironment(): THREE.Group {
   const windowColors: number[] = [];
   const neonPalette = [0xff66cc, 0x66ffff, 0xffaa44, 0xaa66ff, 0x66ff99];
   for (const s of skylineSpecs) {
-    const r = 31.2; // slightly in front of the box
-    const cx = Math.sin(s.angle) * r;
-    const cz = -Math.cos(s.angle) * r;
+    const r = 21.2; // slightly in front of the box
+    const cx = Math.cos(s.phi) * r;
+    const cz = Math.sin(s.phi) * r;
+    const tx = -Math.sin(s.phi);
+    const tz = Math.cos(s.phi);
     const floorCount = Math.max(2, Math.floor(s.h / 1.6));
     for (let f = 0; f < floorCount; f += 1) {
-      const y = f * 1.6 - 1.4;
+      const y = -s.h - 1.5 + f * 1.6;
       if (rand() < 0.6) {
         const xOff = (rand() - 0.5) * (s.w * 0.6);
         const color = neonPalette[Math.floor(rand() * neonPalette.length)]!;
         const c = new THREE.Color(color);
-        windowPoints.push(new THREE.Vector3(cx - 0.2 + xOff, y, cz));
-        windowPoints.push(new THREE.Vector3(cx + 0.2 + xOff, y, cz));
+        windowPoints.push(
+          new THREE.Vector3(cx + tx * (xOff - 0.2), y, cz + tz * (xOff - 0.2)),
+        );
+        windowPoints.push(
+          new THREE.Vector3(cx + tx * (xOff + 0.2), y, cz + tz * (xOff + 0.2)),
+        );
         windowColors.push(c.r, c.g, c.b, c.r, c.g, c.b);
       }
     }
@@ -2257,6 +2252,299 @@ function createNeonCityEnvironment(): THREE.Group {
   const windows = new THREE.LineSegments(windowGeom, windowMat);
   windows.name = "neon-windows";
   group.add(windows);
+  return group;
+}
+
+function createXinyiNightEnvironment(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = "xinyi-night-environment";
+  group.add(
+    createGradientSkydome([0x101d3a, 0x08142c, 0x050b1c, 0x02050d]),
+  );
+
+  let seed = 1101;
+  const rand = (): number => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+  // Merge the dark city deck into the building silhouette so restoring the
+  // glow does not add another mobile draw call.
+  const cityDeck = new THREE.RingGeometry(10, 48, 64);
+  cityDeck.rotateX(-Math.PI / 2);
+  cityDeck.translate(0, -18, 0);
+  const buildingGeometries: THREE.BufferGeometry[] = [cityDeck];
+  const warmRoofGeometries: THREE.BufferGeometry[] = [];
+  const coolRoofGeometries: THREE.BufferGeometry[] = [];
+  for (let gridX = -5; gridX <= 5; gridX += 1) {
+    for (let gridZ = -5; gridZ <= 5; gridZ += 1) {
+      const x = gridX * 6.2 + (rand() - 0.5) * 1.4;
+      const z = gridZ * 6.2 + (rand() - 0.5) * 1.4;
+      const radius = Math.hypot(x, z);
+      if (radius < 11 || radius > 43 || rand() < 0.18) continue;
+      const width = 2.8 + rand() * 2.6;
+      const depth = 2.8 + rand() * 2.6;
+      const height = 6 + rand() * 10;
+      const topY = -2.5 - rand() * 5;
+      const building = new THREE.BoxGeometry(width, height, depth);
+      building.translate(x, topY - height / 2, z);
+      buildingGeometries.push(building);
+
+      const roof = new THREE.PlaneGeometry(width * 0.72, depth * 0.72);
+      roof.rotateX(-Math.PI / 2);
+      roof.translate(x, topY + 0.03, z);
+      (rand() > 0.45 ? warmRoofGeometries : coolRoofGeometries).push(roof);
+    }
+  }
+
+  const city = new THREE.Mesh(
+    mergeStaticGeometries(buildingGeometries),
+    new THREE.MeshBasicMaterial({ color: 0x111a30, fog: false }),
+  );
+  city.name = "xinyi-lower-city";
+  const warmRoofs = new THREE.Mesh(
+    mergeStaticGeometries(warmRoofGeometries),
+    new THREE.MeshBasicMaterial({ color: 0xffc86a, toneMapped: false }),
+  );
+  warmRoofs.name = "xinyi-warm-roof-lights";
+  const coolRoofs = new THREE.Mesh(
+    mergeStaticGeometries(coolRoofGeometries),
+    new THREE.MeshBasicMaterial({ color: 0x52cfff, toneMapped: false }),
+  );
+  coolRoofs.name = "xinyi-cool-roof-lights";
+  group.add(city, warmRoofs, coolRoofs);
+
+  // A bright orthogonal road grid makes the city read at mobile resolution.
+  const roadGeometries: THREE.BufferGeometry[] = [];
+  for (const coordinate of [-31, -19, 19, 31]) {
+    const northSouth = new THREE.BoxGeometry(0.34, 0.05, 76);
+    northSouth.translate(coordinate, -17.92, 0);
+    roadGeometries.push(northSouth);
+    const eastWest = new THREE.BoxGeometry(76, 0.05, 0.34);
+    eastWest.translate(0, -17.92, coordinate);
+    roadGeometries.push(eastWest);
+  }
+  const roads = new THREE.Mesh(
+    mergeStaticGeometries(roadGeometries),
+    new THREE.MeshBasicMaterial({ color: 0xffb84d, toneMapped: false }),
+  );
+  roads.name = "xinyi-road-grid";
+  group.add(roads);
+
+  // Two mirrored landmarks keep the Taipei-101-inspired silhouette visible
+  // from either player's fixed X-axis camera without duplicating draw calls.
+  const landmarkBodies: THREE.BufferGeometry[] = [];
+  const landmarkBands: THREE.BufferGeometry[] = [];
+  for (const x of [-30, 30]) {
+    const z = 10;
+    for (let tier = 0; tier < 8; tier += 1) {
+      const width = 5.4 - tier * 0.38;
+      const tierHeight = 1.75;
+      const y = -16.5 + tier * tierHeight;
+      const body = new THREE.BoxGeometry(width, tierHeight * 0.9, width);
+      body.translate(x, y, z);
+      landmarkBodies.push(body);
+      const band = new THREE.BoxGeometry(width * 1.06, 0.12, width * 1.06);
+      band.translate(x, y + tierHeight * 0.42, z);
+      landmarkBands.push(band);
+    }
+    const crown = new THREE.ConeGeometry(1.3, 2.2, 4);
+    crown.translate(x, -2.8, z);
+    landmarkBodies.push(crown);
+  }
+  const landmarks = new THREE.Mesh(
+    mergeStaticGeometries(landmarkBodies),
+    new THREE.MeshBasicMaterial({ color: 0x1b3452, fog: false }),
+  );
+  landmarks.name = "xinyi-101-inspired";
+  const landmarkLights = new THREE.Mesh(
+    mergeStaticGeometries(landmarkBands),
+    new THREE.MeshBasicMaterial({ color: 0x6df4ff, toneMapped: false }),
+  );
+  landmarkLights.name = "xinyi-101-light-bands";
+  group.add(landmarks, landmarkLights);
+  return group;
+}
+
+function cylinderBetween(
+  start: THREE.Vector3,
+  end: THREE.Vector3,
+  radius: number,
+  segments: number,
+): THREE.BufferGeometry {
+  const direction = end.clone().sub(start);
+  const geometry = new THREE.CylinderGeometry(
+    radius,
+    radius,
+    direction.length(),
+    segments,
+  );
+  geometry.applyQuaternion(
+    new THREE.Quaternion().setFromUnitVectors(
+      UP_VECTOR,
+      direction.clone().normalize(),
+    ),
+  );
+  geometry.translate(
+    (start.x + end.x) / 2,
+    (start.y + end.y) / 2,
+    (start.z + end.z) / 2,
+  );
+  return geometry;
+}
+
+function createToxicRefineryEnvironment(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = "toxic-refinery-environment";
+  group.add(
+    createGradientSkydome([0x18220b, 0x26350f, 0x18230c, 0x0b1007]),
+  );
+
+  const structures: THREE.BufferGeometry[] = [];
+  const hazardBands: THREE.BufferGeometry[] = [];
+  const tankCenters: THREE.Vector3[] = [];
+  for (let index = 0; index < 12; index += 1) {
+    const side = index < 6 ? 1 : -1;
+    const localIndex = index % 6;
+    const t = localIndex / 5;
+    const offset = -Math.PI * 0.28 + t * Math.PI * 0.56;
+    const angle = side === 1 ? offset : Math.PI - offset;
+    const radius = 20 + (index % 3) * 2;
+    const height = 8 + (index % 4) * 2;
+    const tankRadius = 1.7 + (index % 2) * 0.55;
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+    const center = new THREE.Vector3(x, -height / 2 - 2, z);
+    tankCenters.push(center);
+
+    const tank = new THREE.CylinderGeometry(
+      tankRadius,
+      tankRadius * 1.08,
+      height,
+      10,
+    );
+    tank.translate(x, -height / 2 - 2, z);
+    structures.push(tank);
+
+    const roof = new THREE.ConeGeometry(tankRadius, 1.15, 10);
+    roof.translate(x, -2.05, z);
+    structures.push(roof);
+
+    for (const bandY of [height * 0.35, height * 0.72]) {
+      const band = new THREE.TorusGeometry(tankRadius * 1.03, 0.12, 4, 10);
+      band.rotateX(Math.PI / 2);
+      band.translate(x, -height - 2 + bandY, z);
+      hazardBands.push(band);
+    }
+
+    if (index % 3 === 1) {
+      const stackHeight = height + 4;
+      const stack = new THREE.CylinderGeometry(0.55, 0.85, stackHeight, 8);
+      stack.translate(
+        x + Math.cos(angle) * 2.5,
+        -stackHeight / 2 - 2,
+        z + Math.sin(angle) * 2.5,
+      );
+      structures.push(stack);
+      const rim = new THREE.TorusGeometry(0.58, 0.13, 4, 8);
+      rim.rotateX(Math.PI / 2);
+      rim.translate(
+        x + Math.cos(angle) * 2.5,
+        -2,
+        z + Math.sin(angle) * 2.5,
+      );
+      hazardBands.push(rim);
+    }
+  }
+
+  for (let index = 0; index < tankCenters.length - 1; index += 1) {
+    if (index === 5) continue;
+    const start = tankCenters[index]!.clone();
+    const end = tankCenters[index + 1]!.clone();
+    const pipeY = -5 - (index % 3) * 0.8;
+    start.y = pipeY;
+    end.y = pipeY;
+    structures.push(cylinderBetween(start, end, 0.22, 6));
+  }
+
+  const refinery = new THREE.Mesh(
+    mergeStaticGeometries(structures),
+    new THREE.MeshBasicMaterial({ color: 0x33451a, fog: false }),
+  );
+  refinery.name = "toxic-refinery-silhouette";
+  const bands = new THREE.Mesh(
+    mergeStaticGeometries(hazardBands),
+    new THREE.MeshBasicMaterial({
+      color: 0xc9ff35,
+      toneMapped: false,
+      fog: false,
+    }),
+  );
+  bands.name = "toxic-hazard-bands";
+  group.add(refinery, bands);
+  return group;
+}
+
+function createVolcanoCalderaEnvironment(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = "volcano-caldera-environment";
+  group.add(
+    createGradientSkydome([0x361016, 0x48141a, 0x2b1016, 0x10090e]),
+  );
+
+  const ridges: THREE.BufferGeometry[] = [];
+  const lavaCuts: THREE.BufferGeometry[] = [];
+  for (let index = 0; index < 20; index += 1) {
+    const side = index < 10 ? 1 : -1;
+    const localIndex = index % 10;
+    const t = localIndex / 9;
+    const offset = -Math.PI * 0.3 + t * Math.PI * 0.6;
+    const angle = side === 1 ? offset : Math.PI - offset;
+    const radius = 22 + (index % 4) * 2;
+    const height = 14 + (index % 5) * 2.5;
+    const width = 6 + (index % 3) * 1.4;
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+    const ridge = new THREE.ConeGeometry(width, height, 5);
+    ridge.rotateY(index * 0.37);
+    ridge.translate(x, -height / 2 - 2, z);
+    ridges.push(ridge);
+
+    if (index % 2 === 0) {
+      const cut = new THREE.BoxGeometry(0.34, height * 0.48, 0.1);
+      cut.rotateZ(((index % 3) - 1) * 0.18);
+      cut.rotateY(-angle);
+      cut.translate(
+        x - Math.cos(angle) * width * 0.75,
+        -height * 0.55 - 2,
+        z - Math.sin(angle) * width * 0.75,
+      );
+      lavaCuts.push(cut);
+    }
+  }
+
+  for (const side of [-1, 1]) {
+    for (const z of [-8, 8]) {
+      const mainCone = new THREE.ConeGeometry(9, 20, 7);
+      mainCone.translate(side * 28, -12, z);
+      ridges.push(mainCone);
+    }
+  }
+
+  const mountains = new THREE.Mesh(
+    mergeStaticGeometries(ridges),
+    new THREE.MeshBasicMaterial({ color: 0x4a1b14, fog: false }),
+  );
+  mountains.name = "volcano-ridge-silhouette";
+  const lava = new THREE.Mesh(
+    mergeStaticGeometries(lavaCuts),
+    new THREE.MeshBasicMaterial({
+      color: 0xff6a1a,
+      toneMapped: false,
+      fog: false,
+    }),
+  );
+  lava.name = "volcano-static-lava-cuts";
+  group.add(mountains, lava);
   return group;
 }
 

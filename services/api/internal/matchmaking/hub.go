@@ -495,12 +495,13 @@ func (h *Hub) ready(client *Client, value *readyMessage) {
 		current.readyTimer.Stop()
 	}
 	current.phase = phaseCountdown
+	stadium := pickRandomStadium()
 	start := map[string]any{
 		"type":        "start",
 		"matchId":     current.id,
 		"countdownMs": h.config.Countdown.Milliseconds(),
-		"stadium":     current.hostReady.Stadium,
-		"environment": pickRandomEnvironment(),
+		"stadium":     stadium,
+		"environment": pickEnvironmentForStadium(stadium),
 		"p1": selection{
 			Blade: current.hostReady.Blade, Name: current.hostReady.Name,
 			Wins: current.hostReady.Wins, Losses: current.hostReady.Losses,
@@ -779,6 +780,24 @@ func (h *Hub) sendError(client *Client, code, message string) {
 	}
 }
 
-func pickRandomEnvironment() string {
-	return validEnvironments[rand.Intn(len(validEnvironments))]
+func pickRandomStadium() string {
+	return validStadiumList[rand.Intn(len(validStadiumList))]
+}
+
+func environmentForStadium(stadium string) string {
+	switch stadium {
+	case "toxic":
+		return "toxic-refinery"
+	case "volcano":
+		return "volcano-caldera"
+	default:
+		return "neon-city"
+	}
+}
+
+func pickEnvironmentForStadium(stadium string) string {
+	if stadium == "neon" && rand.Intn(4) == 0 {
+		return "xinyi-night"
+	}
+	return environmentForStadium(stadium)
 }

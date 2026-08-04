@@ -171,6 +171,15 @@ describe("protocol decoders", () => {
     expect(decodeServerMessage({ ...start, environment: "deep-sea" }).ok).toBe(
       true,
     );
+    expect(
+      decodeServerMessage({ ...start, environment: "toxic-refinery" }).ok,
+    ).toBe(true);
+    expect(
+      decodeServerMessage({ ...start, environment: "volcano-caldera" }).ok,
+    ).toBe(true);
+    expect(
+      decodeServerMessage({ ...start, environment: "xinyi-night" }).ok,
+    ).toBe(true);
   });
 
   it("accepts ready/start with optional accent colors and rejects bad ones", () => {

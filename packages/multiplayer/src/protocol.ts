@@ -13,7 +13,7 @@ import { isValidRoomCode } from "./room-code";
 // v3: optional per-player accent color on ready/start.
 // v4: optional 4-part custom assembly (bladeId, ratchetId, bitId, chipId) on ready/start.
 // v5: friend rooms (create_room / join_room / room_created) and in-room rematch.
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 7;
 
 export interface WireTopState {
   readonly p: readonly [number, number, number];
@@ -412,9 +412,16 @@ function isStadium(value: unknown): value is StadiumTheme {
 }
 
 function isEnvironmentScene(value: unknown): value is EnvironmentScene {
-  return ["space", "sunset", "deep-sea", "neon-city", "glacier"].includes(
-    String(value),
-  );
+  return [
+    "space",
+    "sunset",
+    "deep-sea",
+    "neon-city",
+    "glacier",
+    "xinyi-night",
+    "toxic-refinery",
+    "volcano-caldera",
+  ].includes(String(value));
 }
 
 function isTopId(value: unknown): value is TopId {

@@ -7,6 +7,9 @@ import {
   localMatchOutcome,
   opponentTopId,
   resolveMatchFinish,
+  environmentSceneForStadium,
+  environmentSceneForMatch,
+  stadiumThemeFromSeed,
   stadiumVariantFromMatchId,
   stadiumVariantFromSeed,
   type BattleSnapshot,
@@ -18,6 +21,34 @@ describe("beyblade rules", () => {
     expect(new Set([0, 1, 2, 3].map(stadiumVariantFromSeed))).toEqual(
       new Set(["light", "dark"]),
     );
+  });
+
+  it("selects all three arena themes deterministically from match seeds", () => {
+    expect(stadiumThemeFromSeed(42)).toBe(stadiumThemeFromSeed(42));
+    const themes = new Set(
+      Array.from({ length: 32 }, (_, seed) => stadiumThemeFromSeed(seed)),
+    );
+    expect(themes).toEqual(new Set(["neon", "toxic", "volcano"]));
+  });
+
+  it("maps every arena theme to its dedicated environment", () => {
+    expect(environmentSceneForStadium("neon")).toBe("neon-city");
+    expect(environmentSceneForStadium("toxic")).toBe("toxic-refinery");
+    expect(environmentSceneForStadium("volcano")).toBe("volcano-caldera");
+  });
+
+  it("selects Xinyi Night as a deterministic rare Neon environment", () => {
+    expect(environmentSceneForMatch("neon", 42)).toBe(
+      environmentSceneForMatch("neon", 42),
+    );
+    const scenes = new Set(
+      Array.from({ length: 64 }, (_, seed) =>
+        environmentSceneForMatch("neon", seed),
+      ),
+    );
+    expect(scenes).toEqual(new Set(["neon-city", "xinyi-night"]));
+    expect(environmentSceneForMatch("toxic", 0)).toBe("toxic-refinery");
+    expect(environmentSceneForMatch("volcano", 0)).toBe("volcano-caldera");
   });
 
   it("selects the same online stadium variant from the same match id", () => {

@@ -94,6 +94,55 @@ describe("BeybladeVisualWorld stadium", () => {
     expect(counts.volcano).toBeGreaterThan(0);
   });
 
+  it("adds a compact theme-colored floating base below every stadium", () => {
+    const plateColors = new Set<number>();
+    for (const theme of themes) {
+      const world = new BeybladeVisualWorld("attack", "defense", theme, "p1");
+      const stadium = world.root.children[0]!;
+      const base = stadium.getObjectByName(`stadium-${theme}-floating-base`);
+      const plate = stadium.getObjectByName(
+        `stadium-${theme}-base-plate`,
+      ) as THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
+      expect(base).toBeInstanceOf(THREE.Group);
+      expect(countByType(base!).meshes).toBe(3);
+      expect(plate).toBeInstanceOf(THREE.Mesh);
+      expect(new THREE.Box3().setFromObject(base!).max.y).toBeLessThan(0);
+      expect(new THREE.Box3().setFromObject(plate).max.x).toBeCloseTo(8.48, 1);
+      plateColors.add(plate.material.color.getHex());
+      world.dispose();
+    }
+    expect(plateColors.size).toBe(themes.length);
+  });
+
+  it("removes visual pocket holes while preserving the four wall gaps", () => {
+    for (const theme of themes) {
+      const world = new BeybladeVisualWorld("attack", "defense", theme, "p1");
+      const stadium = world.root.children[0]!;
+      for (let index = 0; index < 4; index += 1) {
+        expect(
+          stadium.getObjectByName(`stadium-wall-arc-${index}`),
+        ).toBeInstanceOf(THREE.Mesh);
+      }
+      expect(
+        stadium.getObjectByName("stadium-danger-zone-bars"),
+      ).toBeInstanceOf(THREE.Mesh);
+      let hasBlackPocketSurface = false;
+      stadium.traverse((child) => {
+        if (!(child instanceof THREE.Mesh)) return;
+        const materials = Array.isArray(child.material)
+          ? child.material
+          : [child.material];
+        hasBlackPocketSurface ||= materials.some(
+          (material) =>
+            material instanceof THREE.MeshBasicMaterial &&
+            material.color.getHex() === 0x020105,
+        );
+      });
+      expect(hasBlackPocketSurface).toBe(false);
+      world.dispose();
+    }
+  });
+
   it("exposes the same accent/accentIntensity fields in STADIUMS", () => {
     for (const stadium of STADIUMS) {
       expect(stadium.floorEmissive).toBeTypeOf("number");

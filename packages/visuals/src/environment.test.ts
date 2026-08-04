@@ -58,6 +58,14 @@ function countByName(group: THREE.Object3D, name: string): number {
   return count;
 }
 
+function countMeshes(group: THREE.Object3D): number {
+  let count = 0;
+  group.traverse((node) => {
+    if (node instanceof THREE.Mesh) count += 1;
+  });
+  return count;
+}
+
 function buildWorld(scene: EnvironmentScene): BeybladeVisualWorld {
   return new BeybladeVisualWorld("attack", "defense", "neon", "p1", scene);
 }
@@ -133,7 +141,61 @@ describe("BeybladeVisualWorld environment", () => {
     expect(findByName(world.root, "neon-windows")).toBeDefined();
     expect(findMeshWithName(world.root, "neon-sun")).toBeInstanceOf(THREE.Mesh);
     expect(countByName(world.root, "neon-sun-halo")).toBeGreaterThanOrEqual(2);
-    expect(findByName(world.root, "neon-horizon-glow")).toBeDefined();
+    expect(findByName(world.root, "neon-horizon-glow")).toBeUndefined();
+    world.dispose();
+  });
+
+  it("builds Xinyi Night as an opaque city below the arena", () => {
+    const world = buildWorld("xinyi-night");
+    const environment = findByName(world.root, "xinyi-night-environment");
+    const city = findMeshWithName(world.root, "xinyi-lower-city");
+    expect(environment).toBeInstanceOf(THREE.Group);
+    expect(city).toBeInstanceOf(THREE.Mesh);
+    expect(findMeshWithName(world.root, "xinyi-road-grid")).toBeInstanceOf(
+      THREE.Mesh,
+    );
+    expect(findMeshWithName(world.root, "xinyi-101-inspired")).toBeInstanceOf(
+      THREE.Mesh,
+    );
+    expect(findMeshWithName(world.root, "xinyi-101-light-bands")).toBeInstanceOf(
+      THREE.Mesh,
+    );
+    const cityBounds = new THREE.Box3().setFromObject(city!);
+    expect(cityBounds.max.y).toBeLessThan(0);
+    expect(countPoints(environment!)).toBe(0);
+    expect(countMeshes(environment!)).toBeLessThanOrEqual(8);
+    world.dispose();
+  });
+
+  it("builds a static toxic refinery skyline", () => {
+    const world = buildWorld("toxic-refinery");
+    const environment = findByName(world.root, "toxic-refinery-environment");
+    expect(environment).toBeInstanceOf(THREE.Group);
+    expect(
+      findMeshWithName(world.root, "toxic-refinery-silhouette"),
+    ).toBeInstanceOf(THREE.Mesh);
+    expect(findMeshWithName(world.root, "toxic-hazard-bands")).toBeInstanceOf(
+      THREE.Mesh,
+    );
+    expect(findByName(world.root, "toxic-horizon-glow")).toBeUndefined();
+    expect(countPoints(environment!)).toBe(0);
+    expect(countMeshes(environment!)).toBeLessThanOrEqual(4);
+    world.dispose();
+  });
+
+  it("builds a static volcano caldera skyline", () => {
+    const world = buildWorld("volcano-caldera");
+    const environment = findByName(world.root, "volcano-caldera-environment");
+    expect(environment).toBeInstanceOf(THREE.Group);
+    expect(
+      findMeshWithName(world.root, "volcano-ridge-silhouette"),
+    ).toBeInstanceOf(THREE.Mesh);
+    expect(
+      findMeshWithName(world.root, "volcano-static-lava-cuts"),
+    ).toBeInstanceOf(THREE.Mesh);
+    expect(findByName(world.root, "volcano-lava-horizon")).toBeUndefined();
+    expect(countPoints(environment!)).toBe(0);
+    expect(countMeshes(environment!)).toBeLessThanOrEqual(4);
     world.dispose();
   });
 
