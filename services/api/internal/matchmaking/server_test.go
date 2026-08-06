@@ -415,6 +415,57 @@ func TestReadyAndBattleTimeoutsReleaseRooms(t *testing.T) {
 	}
 }
 
+func TestFriendRoomOutlivesTheQueueReadyTimeout(t *testing.T) {
+	t.Parallel()
+	service := newTestService(t, func(config *Config) {
+		config.ReadyTimeout = 20 * time.Millisecond
+		config.FriendReadyTimeout = time.Minute
+	})
+	host := service.dial(t)
+	guest := service.dial(t)
+
+	writeJSON(t, host, map[string]any{"type": "create_room", "requestId": "r_host"})
+	code := expectType(t, host, "room_created")["code"].(string)
+	writeJSON(t, guest, map[string]any{"type": "join_room", "requestId": "j_guest", "code": code})
+	matchID := expectType(t, host, "matched")["matchId"].(string)
+	expectType(t, guest, "matched")
+
+	// Long past the queue budget: friend rooms stay open while both players
+	// pick a beyblade, so the handshake below must still succeed. A room that
+	// timed out would answer with a ROOM_TIMEOUT error instead.
+	time.Sleep(200 * time.Millisecond)
+
+	writeJSON(t, guest, readyPayload(matchID, "stamina", 70, 5, "toxic"))
+	expectType(t, host, "opponent_ready")
+	writeJSON(t, host, readyPayload(matchID, "attack", 80, -5, "neon"))
+	expectType(t, guest, "opponent_ready")
+	expectType(t, host, "start")
+	expectType(t, guest, "start")
+}
+
+func TestFriendRoomStillTimesOutOnItsOwnBudget(t *testing.T) {
+	t.Parallel()
+	service := newTestService(t, func(config *Config) {
+		config.ReadyTimeout = time.Minute
+		config.FriendReadyTimeout = 20 * time.Millisecond
+	})
+	host := service.dial(t)
+	guest := service.dial(t)
+
+	writeJSON(t, host, map[string]any{"type": "create_room", "requestId": "r_host"})
+	code := expectType(t, host, "room_created")["code"].(string)
+	writeJSON(t, guest, map[string]any{"type": "join_room", "requestId": "j_guest", "code": code})
+	expectType(t, host, "matched")
+	expectType(t, guest, "matched")
+
+	if message := expectType(t, host, "error"); message["code"] != "ROOM_TIMEOUT" {
+		t.Fatalf("host friend timeout = %#v", message)
+	}
+	if message := expectType(t, guest, "error"); message["code"] != "ROOM_TIMEOUT" {
+		t.Fatalf("guest friend timeout = %#v", message)
+	}
+}
+
 func TestStateRateLimitClosesSustainedOffender(t *testing.T) {
 	t.Parallel()
 	service := newTestService(t, func(config *Config) {

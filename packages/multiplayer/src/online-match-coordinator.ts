@@ -41,6 +41,17 @@ export type OnlineIntent =
   | { readonly kind: "create" }
   | { readonly kind: "join"; readonly code: string };
 
+/**
+ * Whether the session reached its opponent through the public queue or a room
+ * code. The server does not label the match, but the intent that opened the
+ * connection already knows, and a rematch stays inside the same room.
+ */
+export type RoomKind = "quick" | "friend";
+
+function roomKindForIntent(intent: OnlineIntent): RoomKind {
+  return intent.kind === "quick" ? "quick" : "friend";
+}
+
 export interface OnlineTransport {
   connect(url: string): void;
   joinQueue(): string;
@@ -88,6 +99,8 @@ export interface OnlineMatchState {
   readonly requestId: string | null;
   readonly matchId: string | null;
   readonly roomCode: string | null;
+  /** Survives `matched`, so the UI can keep offering friend-room-only steps. */
+  readonly roomKind: RoomKind;
   readonly role: "host" | "guest" | null;
   readonly localTopId: TopId | null;
   readonly opponentReady: boolean;
@@ -135,6 +148,7 @@ export class OnlineMatchCoordinator {
     requestId: null,
     matchId: null,
     roomCode: null,
+    roomKind: "quick",
     role: null,
     localTopId: null,
     opponentReady: false,
@@ -168,13 +182,23 @@ export class OnlineMatchCoordinator {
     this.#setState({
       ...this.#initialState,
       phase: "connecting",
+      roomKind: roomKindForIntent(intent),
     });
     this.#transport.connect(url);
   }
 
+  // The three entry methods each stamp roomKind: a rejected room code drops
+  // back to the lobby with the socket alive, and the next attempt can pick a
+  // different route without reconnecting.
   joinQueue(): void {
     const requestId = this.#transport.joinQueue();
-    this.#setState({ ...this.#state, requestId, error: null, errorCode: null });
+    this.#setState({
+      ...this.#state,
+      requestId,
+      roomKind: "quick",
+      error: null,
+      errorCode: null,
+    });
   }
 
   createRoom(): void {
@@ -184,6 +208,7 @@ export class OnlineMatchCoordinator {
       phase: "connecting",
       requestId,
       roomCode: null,
+      roomKind: "friend",
       error: null,
       errorCode: null,
     });
@@ -195,6 +220,7 @@ export class OnlineMatchCoordinator {
       ...this.#state,
       phase: "joining",
       requestId,
+      roomKind: "friend",
       error: null,
       errorCode: null,
     });
@@ -547,6 +573,7 @@ export class OnlineMatchCoordinator {
       requestId: null,
       matchId: null,
       roomCode: null,
+      roomKind: "quick",
       role: null,
       localTopId: null,
       opponentReady: false,

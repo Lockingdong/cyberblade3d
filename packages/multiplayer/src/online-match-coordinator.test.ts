@@ -298,6 +298,34 @@ describe("OnlineMatchCoordinator", () => {
     );
     expect(coordinator.state.phase).toBe("matched");
     expect(coordinator.state.roomCode).toBeNull();
+    // matched clears the code, so roomKind is what the UI has left to tell a
+    // friend room from a queue match.
+    expect(coordinator.state.roomKind).toBe("friend");
+  });
+
+  it("tracks roomKind across every lobby route", () => {
+    const transport = new FakeTransport();
+    const coordinator = new OnlineMatchCoordinator(transport, () => 0);
+    expect(coordinator.state.roomKind).toBe("quick");
+
+    coordinator.connect("ws://test", { kind: "join", code: "K7M2P9" });
+    expect(coordinator.state.roomKind).toBe("friend");
+    transport.emit(message({ type: "hello_ok", protocolVersion: 5 }));
+
+    // A rejected code keeps the socket in the lobby. Switching to the queue
+    // from there never reconnects, so the entry method has to restamp the kind.
+    transport.emit(
+      message({ type: "error", code: "ROOM_NOT_FOUND", message: "找不到" }),
+    );
+    expect(coordinator.state.phase).toBe("lobby");
+    coordinator.joinQueue();
+    expect(coordinator.state.roomKind).toBe("quick");
+
+    coordinator.createRoom();
+    expect(coordinator.state.roomKind).toBe("friend");
+
+    coordinator.leave();
+    expect(coordinator.state.roomKind).toBe("quick");
   });
 
   it("returns a rejected room code to the lobby without dropping the socket", () => {
@@ -390,6 +418,9 @@ describe("OnlineMatchCoordinator", () => {
       rematchRequested: false,
       termination: null,
       start: null,
+      // The rematch stays inside the same room, so the friend-room selection
+      // step must still be offered for the second match.
+      roomKind: "friend",
     });
     expect(coordinator.state.view.result).toBeNull();
   });

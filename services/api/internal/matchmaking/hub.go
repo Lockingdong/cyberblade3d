@@ -13,30 +13,35 @@ import (
 )
 
 type Config struct {
-	ReadyTimeout      time.Duration
-	Countdown         time.Duration
-	BattleTimeout     time.Duration
-	RoomCodeTTL       time.Duration
-	RematchWindow     time.Duration
-	ControlBuffer     int
-	StateRate         int
-	RateLimitBreaches int
-	MaxPendingRooms   int
-	MaxJoinFailures   int
+	ReadyTimeout time.Duration
+	// FriendReadyTimeout replaces ReadyTimeout in friend rooms, where players
+	// pick a beyblade and swap parts before locking in. Strangers in the queue
+	// keep the short timeout so nobody is left waiting on an idle opponent.
+	FriendReadyTimeout time.Duration
+	Countdown          time.Duration
+	BattleTimeout      time.Duration
+	RoomCodeTTL        time.Duration
+	RematchWindow      time.Duration
+	ControlBuffer      int
+	StateRate          int
+	RateLimitBreaches  int
+	MaxPendingRooms    int
+	MaxJoinFailures    int
 }
 
 func DefaultConfig() Config {
 	return Config{
-		ReadyTimeout:      60 * time.Second,
-		Countdown:         3 * time.Second,
-		BattleTimeout:     45 * time.Second,
-		RoomCodeTTL:       10 * time.Minute,
-		RematchWindow:     60 * time.Second,
-		ControlBuffer:     64,
-		StateRate:         40,
-		RateLimitBreaches: 3,
-		MaxPendingRooms:   5000,
-		MaxJoinFailures:   10,
+		ReadyTimeout:       60 * time.Second,
+		FriendReadyTimeout: 5 * time.Minute,
+		Countdown:          3 * time.Second,
+		BattleTimeout:      45 * time.Second,
+		RoomCodeTTL:        10 * time.Minute,
+		RematchWindow:      60 * time.Second,
+		ControlBuffer:      64,
+		StateRate:          40,
+		RateLimitBreaches:  3,
+		MaxPendingRooms:    5000,
+		MaxJoinFailures:    10,
 	}
 }
 
@@ -91,6 +96,9 @@ func NewHub(config Config, logger *slog.Logger) *Hub {
 	}
 	if config.RoomCodeTTL <= 0 {
 		config.RoomCodeTTL = 10 * time.Minute
+	}
+	if config.FriendReadyTimeout <= 0 {
+		config.FriendReadyTimeout = 5 * time.Minute
 	}
 	if config.RematchWindow <= 0 {
 		config.RematchWindow = 60 * time.Second
@@ -414,7 +422,14 @@ func (h *Hub) armReadyTimer(current *room) {
 	// The room id changes on rematch, so the timer must capture the id it was
 	// armed for instead of reading the field when it fires.
 	matchID := current.id
-	current.readyTimer = time.AfterFunc(h.config.ReadyTimeout, func() {
+	// A friend room (code is non-empty) lets both players pick a beyblade and
+	// swap parts before locking in, so it gets the longer budget. Rematches
+	// keep the code and therefore keep the same budget.
+	timeout := h.config.ReadyTimeout
+	if current.code != "" {
+		timeout = h.config.FriendReadyTimeout
+	}
+	current.readyTimer = time.AfterFunc(timeout, func() {
 		h.enqueue(command{kind: commandRoomReadyTimeout, roomID: matchID})
 	})
 }

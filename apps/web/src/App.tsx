@@ -56,7 +56,7 @@ import { synth } from "./audio";
 import {
   clearRoomParamFromUrl,
   createWebSocket,
-  isActiveOnlineRoom,
+  hostShouldLeaveWhenHidden,
   onlinePageExitAction,
   readRoomCodeFromLocation,
   resolveWebSocketUrl,
@@ -503,6 +503,14 @@ export function App() {
     }
   }, [mode, online.phase]);
 
+  // The customizer is mounted outside the phase conditionals, so an opponent
+  // leaving mid-selection would leave it floating over the termination screen.
+  useEffect(() => {
+    if (mode !== "online") return;
+    if (online.phase === "matched" || online.phase === "waiting_ready") return;
+    setIsCustomizerOpen(false);
+  }, [mode, online.phase]);
+
   // An invite link (?room=CODE) goes straight into the friend room. The
   // parameter is dropped so reloading later does not rejoin a dead room.
   const invitedRoom = useRef(false);
@@ -541,7 +549,7 @@ export function App() {
       if (
         document.visibilityState === "hidden" &&
         coordinator.state.role === "host" &&
-        isActiveOnlineRoom(coordinator.state.phase)
+        hostShouldLeaveWhenHidden(coordinator.state.phase)
       )
         leaveActiveSession();
     };
@@ -908,8 +916,17 @@ export function App() {
       {mode === "online" &&
         (onlinePhase === "matched" || onlinePhase === "waiting_ready") && (
           <OnlineSelection
+            // A rematch arrives as a fresh match id. Remounting resets the
+            // friend room back to its blade-selection step.
+            key={online.matchId ?? "pending"}
             online={online}
             powerRef={powerRef}
+            playerType={playerType}
+            onBlade={handleBladeChange}
+            customColor={customColor}
+            onCustomColorChange={setCustomColor}
+            customSpec={customSpec}
+            onOpenCustomizer={() => setIsCustomizerOpen(true)}
             onReady={readyOnline}
             onLeave={returnToMenu}
           />
@@ -985,6 +1002,7 @@ export function App() {
                 onRematch: rematchOnline,
                 rematchRequested: online.rematchRequested,
                 opponentRematch: online.opponentRematch,
+                rematchReselects: online.roomKind === "friend",
               }
             : {})}
           onMenu={returnToMenu}
@@ -1738,19 +1756,105 @@ function BladeDetails({
   );
 }
 
+/**
+ * The pre-battle screen. A friend room gets a blade-and-parts step first, so
+ * both players can counter their opponent's last pick before locking in; the
+ * public queue keeps the single-page launch meter it always had. The parent
+ * remounts this with a `key` on the match id, so a rematch starts over at the
+ * first step.
+ */
 function OnlineSelection({
   online,
   powerRef,
+  playerType,
+  onBlade,
+  customColor,
+  onCustomColorChange,
+  customSpec,
+  onOpenCustomizer,
   onReady,
   onLeave,
 }: {
   online: OnlineMatchState;
   powerRef: RefObject<PowerState>;
+  playerType: BeybladeType;
+  onBlade: (type: BeybladeType) => void;
+  customColor: number | null;
+  onCustomColorChange: (color: number | null) => void;
+  customSpec?: BeybladeSpec | undefined;
+  onOpenCustomizer: () => void;
   onReady: () => void;
   onLeave: () => void;
 }) {
+  const canSelectBlade = online.roomKind === "friend";
   const locked = online.phase === "waiting_ready";
-  const meter = usePowerMeter(powerRef, !locked);
+  const [step, setStep] = useState<"select" | "power">(
+    canSelectBlade ? "select" : "power",
+  );
+  // The meter is a timing minigame, so it must not swing while the player is
+  // browsing blades — it only starts once they commit to a top.
+  const meter = usePowerMeter(powerRef, step === "power" && !locked);
+
+  const opponentLabel = online.opponentReady
+    ? "對手 READY"
+    : "等待對手 READY";
+
+  if (step === "select") {
+    return (
+      <section className="screen menu-screen online-selection">
+        <header className="online-heading">
+          <p className="eyebrow">OPPONENT FOUND</p>
+          <h1>選擇出戰陀螺</h1>
+          <p>
+            {online.opponentReady
+              ? "對手已準備，挑好你的陀螺"
+              : "挑選陀螺與零件，確定後再鎖定發射"}
+          </p>
+        </header>
+        <BladePicker
+          value={playerType}
+          onChange={onBlade}
+          customColor={customColor}
+          onCustomColorChange={onCustomColorChange}
+        />
+        <div className="garage-preview-stage">
+          <div className="preview-controls-bar">
+            <button
+              className="preview-control-btn customizer-btn"
+              onClick={() => {
+                synth.click();
+                onOpenCustomizer();
+              }}
+              title="開啟零件改裝工坊"
+              aria-label="開啟零件改裝工坊"
+            >
+              <GarageIcon size={18} />
+            </button>
+          </div>
+          <BladePreviewScene
+            type={playerType}
+            color={customColor}
+            customSpec={customSpec}
+          />
+        </div>
+        <BladeDetails value={playerType} customSpec={customSpec} />
+        <div className="online-ready-actions">
+          <button
+            className="primary"
+            onClick={() => {
+              synth.click();
+              setStep("power");
+            }}
+          >
+            確定出戰
+          </button>
+          <button onClick={onLeave}>離開房間</button>
+        </div>
+        <p className="credits">{opponentLabel}</p>
+      </section>
+    );
+  }
+
   return (
     <section className="screen menu-screen online-selection">
       <header className="online-heading">
@@ -1760,7 +1864,9 @@ function OnlineSelection({
           {locked
             ? online.opponentReady
               ? "雙方已準備，等待伺服器開始"
-              : "你的發射資料已鎖定，等待對手"
+              : canSelectBlade
+                ? "你的發射資料已鎖定，等待對手選角"
+                : "你的發射資料已鎖定，等待對手"
             : online.opponentReady
               ? "對手已準備，輪到你了"
               : "鎖定發射力道"}
@@ -1769,13 +1875,24 @@ function OnlineSelection({
       <div className="online-ready-panel">
         <PowerMeter fillRef={meter.fillRef} />
         <div className="online-ready-copy">
-          <span>{online.opponentReady ? "對手 READY" : "等待對手 READY"}</span>
+          <span>{opponentLabel}</span>
           <strong className="power-value" ref={meter.valueRef} />
         </div>
         <div className="online-ready-actions">
           <button disabled={locked} className="primary" onClick={onReady}>
             {locked ? "已鎖定發射" : "鎖定發射並準備"}
           </button>
+          {canSelectBlade && (
+            <button
+              disabled={locked}
+              onClick={() => {
+                synth.click();
+                setStep("select");
+              }}
+            >
+              返回重選陀螺
+            </button>
+          )}
           <button onClick={onLeave}>離開房間</button>
         </div>
       </div>
@@ -1925,6 +2042,7 @@ function ResultScreen({
   onRematch,
   rematchRequested = false,
   opponentRematch = false,
+  rematchReselects = false,
   onMenu,
 }: {
   result: MatchResult;
@@ -1937,6 +2055,8 @@ function ResultScreen({
   onRematch?: () => void;
   rematchRequested?: boolean;
   opponentRematch?: boolean;
+  /** Friend rooms return to blade selection, so the button says so. */
+  rematchReselects?: boolean;
   onMenu: () => void;
 }) {
   const outcome = localMatchOutcome(result.winnerId, localTopId);
@@ -2021,7 +2141,9 @@ function ResultScreen({
                   ? "等待對手回應…"
                   : opponentRematch
                     ? "對手想再戰，接受"
-                    : "再來一場"}
+                    : rematchReselects
+                      ? "再戰（可重選陀螺）"
+                      : "再來一場"}
             </button>
           )}
           <button className={online ? "primary" : ""} onClick={onMenu}>

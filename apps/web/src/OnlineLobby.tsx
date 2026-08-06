@@ -110,7 +110,7 @@ export function OnlineRoomCode({
         <p className="eyebrow">FRIEND ROOM</p>
         <h2>等待好友加入</h2>
         <div className="room-code-display">{code}</div>
-        <p>把房號或邀請連結傳給朋友，他加入後就會自動開始。</p>
+        <p>把房號或邀請連結傳給朋友，他加入後就能各自挑選陀螺。</p>
         <input className="invite-link" value={invite} readOnly />
         <div className="online-overlay-actions">
           <button className="primary" onClick={() => void copy(code, "code")}>

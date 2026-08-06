@@ -52,6 +52,20 @@ export function isActiveOnlineRoom(phase: OnlinePhase): boolean {
   );
 }
 
+/**
+ * Whether a backgrounded host has to release the room. Only the phases the host
+ * actually drives count: it owns the simulation from the countdown onwards, and
+ * a hidden tab stops rendering frames, which would freeze the guest's view.
+ *
+ * Blade selection is deliberately excluded. Nothing depends on the host there,
+ * and a friend room now stays in that phase for minutes — long enough that
+ * switching away to send someone the room code must not destroy the room. The
+ * server's friend-room ready timeout is the backstop instead.
+ */
+export function hostShouldLeaveWhenHidden(phase: OnlinePhase): boolean {
+  return ["countdown", "battle", "ending"].includes(phase);
+}
+
 export function onlinePageExitAction(
   phase: OnlinePhase,
 ): "cancel_queue" | "leave" | null {

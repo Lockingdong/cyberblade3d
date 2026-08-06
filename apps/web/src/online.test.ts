@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildInviteUrl,
+  hostShouldLeaveWhenHidden,
   isActiveOnlineRoom,
   onlinePageExitAction,
   readRoomCodeFromLocation,
@@ -42,6 +43,23 @@ describe("isActiveOnlineRoom", () => {
     expect(isActiveOnlineRoom("ending")).toBe(true);
     expect(isActiveOnlineRoom("queued")).toBe(false);
     expect(isActiveOnlineRoom("result")).toBe(false);
+  });
+});
+
+describe("hostShouldLeaveWhenHidden", () => {
+  it("keeps a backgrounded host in the room while blades are being picked", () => {
+    // Friend rooms sit in these phases for minutes, so switching away to send
+    // someone the room code must not tear the room down.
+    expect(hostShouldLeaveWhenHidden("matched")).toBe(false);
+    expect(hostShouldLeaveWhenHidden("waiting_ready")).toBe(false);
+  });
+
+  it("still releases the room once the host drives the simulation", () => {
+    expect(hostShouldLeaveWhenHidden("countdown")).toBe(true);
+    expect(hostShouldLeaveWhenHidden("battle")).toBe(true);
+    expect(hostShouldLeaveWhenHidden("ending")).toBe(true);
+    expect(hostShouldLeaveWhenHidden("result")).toBe(false);
+    expect(hostShouldLeaveWhenHidden("hosting")).toBe(false);
   });
 });
 
