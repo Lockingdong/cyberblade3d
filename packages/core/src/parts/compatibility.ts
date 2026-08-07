@@ -71,3 +71,31 @@ export function validatePartCompatibility(config: CustomBeybladeConfig): {
 
   return { valid: false, correctedConfig };
 }
+
+/**
+ * Turns a stored loadout into a complete, compatible config for `type`.
+ *
+ * Persisted loadouts are partial by nature: a player may never have opened the
+ * garage for this blade, and a config saved by an older build can name parts
+ * that the compatibility table no longer allows. Both cases resolve the same
+ * way — the slot falls back to that blade's first compatible part.
+ */
+export function resolveCustomConfig(
+  type: BeybladeType,
+  stored?: Partial<CustomBeybladeConfig> | null,
+): CustomBeybladeConfig {
+  // An unset slot is passed through as an id no table can contain, so the
+  // validator's own fallback handles "never chosen" and "no longer allowed"
+  // through a single code path.
+  const { correctedConfig } = validatePartCompatibility({
+    type,
+    bladeId: stored?.bladeId ?? "",
+    ratchetId: stored?.ratchetId ?? "",
+    bitId: stored?.bitId ?? "",
+    chipId: stored?.chipId ?? "",
+    ...(stored?.name ? { name: stored.name } : {}),
+    ...(stored?.englishName ? { englishName: stored.englishName } : {}),
+    ...(stored?.description ? { description: stored.description } : {}),
+  });
+  return correctedConfig;
+}

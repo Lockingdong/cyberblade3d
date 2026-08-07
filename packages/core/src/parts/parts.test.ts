@@ -5,6 +5,7 @@ import {
   BEYBLADE_ALLOWED_PARTS,
   BLADE_PARTS,
   getCompatibleParts,
+  resolveCustomConfig,
   validatePartCompatibility,
 } from "./index";
 
@@ -297,5 +298,58 @@ describe("parts module", () => {
       chipId: "balance_core",
     });
     expect(result.valid).toBe(true);
+  });
+});
+
+describe("resolveCustomConfig", () => {
+  it("falls back to the stock loadout when nothing is stored", () => {
+    expect(resolveCustomConfig("stamina")).toEqual({
+      type: "stamina",
+      bladeId: "stamina_solar",
+      ratchetId: "stamina_standard",
+      bitId: "stamina_stamina",
+      chipId: "stamina_core",
+    });
+    expect(resolveCustomConfig("stamina", undefined)).toEqual(
+      resolveCustomConfig("stamina", {}),
+    );
+  });
+
+  it("keeps the slots a player did choose and fills in the rest", () => {
+    expect(resolveCustomConfig("attack", { bladeId: "attack_ignis" })).toEqual({
+      type: "attack",
+      bladeId: "attack_ignis",
+      ratchetId: "attack_standard",
+      bitId: "attack_flat",
+      chipId: "attack_core",
+    });
+  });
+
+  it("drops parts that belong to another blade", () => {
+    // A loadout saved for the attack type, replayed after the player switched
+    // to defense — every id is well-formed but none of them fit.
+    expect(
+      resolveCustomConfig("defense", {
+        bladeId: "attack_ignis",
+        ratchetId: "attack_standard",
+        bitId: "attack_flat",
+        chipId: "attack_core",
+      }),
+    ).toEqual({
+      type: "defense",
+      bladeId: "defense_shield",
+      ratchetId: "defense_standard",
+      bitId: "defense_ball",
+      chipId: "defense_core",
+    });
+  });
+
+  it("carries a stored display name through", () => {
+    expect(
+      resolveCustomConfig("balance", {
+        bladeId: "balance_chameleon",
+        name: "我的幻獸",
+      }),
+    ).toMatchObject({ bladeId: "balance_chameleon", name: "我的幻獸" });
   });
 });

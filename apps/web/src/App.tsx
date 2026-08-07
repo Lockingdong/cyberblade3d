@@ -12,7 +12,7 @@ import {
   localMatchOutcome,
   opponentTopId,
   assembleBeybladeSpec,
-  getCompatibleParts,
+  resolveCustomConfig,
   validatePartCompatibility,
   BLADE_PARTS,
   type BeybladeSpec,
@@ -41,6 +41,7 @@ import {
   type OnlineMatchState,
 } from "@cyberblade/multiplayer";
 import { CannonBattleSimulation } from "@cyberblade/simulation";
+import { PREVIEW_CAMERA_PRESET_ORDER } from "@cyberblade/visuals";
 import { BattleScene } from "./BattleScene";
 import { BladeMiniIcon } from "./components/BladeMiniIcon";
 import { GarageIcon } from "./components/CustomizerIcons";
@@ -160,35 +161,10 @@ export function App() {
     Partial<Record<BeybladeType, CustomBeybladeConfig>>
   >(() => loadCustomParts() as Partial<Record<BeybladeType, CustomBeybladeConfig>>);
 
-  const currentConfig = useMemo<CustomBeybladeConfig>(() => {
-    const existing = customPartsMap[playerType];
-    const allowed = getCompatibleParts(playerType);
-
-    const bladeId =
-      existing?.bladeId && allowed.allowedBlades.includes(existing.bladeId)
-        ? existing.bladeId
-        : allowed.allowedBlades[0] ?? playerType;
-    const ratchetId =
-      existing?.ratchetId && allowed.allowedRatchets.includes(existing.ratchetId)
-        ? existing.ratchetId
-        : allowed.allowedRatchets[0] ?? playerType;
-    const bitId =
-      existing?.bitId && allowed.allowedBits.includes(existing.bitId)
-        ? existing.bitId
-        : allowed.allowedBits[0] ?? playerType;
-    const chipId =
-      existing?.chipId && allowed.allowedChips.includes(existing.chipId)
-        ? existing.chipId
-        : allowed.allowedChips[0] ?? playerType;
-
-    return {
-      type: playerType,
-      bladeId,
-      ratchetId,
-      bitId,
-      chipId,
-    };
-  }, [customPartsMap, playerType]);
+  const currentConfig = useMemo<CustomBeybladeConfig>(
+    () => resolveCustomConfig(playerType, customPartsMap[playerType]),
+    [customPartsMap, playerType],
+  );
 
   const selectedBladeId = currentConfig.bladeId;
 
@@ -1072,11 +1048,11 @@ function MainMenu({
   const [isExploded, setIsExploded] = useState(false);
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>("default");
 
-  const presetKeys: CameraPreset[] = ["default", "top", "side", "bottom"];
   const handleCycleCameraPreset = () => {
     synth.click();
-    const currentIndex = presetKeys.indexOf(cameraPreset);
-    const nextPreset = presetKeys[(currentIndex + 1) % presetKeys.length] ?? "default";
+    const order = PREVIEW_CAMERA_PRESET_ORDER;
+    const currentIndex = order.indexOf(cameraPreset);
+    const nextPreset = order[(currentIndex + 1) % order.length] ?? "default";
     setCameraPreset(nextPreset);
   };
 

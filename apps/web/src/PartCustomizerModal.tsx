@@ -11,6 +11,7 @@ import {
   type CustomBeybladeConfig,
   type BeybladeSpec,
 } from "@cyberblade/core";
+import { PREVIEW_CAMERA_PRESET_ORDER } from "@cyberblade/visuals";
 import {
   BladePreviewScene,
   CAMERA_PRESETS,
@@ -79,12 +80,11 @@ export function PartCustomizerModal({
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>("default");
   const [isExploded, setIsExploded] = useState(false);
 
-  const presetKeys: CameraPreset[] = ["default", "top", "side", "bottom"];
   const handleCycleCameraPreset = () => {
     synth.click();
-    const currentIndex = presetKeys.indexOf(cameraPreset);
-    const nextPreset =
-      presetKeys[(currentIndex + 1) % presetKeys.length] ?? "default";
+    const order = PREVIEW_CAMERA_PRESET_ORDER;
+    const currentIndex = order.indexOf(cameraPreset);
+    const nextPreset = order[(currentIndex + 1) % order.length] ?? "default";
     setCameraPreset(nextPreset);
   };
 

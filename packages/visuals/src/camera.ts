@@ -45,3 +45,36 @@ export function getBattleCameraView(
     target: [midpointX, 0.5, midpointZ],
   };
 }
+
+/** The angles a `BeybladePreviewWorld` can be inspected from in the garage. */
+export type PreviewCameraPreset = "default" | "top" | "side" | "bottom";
+
+export const PREVIEW_CAMERA_PRESET_ORDER: readonly PreviewCameraPreset[] = [
+  "default",
+  "top",
+  "side",
+  "bottom",
+];
+
+/**
+ * Shared poses for the garage preview, so the web and mobile customizers frame
+ * a blade identically. Each app supplies its own icon for the view switcher —
+ * only the geometry and the label live here.
+ *
+ * The top and bottom poses sit a hundredth off the Z axis because a camera
+ * exactly on it is collinear with the default up vector, which makes `lookAt`
+ * pick an arbitrary roll.
+ */
+export const PREVIEW_CAMERA_PRESETS: Record<
+  PreviewCameraPreset,
+  CameraView & { readonly label: string }
+> = {
+  default: { label: "斜角視角", position: [0, 2.8, 3.8], target: [0, 0.38, 0] },
+  top: { label: "正頂視角", position: [0, 4.8, 0.01], target: [0, 0.38, 0] },
+  side: { label: "正側視角", position: [0, 0.4, 4.2], target: [0, 0.38, 0] },
+  bottom: {
+    label: "正底視角",
+    position: [0, -3.8, 0.01],
+    target: [0, 0.38, 0],
+  },
+};

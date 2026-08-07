@@ -1,17 +1,26 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, type JSX } from "react";
 import * as THREE from "three";
-import { BeybladePreviewWorld } from "@cyberblade/visuals";
+import {
+  BeybladePreviewWorld,
+  PREVIEW_CAMERA_PRESETS,
+  type PreviewCameraPreset,
+} from "@cyberblade/visuals";
 import type { BeybladeType, BeybladeSpec } from "@cyberblade/core";
 
-export type CameraPreset = "default" | "top" | "side" | "bottom";
+export type CameraPreset = PreviewCameraPreset;
 
+/**
+ * The shared preview poses, paired with this app's SVG icons for the view
+ * switcher. Only the icons live here — mobile frames a blade from exactly the
+ * same angles by reading the same constants.
+ */
 export const CAMERA_PRESETS: Record<
   CameraPreset,
-  { label: string; icon: JSX.Element; pos: [number, number, number]; target: [number, number, number] }
+  { label: string; icon: JSX.Element; position: readonly [number, number, number]; target: readonly [number, number, number] }
 > = {
   default: {
-    label: "斜角視角",
+    ...PREVIEW_CAMERA_PRESETS.default,
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
@@ -19,11 +28,9 @@ export const CAMERA_PRESETS: Record<
         <line x1="12" y1="22.08" x2="12" y2="12" />
       </svg>
     ),
-    pos: [0, 2.8, 3.8],
-    target: [0, 0.38, 0],
   },
   top: {
-    label: "正頂視角",
+    ...PREVIEW_CAMERA_PRESETS.top,
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="9" />
@@ -31,22 +38,18 @@ export const CAMERA_PRESETS: Record<
         <circle cx="12" cy="12" r="1.5" fill="currentColor" />
       </svg>
     ),
-    pos: [0, 4.8, 0.01],
-    target: [0, 0.38, 0],
   },
   side: {
-    label: "正側視角",
+    ...PREVIEW_CAMERA_PRESETS.side,
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 12h16" />
         <path d="M4 7l8-3 8 3v10l-8 3-8-3V7z" />
       </svg>
     ),
-    pos: [0, 0.4, 4.2],
-    target: [0, 0.38, 0],
   },
   bottom: {
-    label: "正底視角",
+    ...PREVIEW_CAMERA_PRESETS.bottom,
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="8" strokeDasharray="3 3" />
@@ -54,8 +57,6 @@ export const CAMERA_PRESETS: Record<
         <circle cx="12" cy="12" r="2.5" fill="currentColor" />
       </svg>
     ),
-    pos: [0, -3.8, 0.01],
-    target: [0, 0.38, 0],
   },
 };
 
@@ -88,7 +89,9 @@ export function BladePreviewScene({
   overridePos?: [number, number, number] | undefined;
   showExplodedLabels?: boolean;
 }) {
-  const initialPos = overridePos ?? (PRESET_CONFIGS[preset]?.pos ?? PRESET_CONFIGS.default.pos);
+  const initialPos = [
+    ...(overridePos ?? PRESET_CONFIGS[preset]?.position ?? PRESET_CONFIGS.default.position),
+  ] as [number, number, number];
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <Canvas
@@ -162,7 +165,7 @@ function PreviewContent({
 
   useFrame((state, delta) => {
     const config = PRESET_CONFIGS[preset] ?? PRESET_CONFIGS.default;
-    targetPos.current.set(...(overridePos ?? config.pos));
+    targetPos.current.set(...(overridePos ?? config.position));
     targetLook.current.set(...config.target);
 
     const lerpFactor = Math.min(1, delta * 6);

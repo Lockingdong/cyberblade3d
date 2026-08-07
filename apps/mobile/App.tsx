@@ -19,19 +19,23 @@ import {
   EMPTY_BATTLE_RECORD,
   PLAYER_COLOR_PALETTE,
   applyBattleOutcome,
+  assembleBeybladeSpec,
   beybladeDisplayStats,
   buildShareCardData,
   formatBattleRecord,
   localMatchOutcome,
   opponentTopId,
+  resolveCustomConfig,
   type BattleRecord,
   type BattleSnapshot,
+  type BeybladeSpec,
   type BeybladeState,
   type BeybladeType,
   type MatchConfig,
   type MatchPhase,
   type MatchResult,
   type MatchTermination,
+  type CustomBeybladeConfig,
   type TopId,
   type TopSnapshot,
   type WinnerId,
@@ -55,7 +59,14 @@ import { CannonBattleSimulation } from "@cyberblade/simulation";
 import { colors, radius, spacing } from "@cyberblade/design-system";
 import { BattleScene } from "./src/BattleScene";
 import { BladePreviewScene } from "./src/BladePreviewScene";
+import { GarageIcon } from "./src/CustomizerIcons";
+import { PartCustomizer } from "./src/PartCustomizer";
 import { ShareCardModal } from "./src/ShareCard";
+import {
+  loadCustomParts,
+  saveCustomParts,
+  type CustomPartsMap,
+} from "./src/profile";
 import {
   RemoteFeedbackDeduper,
   battleFeedback,
@@ -70,7 +81,6 @@ import {
 
 const LOCAL_TOP_ID: TopId = "p1";
 type AppMode = "menu" | "local" | "online";
-
 
 export default function App() {
   const [runtime] = useState(
@@ -98,6 +108,10 @@ export default function App() {
   const [countdownNow, setCountdownNow] = useState(0);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [lobbyOpen, setLobbyOpen] = useState(false);
+  const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
+  // AsyncStorage is async, so the garage starts on the stock loadout and swaps
+  // to the stored one as soon as it is read back.
+  const [customPartsMap, setCustomPartsMap] = useState<CustomPartsMap>({});
 
   const modeRef = useRef<AppMode>("menu");
   const direction = useRef(1);
@@ -111,6 +125,7 @@ export default function App() {
   const remoteFeedback = useRef(new RemoteFeedbackDeduper());
   const recordRef = useRef(record);
   const recordedMatch = useRef<string | null>(null);
+  const partsLoaded = useRef(false);
   const lastOnlinePhase = useRef<OnlineMatchState["phase"]>("idle");
 
   function recordOnlineOutcome(
@@ -122,6 +137,20 @@ export default function App() {
     const next = applyBattleOutcome(recordRef.current, outcome);
     recordRef.current = next;
     setRecord(next);
+  }
+
+  const currentConfig = useMemo<CustomBeybladeConfig>(
+    () => resolveCustomConfig(playerType, customPartsMap[playerType]),
+    [customPartsMap, playerType],
+  );
+
+  const customSpec = useMemo(
+    () => assembleBeybladeSpec(currentConfig),
+    [currentConfig],
+  );
+
+  function handleCustomConfigChange(next: CustomBeybladeConfig): void {
+    setCustomPartsMap({ ...customPartsMap, [playerType]: next });
   }
 
   const onlineConfig = useMemo<MatchConfig | null>(() => {
@@ -138,12 +167,20 @@ export default function App() {
       ...(online.start.p2.color !== undefined
         ? { p2Color: online.start.p2.color }
         : {}),
-      ...(online.start.p1.bladeId ? { p1BladeId: online.start.p1.bladeId } : {}),
-      ...(online.start.p1.ratchetId ? { p1RatchetId: online.start.p1.ratchetId } : {}),
+      ...(online.start.p1.bladeId
+        ? { p1BladeId: online.start.p1.bladeId }
+        : {}),
+      ...(online.start.p1.ratchetId
+        ? { p1RatchetId: online.start.p1.ratchetId }
+        : {}),
       ...(online.start.p1.bitId ? { p1BitId: online.start.p1.bitId } : {}),
       ...(online.start.p1.chipId ? { p1ChipId: online.start.p1.chipId } : {}),
-      ...(online.start.p2.bladeId ? { p2BladeId: online.start.p2.bladeId } : {}),
-      ...(online.start.p2.ratchetId ? { p2RatchetId: online.start.p2.ratchetId } : {}),
+      ...(online.start.p2.bladeId
+        ? { p2BladeId: online.start.p2.bladeId }
+        : {}),
+      ...(online.start.p2.ratchetId
+        ? { p2RatchetId: online.start.p2.ratchetId }
+        : {}),
       ...(online.start.p2.bitId ? { p2BitId: online.start.p2.bitId } : {}),
       ...(online.start.p2.chipId ? { p2ChipId: online.start.p2.chipId } : {}),
     };
@@ -451,6 +488,27 @@ export default function App() {
     return () => subscription.remove();
   }, [coordinator, runtime]);
 
+  // Reading is async, so a player could in principle reach the garage first.
+  // Merging (rather than replacing) keeps whatever they just picked, and the
+  // save is deferred until the read lands so a half-empty map is never the
+  // thing written back over the stored one.
+  useEffect(() => {
+    let cancelled = false;
+    void loadCustomParts().then((stored) => {
+      if (cancelled) return;
+      setCustomPartsMap((current) => ({ ...stored, ...current }));
+      partsLoaded.current = true;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!partsLoaded.current) return;
+    void saveCustomParts(customPartsMap);
+  }, [customPartsMap]);
+
   useEffect(
     () => () => {
       coordinator.dispose();
@@ -492,6 +550,10 @@ export default function App() {
         stadiumVariant: stadiumVariantFromSeed(seed),
         seed,
         perfectLaunchTopIds: [LOCAL_TOP_ID],
+        p1BladeId: currentConfig.bladeId,
+        p1RatchetId: currentConfig.ratchetId,
+        p1BitId: currentConfig.bitId,
+        p1ChipId: currentConfig.chipId,
         ...(customColor !== null ? { p1Color: customColor } : {}),
       },
     });
@@ -617,7 +679,7 @@ export default function App() {
     0,
     Math.ceil(
       ((online.countdownEndsAt ?? countdownReference) - countdownReference) /
-      1000,
+        1000,
     ),
   );
 
@@ -647,11 +709,24 @@ export default function App() {
           onPlayerType={setPlayerType}
           customColor={customColor}
           onCustomColor={setCustomColor}
+          customSpec={customSpec}
+          onOpenCustomizer={() => {
+            selectionFeedback();
+            setIsCustomizerOpen(true);
+          }}
           record={record}
           onLocal={prepareLocal}
           onOnline={openOnlineLobby}
         />
       )}
+
+      <PartCustomizer
+        isOpen={isCustomizerOpen}
+        onClose={() => setIsCustomizerOpen(false)}
+        beybladeType={playerType}
+        config={currentConfig}
+        onChangeConfig={handleCustomConfigChange}
+      />
 
       {(lobbyOpen || (mode === "online" && online.phase === "lobby")) && (
         <OnlineLobby
@@ -811,6 +886,8 @@ function Menu({
   onPlayerType,
   customColor,
   onCustomColor,
+  customSpec,
+  onOpenCustomizer,
   record,
   onLocal,
   onOnline,
@@ -819,6 +896,8 @@ function Menu({
   onPlayerType: (type: BeybladeType) => void;
   customColor: number | null;
   onCustomColor: (color: number | null) => void;
+  customSpec: BeybladeSpec;
+  onOpenCustomizer: () => void;
   record: BattleRecord;
   onLocal: () => void;
   onOnline: () => void;
@@ -835,14 +914,44 @@ function Menu({
           </Text>
         )}
         <View style={styles.menuPreview}>
-          <BladePreviewScene type={playerType} color={customColor} />
+          <BladePreviewScene
+            type={playerType}
+            color={customColor}
+            customSpec={customSpec}
+          />
         </View>
-        <BladePicker value={playerType} onChange={onPlayerType} />
+        <BladePicker
+          value={playerType}
+          onChange={onPlayerType}
+          customSpec={customSpec}
+        />
+        <GarageButton onPress={onOpenCustomizer} />
         <ColorPalette value={customColor} onChange={onCustomColor} />
         <Action label="線上對戰" primary onPress={onOnline} />
         <Action label="單機 VS AI" onPress={onLocal} />
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function GarageButton({
+  onPress,
+  disabled = false,
+}: {
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="開啟陀螺改裝工坊"
+      disabled={disabled}
+      style={[styles.garageButton, disabled && styles.disabled]}
+      onPress={onPress}
+    >
+      <GarageIcon size={17} color="#39ff14" />
+      <Text style={styles.garageButtonText}>陀螺改裝工坊</Text>
+    </Pressable>
   );
 }
 
@@ -906,15 +1015,19 @@ function ColorPalette({
 function BladePicker({
   value,
   onChange,
+  customSpec,
   disabled = false,
 }: {
   value: BeybladeType;
   onChange: (type: BeybladeType) => void;
+  // The assembled loadout, so the panel and the stat bars show what the player
+  // built in the garage rather than the stock preset.
+  customSpec?: BeybladeSpec | undefined;
   disabled?: boolean;
 }) {
-  const selected = BEYBLADES[value];
+  const selected = customSpec ?? BEYBLADES[value];
   const selectedColor = `#${selected.color.toString(16).padStart(6, "0")}`;
-  const stats = beybladeDisplayStats(value);
+  const stats = beybladeDisplayStats(value, customSpec);
   return (
     <>
       <View style={styles.garageHeading}>
@@ -1545,6 +1658,24 @@ const styles = StyleSheet.create({
   },
   bladeStats: { marginTop: 8, color: colors.muted, fontSize: 10 },
   disabled: { opacity: 0.45 },
+  garageButton: {
+    width: "100%",
+    marginTop: spacing.md,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "#39ff1466",
+    borderRadius: radius.md,
+    backgroundColor: "#0d1a0c",
+  },
+  garageButtonText: {
+    color: "#39ff14",
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
   colorField: {
     width: "100%",
     marginTop: spacing.md,
