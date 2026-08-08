@@ -39,11 +39,13 @@ export function shouldHostLeaveForAppState(
   phase: OnlinePhase,
   nextState: string,
 ): boolean {
+  // The two preparation phases are deliberately absent. A friend room now sits
+  // in them for up to five minutes while both players pick a blade, and the
+  // host switching away — to send the room code, most obviously — must not
+  // dissolve the room out from under the guest.
   return (
     nextState !== "active" &&
     role === "host" &&
-    ["matched", "waiting_ready", "countdown", "battle", "ending"].includes(
-      phase,
-    )
+    ["countdown", "battle", "ending"].includes(phase)
   );
 }

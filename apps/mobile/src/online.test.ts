@@ -53,4 +53,13 @@ describe("shouldHostLeaveForAppState", () => {
     );
     expect(shouldHostLeaveForAppState("host", "battle", "active")).toBe(false);
   });
+
+  it("keeps the room alive while the host is still picking a blade", () => {
+    expect(shouldHostLeaveForAppState("host", "matched", "background")).toBe(
+      false,
+    );
+    expect(
+      shouldHostLeaveForAppState("host", "waiting_ready", "background"),
+    ).toBe(false);
+  });
 });

@@ -334,9 +334,26 @@ export default function App() {
     [coordinator, runtime],
   );
 
+  // Only a friend room gets a blade-selection step; quick match keeps going
+  // straight to the power meter.
+  const canSelectBlade = online.roomKind === "friend";
+  const [friendPrepStep, setFriendPrepStep] = useState<"select" | "power">(
+    "select",
+  );
+  // A rematch arrives as a fresh match id and sends the room back to selection.
+  // Resetting during render rather than in an effect matters here: an effect
+  // would leave the step stale for one frame, which is long enough to swing the
+  // power meter on a screen the player has already left.
+  const prepMatchId = useRef(online.matchId);
+  if (prepMatchId.current !== online.matchId) {
+    prepMatchId.current = online.matchId;
+    if (friendPrepStep !== "select") setFriendPrepStep("select");
+  }
+  const prepStep = canSelectBlade ? friendPrepStep : "power";
+
   const powerActive =
     (mode === "local" && game.phase === "launch") ||
-    (mode === "online" && online.phase === "matched");
+    (mode === "online" && online.phase === "matched" && prepStep === "power");
   useEffect(() => {
     if (!powerActive) return;
     const timer = setInterval(() => {
@@ -488,6 +505,14 @@ export default function App() {
     return () => subscription.remove();
   }, [coordinator, runtime]);
 
+  // The customizer is mounted outside the phase conditionals, so an opponent
+  // leaving mid-selection would leave it floating over the termination screen.
+  useEffect(() => {
+    if (mode !== "online") return;
+    if (online.phase === "matched" || online.phase === "waiting_ready") return;
+    setIsCustomizerOpen(false);
+  }, [mode, online.phase]);
+
   // Reading is async, so a player could in principle reach the garage first.
   // Merging (rather than replacing) keeps whatever they just picked, and the
   // save is deferred until the read lands so a half-empty map is never the
@@ -621,6 +646,10 @@ export default function App() {
       angle: Math.random() * 60 - 30,
       stadium: "neon",
       ...(customColor !== null ? { color: customColor } : {}),
+      bladeId: currentConfig.bladeId,
+      ratchetId: currentConfig.ratchetId,
+      bitId: currentConfig.bitId,
+      chipId: currentConfig.chipId,
     });
   }
 
@@ -774,6 +803,17 @@ export default function App() {
           <OnlineSelection
             online={online}
             power={power}
+            step={prepStep}
+            onStep={setFriendPrepStep}
+            playerType={playerType}
+            onPlayerType={setPlayerType}
+            customColor={customColor}
+            onCustomColor={setCustomColor}
+            customSpec={customSpec}
+            onOpenCustomizer={() => {
+              selectionFeedback();
+              setIsCustomizerOpen(true);
+            }}
             onReady={readyOnline}
             onLeave={returnToMenu}
           />
@@ -857,6 +897,7 @@ export default function App() {
                 onRematch: rematchOnline,
                 rematchRequested: online.rematchRequested,
                 opponentRematch: online.opponentRematch,
+                rematchReselects: canSelectBlade,
               }
             : {})}
           onMenu={returnToMenu}
@@ -1109,15 +1150,74 @@ function BladePicker({
 function OnlineSelection({
   online,
   power,
+  step,
+  onStep,
+  playerType,
+  onPlayerType,
+  customColor,
+  onCustomColor,
+  customSpec,
+  onOpenCustomizer,
   onReady,
   onLeave,
 }: {
   online: OnlineMatchState;
   power: number;
+  step: "select" | "power";
+  onStep: (step: "select" | "power") => void;
+  playerType: BeybladeType;
+  onPlayerType: (type: BeybladeType) => void;
+  customColor: number | null;
+  onCustomColor: (color: number | null) => void;
+  customSpec: BeybladeSpec;
+  onOpenCustomizer: () => void;
   onReady: () => void;
   onLeave: () => void;
 }) {
+  const canSelectBlade = online.roomKind === "friend";
   const locked = online.phase === "waiting_ready";
+  const opponentLabel = online.opponentReady ? "對手 READY" : "等待對手 READY";
+
+  if (step === "select") {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScrollView contentContainerStyle={styles.menu}>
+          <Text style={styles.eyebrow}>OPPONENT FOUND</Text>
+          <Text style={styles.title}>選擇出戰陀螺</Text>
+          <Text style={styles.subtitle}>
+            {online.opponentReady
+              ? "對手已準備，挑好你的陀螺"
+              : "挑選陀螺與零件，確定後再鎖定發射"}
+          </Text>
+          <View style={styles.menuPreview}>
+            <BladePreviewScene
+              type={playerType}
+              color={customColor}
+              customSpec={customSpec}
+            />
+          </View>
+          <BladePicker
+            value={playerType}
+            onChange={onPlayerType}
+            customSpec={customSpec}
+          />
+          <GarageButton onPress={onOpenCustomizer} />
+          <ColorPalette value={customColor} onChange={onCustomColor} />
+          <Action
+            label="確定出戰"
+            primary
+            onPress={() => {
+              selectionFeedback();
+              onStep("power");
+            }}
+          />
+          <Action label="離開房間" onPress={onLeave} />
+          <Text style={styles.muted}>{opponentLabel}</Text>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.menu}>
@@ -1126,16 +1226,16 @@ function OnlineSelection({
           {locked
             ? online.opponentReady
               ? "雙方已準備，等待伺服器開始"
-              : "已鎖定發射，等待對手"
+              : canSelectBlade
+                ? "已鎖定發射，等待對手選角"
+                : "已鎖定發射，等待對手"
             : online.opponentReady
               ? "對手已準備，輪到你了"
               : "鎖定發射力道"}
         </Text>
         <PowerMeter power={power} />
         <View style={styles.readyCopy}>
-          <Text style={styles.muted}>
-            {online.opponentReady ? "對手 READY" : "等待對手 READY"}
-          </Text>
+          <Text style={styles.muted}>{opponentLabel}</Text>
           <Text style={styles.powerText}>{Math.round(power)}%</Text>
         </View>
         <Action
@@ -1144,6 +1244,16 @@ function OnlineSelection({
           disabled={locked}
           onPress={onReady}
         />
+        {canSelectBlade && (
+          <Action
+            label="返回重選陀螺"
+            disabled={locked}
+            onPress={() => {
+              selectionFeedback();
+              onStep("select");
+            }}
+          />
+        )}
         <Action label="離開房間" onPress={onLeave} />
       </ScrollView>
     </SafeAreaView>
@@ -1253,6 +1363,7 @@ function ResultScreen({
   onRematch,
   rematchRequested = false,
   opponentRematch = false,
+  rematchReselects = false,
   onMenu,
 }: {
   result: MatchResult;
@@ -1265,6 +1376,7 @@ function ResultScreen({
   onRematch?: () => void;
   rematchRequested?: boolean;
   opponentRematch?: boolean;
+  rematchReselects?: boolean;
   onMenu: () => void;
 }) {
   const outcome = localMatchOutcome(result.winnerId, localTopId);
@@ -1331,7 +1443,9 @@ function ResultScreen({
                   ? "等待對手回應…"
                   : opponentRematch
                     ? "對手想再戰，接受"
-                    : "再來一場"
+                    : rematchReselects
+                      ? "再戰（可重選陀螺）"
+                      : "再來一場"
             }
             primary
             disabled={rematchRequested}
@@ -1422,7 +1536,9 @@ function RoomCodePanel({
         <Text style={styles.eyebrow}>FRIEND ROOM</Text>
         <Text style={styles.overlayTitle}>等待好友加入</Text>
         <Text style={styles.roomCode}>{code}</Text>
-        <Text style={styles.muted}>把房號傳給朋友，他加入後就會自動開始。</Text>
+        <Text style={styles.muted}>
+          把房號傳給朋友，他加入後你們就能各自挑選陀螺。
+        </Text>
         <Action
           label="分享邀請"
           primary
