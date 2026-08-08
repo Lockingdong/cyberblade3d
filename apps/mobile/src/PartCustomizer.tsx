@@ -25,8 +25,9 @@ import {
   PREVIEW_CAMERA_PRESET_ORDER,
   type PreviewCameraPreset,
 } from "@cyberblade/visuals";
-import { colors, radius, spacing } from "@cyberblade/design-system";
+import { border, palette, radius, spacing } from "@cyberblade/design-system";
 import { BladePreviewScene } from "./BladePreviewScene";
+import { PaperBackdrop, PrimaryButton } from "./ui";
 import {
   BitSlotIcon,
   BladeSlotIcon,
@@ -176,11 +177,12 @@ export function PartCustomizer({
       onRequestClose={onClose}
       accessibilityViewIsModal
     >
+      <PaperBackdrop />
       <SafeAreaView style={styles.root}>
         <View style={styles.header}>
           <View style={styles.headerCopy}>
             <View style={styles.headerTitleRow}>
-              <GarageIcon size={20} color="#39ff14" />
+              <GarageIcon size={20} color={palette.cyan} />
               <Text style={styles.headerTitle}>陀螺改裝工坊</Text>
             </View>
             <Text style={styles.headerSubtitle}>
@@ -215,7 +217,7 @@ export function PartCustomizer({
                 style={styles.stageButton}
                 onPress={cycleCameraPreset}
               >
-                <CameraPresetIcon preset={cameraPreset} color="#00f0ff" />
+                <CameraPresetIcon preset={cameraPreset} color={palette.ink} />
               </Pressable>
               <Pressable
                 accessibilityRole="button"
@@ -229,7 +231,7 @@ export function PartCustomizer({
                 }}
               >
                 <ExplodedLayersIcon
-                  color={isExploded ? "#020106" : "#00f0ff"}
+                  color={isExploded ? palette.card : palette.ink}
                 />
               </Pressable>
             </View>
@@ -251,7 +253,10 @@ export function PartCustomizer({
                     setActiveSlot(slot);
                   }}
                 >
-                  <TabIcon size={16} color={active ? "#020106" : "#9aa3bd"} />
+                  <TabIcon
+                    size={16}
+                    color={active ? palette.card : palette.inkFaint}
+                  />
                   <Text style={[styles.tabTitle, active && styles.tabTitleOn]}>
                     {info.title}
                   </Text>
@@ -267,7 +272,7 @@ export function PartCustomizer({
 
           <View style={styles.slotInfo}>
             <View style={styles.headerTitleRow}>
-              <ActiveSlotIcon size={16} color="#00f0ff" />
+              <ActiveSlotIcon size={16} color={palette.cyan} />
               <Text style={styles.slotInfoTitle}>
                 {activeInfo.title}
                 <Text style={styles.slotInfoEnglish}>
@@ -336,7 +341,7 @@ export function PartCustomizer({
 
           {currentParts.length === 1 && (
             <View style={styles.singlePartHint}>
-              <InfoIcon size={15} color={colors.muted} />
+              <InfoIcon size={15} color={palette.inkMuted} />
               <Text style={styles.singlePartHintText}>
                 目前該部位僅有原廠預設零件，後續版本將解鎖更多可替換改裝件。
               </Text>
@@ -345,7 +350,7 @@ export function PartCustomizer({
 
           <View style={styles.statsPanel}>
             <View style={styles.headerTitleRow}>
-              <StatsChartIcon size={16} color="#39ff14" />
+              <StatsChartIcon size={16} color={palette.cyan} />
               <Text style={styles.statsTitle}>性能指標 (Stats Diff)</Text>
             </View>
             <Text style={styles.statsHint}>
@@ -395,16 +400,14 @@ export function PartCustomizer({
             />
           </View>
 
-          <Pressable
-            accessibilityRole="button"
+          <PrimaryButton
+            label="完成組裝"
             style={styles.confirmButton}
             onPress={() => {
               selectionFeedback();
               onClose();
             }}
-          >
-            <Text style={styles.confirmText}>完成組裝</Text>
-          </Pressable>
+          />
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -454,120 +457,132 @@ function StatDiffRow({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#020106" },
+  root: { flex: 1 },
   header: {
     padding: spacing.md,
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: "#2a3150",
+    borderBottomWidth: border.thick,
+    borderBottomColor: palette.ink,
+    backgroundColor: palette.card,
   },
   headerCopy: { flex: 1 },
   headerTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  headerTitle: { color: colors.text, fontSize: 18, fontWeight: "900" },
-  headerSubtitle: { marginTop: 4, color: colors.muted, fontSize: 12 },
+  headerTitle: {
+    color: palette.ink,
+    fontSize: 18,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  headerSubtitle: { marginTop: 4, color: palette.inkMuted, fontSize: 12 },
   closeButton: {
     width: 36,
     height: 36,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#414a69",
+    borderWidth: border.thin,
+    borderColor: palette.ink,
     borderRadius: radius.md,
-    backgroundColor: "#101426",
+    backgroundColor: palette.card,
   },
-  closeMark: { color: colors.text, fontSize: 16, fontWeight: "900" },
-  body: { padding: spacing.md, paddingBottom: 48, gap: spacing.sm },
+  closeMark: { color: palette.ink, fontSize: 16, fontWeight: "900" },
+  body: { padding: spacing.md, paddingBottom: 56, gap: spacing.sm },
   stage: {
     height: 280,
-    borderWidth: 1,
-    borderColor: "#2a3150",
+    borderWidth: border.thick,
+    borderColor: palette.ink,
     borderRadius: radius.lg,
-    backgroundColor: "#070a16",
+    backgroundColor: palette.card,
     overflow: "hidden",
   },
-  stageControls: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    gap: 8,
-  },
+  stageControls: { position: "absolute", top: 10, right: 10, gap: 8 },
   stageButton: {
     width: 38,
     height: 38,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#00f0ff66",
+    borderWidth: border.thin,
+    borderColor: palette.ink,
     borderRadius: radius.md,
-    backgroundColor: "#050713cc",
+    backgroundColor: palette.card,
   },
-  stageButtonOn: { borderColor: "#00f0ff", backgroundColor: "#00f0ff" },
+  stageButtonOn: { backgroundColor: palette.cyan },
   tabs: { flexDirection: "row", gap: 6 },
   tab: {
     flex: 1,
     paddingVertical: 10,
     alignItems: "center",
     gap: 2,
-    borderWidth: 1,
-    borderColor: "#303750",
+    borderWidth: border.thin,
+    borderColor: palette.ink,
     borderRadius: radius.md,
-    backgroundColor: "#111427",
+    backgroundColor: palette.card,
   },
-  tabActive: { borderColor: "#00f0ff", backgroundColor: "#00f0ff" },
-  tabTitle: { color: "#c9d2ef", fontSize: 11, fontWeight: "800" },
-  tabEnglish: { color: "#9aa3bd", fontSize: 8, letterSpacing: 1 },
-  tabTitleOn: { color: "#020106" },
+  tabActive: { backgroundColor: palette.cyan },
+  tabTitle: { color: palette.ink, fontSize: 11, fontWeight: "900" },
+  tabEnglish: { color: palette.inkFaint, fontSize: 8, letterSpacing: 1 },
+  tabTitleOn: { color: palette.card },
   slotInfo: {
     padding: spacing.md,
-    borderWidth: 1,
-    borderColor: "#2a3150",
+    borderWidth: border.thin,
+    borderColor: palette.ruleStrong,
     borderRadius: radius.md,
-    backgroundColor: "#0b0f1f",
+    backgroundColor: palette.card,
   },
-  slotInfoTitle: { color: colors.text, fontSize: 14, fontWeight: "800" },
-  slotInfoEnglish: { color: colors.muted, fontSize: 11, fontWeight: "600" },
+  slotInfoTitle: { color: palette.ink, fontSize: 14, fontWeight: "900" },
+  slotInfoEnglish: {
+    color: palette.inkFaint,
+    fontSize: 11,
+    fontWeight: "600",
+  },
   slotInfoDesc: {
     marginTop: 6,
-    color: colors.muted,
+    color: palette.inkMuted,
     fontSize: 12,
     lineHeight: 18,
   },
   partCard: {
     padding: spacing.md,
-    borderWidth: 1,
-    borderColor: "#303750",
+    borderWidth: border.thin,
+    borderColor: palette.ruleStrong,
     borderRadius: radius.md,
-    backgroundColor: "#111427",
+    backgroundColor: palette.card,
   },
-  partCardOn: { borderColor: "#39ff14", backgroundColor: "#15220f" },
+  // Equipped reads as an ink outline rather than a colour wash, so the state is
+  // legible for players who cannot separate the tint from the plain card.
+  partCardOn: {
+    borderWidth: border.thick,
+    borderColor: palette.cyan,
+    backgroundColor: "rgba(0, 155, 214, 0.08)",
+  },
   partCardHeader: {
     flexDirection: "row",
     alignItems: "baseline",
     justifyContent: "space-between",
     gap: 8,
   },
-  partName: { color: colors.text, fontSize: 15, fontWeight: "900" },
-  partEnglish: { color: colors.muted, fontSize: 10, letterSpacing: 1 },
+  partName: { color: palette.ink, fontSize: 15, fontWeight: "900" },
+  partEnglish: { color: palette.inkFaint, fontSize: 10, letterSpacing: 1 },
   partAttrs: { marginTop: 8, flexDirection: "row", flexWrap: "wrap", gap: 8 },
   partAttr: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    color: "#c9d2ef",
+    overflow: "hidden",
+    color: palette.inkMuted,
     fontSize: 10,
-    fontWeight: "700",
-    borderWidth: 1,
-    borderColor: "#303750",
-    borderRadius: 99,
+    fontWeight: "800",
+    borderWidth: border.hairline,
+    borderColor: palette.ruleStrong,
+    borderRadius: radius.pill,
   },
   partStatus: {
     marginTop: 10,
-    color: colors.muted,
+    color: palette.inkFaint,
     fontSize: 11,
     fontWeight: "800",
   },
-  partStatusOn: { color: "#39ff14" },
+  partStatusOn: { color: palette.cyan },
   singlePartHint: {
     padding: spacing.sm,
     flexDirection: "row",
@@ -576,23 +591,23 @@ const styles = StyleSheet.create({
   },
   singlePartHintText: {
     flex: 1,
-    color: colors.muted,
+    color: palette.inkMuted,
     fontSize: 11,
     lineHeight: 16,
   },
   statsPanel: {
     marginTop: spacing.sm,
     padding: spacing.md,
-    borderWidth: 1,
-    borderColor: "#2a3150",
+    borderWidth: border.thin,
+    borderColor: palette.ink,
     borderRadius: radius.md,
-    backgroundColor: "#0b0f1f",
+    backgroundColor: palette.card,
   },
-  statsTitle: { color: colors.text, fontSize: 14, fontWeight: "800" },
+  statsTitle: { color: palette.ink, fontSize: 14, fontWeight: "900" },
   statsHint: {
     marginTop: 6,
     marginBottom: 4,
-    color: colors.muted,
+    color: palette.inkMuted,
     fontSize: 11,
   },
   statRow: {
@@ -600,28 +615,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: "#1c2338",
+    borderBottomWidth: border.hairline,
+    borderBottomColor: palette.rule,
   },
-  statLabel: { color: colors.muted, fontSize: 12 },
+  statLabel: { color: palette.inkMuted, fontSize: 12 },
   statValueGroup: { flexDirection: "row", alignItems: "center", gap: 8 },
-  statValue: { color: colors.text, fontSize: 12, fontWeight: "800" },
+  statValue: { color: palette.ink, fontSize: 12, fontWeight: "800" },
   statDelta: {
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 99,
+    borderRadius: radius.pill,
     fontSize: 10,
     fontWeight: "900",
     overflow: "hidden",
   },
-  statDeltaUp: { color: "#020106", backgroundColor: "#39ff14" },
-  statDeltaDown: { color: colors.text, backgroundColor: "#ff2a5f" },
-  confirmButton: {
-    marginTop: spacing.md,
-    padding: 16,
-    alignItems: "center",
-    borderRadius: radius.md,
-    backgroundColor: "#713cff",
-  },
-  confirmText: { color: colors.text, fontWeight: "900", letterSpacing: 1 },
+  statDeltaUp: { color: palette.card, backgroundColor: palette.positive },
+  statDeltaDown: { color: palette.card, backgroundColor: palette.danger },
+  confirmButton: { marginTop: spacing.md },
 });

@@ -56,7 +56,17 @@ import {
   type OnlineMatchState,
 } from "@cyberblade/multiplayer";
 import { CannonBattleSimulation } from "@cyberblade/simulation";
-import { colors, radius, spacing } from "@cyberblade/design-system";
+import { border, palette, radius, spacing } from "@cyberblade/design-system";
+import {
+  Eyebrow,
+  InkButton,
+  InkCard,
+  InkPanel,
+  LogoTitle,
+  PaperBackdrop,
+  PrimaryButton,
+  StatBar,
+} from "./src/ui";
 import { BattleScene } from "./src/BattleScene";
 import { BladePreviewScene } from "./src/BladePreviewScene";
 import { GarageIcon } from "./src/CustomizerIcons";
@@ -714,7 +724,10 @@ export default function App() {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" />
+      {/* The battle scene is its own background; paper only shows behind the
+          menu-side screens, so it is skipped once the GL scene is up. */}
+      <StatusBar barStyle={showScene ? "light-content" : "dark-content"} />
+      {!showScene && <PaperBackdrop />}
       {showScene && sceneConfig && (
         <View style={StyleSheet.absoluteFill}>
           <BattleScene
@@ -946,8 +959,8 @@ function Menu({
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.menu}>
-        <Text style={styles.eyebrow}>DONGSTUDIO PRESENTS</Text>
-        <Text style={styles.title}>CYBERBLADE 3D</Text>
+        <Eyebrow>DONGSTUDIO PRESENTS</Eyebrow>
+        <LogoTitle text="CYBERBLADE 3D" />
         <Text style={styles.subtitle}>極限爆裂對決</Text>
         {(record.wins > 0 || record.losses > 0) && (
           <Text style={styles.playerRecord}>
@@ -987,10 +1000,14 @@ function GarageButton({
       accessibilityRole="button"
       accessibilityLabel="開啟陀螺改裝工坊"
       disabled={disabled}
-      style={[styles.garageButton, disabled && styles.disabled]}
+      style={({ pressed }) => [
+        styles.garageButton,
+        disabled && styles.disabled,
+        pressed && !disabled ? styles.pressed : null,
+      ]}
       onPress={onPress}
     >
-      <GarageIcon size={17} color="#39ff14" />
+      <GarageIcon size={17} color={palette.cyan} />
       <Text style={styles.garageButtonText}>陀螺改裝工坊</Text>
     </Pressable>
   );
@@ -1073,7 +1090,7 @@ function BladePicker({
     <>
       <View style={styles.garageHeading}>
         <View>
-          <Text style={styles.eyebrow}>SELECT YOUR BLADE</Text>
+          <Eyebrow>SELECT YOUR BLADE</Eyebrow>
           <Text style={styles.sectionTitle}>選擇戰鬥陀螺</Text>
         </View>
         <Text style={styles.garageCounter}>
@@ -1081,11 +1098,11 @@ function BladePicker({
           {String(Object.keys(BEYBLADES).length).padStart(2, "0")}
         </Text>
       </View>
-      <View style={styles.selectedBladePanel}>
+      <InkPanel style={styles.selectedBladePanel}>
         <View style={styles.selectedCopy}>
-          <Text style={[styles.eyebrow, { color: selectedColor }]}>
+          <Eyebrow style={{ color: selectedColor }}>
             {selected.englishName}
-          </Text>
+          </Eyebrow>
           <Text style={styles.selectedName}>{selected.name}</Text>
           <Text style={styles.muted}>
             {selected.description ?? BEYBLADE_DESCRIPTIONS[value]}
@@ -1098,47 +1115,46 @@ function BladePicker({
                 <Text style={styles.statLabel}>{stat.label}</Text>
                 <Text style={styles.statValue}>{stat.displayValue}</Text>
               </View>
-              <View style={styles.statTrack}>
-                <View
-                  style={[styles.statFill, { width: `${stat.ratio * 100}%` }]}
-                />
-              </View>
+              <StatBar ratio={stat.ratio} />
             </View>
           ))}
         </View>
-      </View>
+      </InkPanel>
       <View style={styles.bladeGrid}>
         {(Object.keys(BEYBLADES) as BeybladeType[]).map((type) => {
           const blade = BEYBLADES[type];
+          const bladeColor = `#${blade.color.toString(16).padStart(6, "0")}`;
+          const isActive = value === type;
           return (
             <Pressable
               key={type}
               disabled={disabled}
-              style={[
-                styles.bladeCard,
-                value === type && {
-                  borderColor: `#${blade.color.toString(16).padStart(6, "0")}`,
-                },
-                disabled && styles.disabled,
-              ]}
+              style={[styles.bladeCardSlot, disabled && styles.disabled]}
               onPress={() => {
                 selectionFeedback();
                 onChange(type);
               }}
             >
-              <View
-                style={[
-                  styles.bladeMiniPreview,
-                  {
-                    borderColor: `#${blade.color.toString(16).padStart(6, "0")}`,
-                  },
-                ]}
-              />
-              <Text style={styles.bladeName}>{blade.name}</Text>
-              <Text style={styles.bladeType}>{type.toUpperCase()}</Text>
-              <Text style={styles.bladeStats}>
-                {blade.maxRpm} RPM · {blade.maxStability} STB
-              </Text>
+              <InkCard
+                lean
+                active={isActive}
+                accent={bladeColor}
+                contentStyle={styles.bladeCardContent}
+              >
+                <Text style={[styles.bladeType, { color: bladeColor }]}>
+                  {type.toUpperCase()}
+                </Text>
+                <View
+                  style={[
+                    styles.bladeMiniPreview,
+                    { borderColor: palette.ink, backgroundColor: bladeColor },
+                  ]}
+                />
+                <Text style={styles.bladeName}>{blade.name}</Text>
+                <Text style={styles.bladeStats}>
+                  {blade.maxRpm} RPM · {blade.maxStability} STB
+                </Text>
+              </InkCard>
             </Pressable>
           );
         })}
@@ -1592,22 +1608,25 @@ function Action({
   online?: boolean;
   disabled?: boolean;
 }) {
+  // `online` used to mean a second filled colour; in the print theme there is
+  // one filled treatment, so it just promotes the button to primary.
+  if (primary || online) {
+    return (
+      <PrimaryButton
+        label={label}
+        disabled={disabled}
+        onPress={onPress}
+        style={styles.actionSpacing}
+      />
+    );
+  }
   return (
-    <Pressable
+    <InkButton
+      label={label}
       disabled={disabled}
-      style={[
-        primary ? styles.primary : styles.secondary,
-        online && styles.onlineButton,
-        disabled && styles.disabled,
-      ]}
       onPress={onPress}
-    >
-      <Text
-        style={primary || online ? styles.primaryText : styles.secondaryText}
-      >
-        {label}
-      </Text>
-    </Pressable>
+      style={styles.actionSpacing}
+    />
   );
 }
 
@@ -1685,11 +1704,10 @@ export function terminationCopy(
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#020106" },
-  safe: { flex: 1, backgroundColor: "#020106" },
-  // Static darkening layered above the GL scene to reinforce the vignette
-  // (the Expo GL renderer doesn't run postprocessing, so this CSS-side
-  // overlay is the closest equivalent).
+  // The battle screens keep the dark GL scene as their background; everything
+  // else sits on paper, which PaperBackdrop draws.
+  root: { flex: 1, backgroundColor: palette.paper },
+  safe: { flex: 1 },
   battleVignette: {
     position: "absolute",
     top: 0,
@@ -1706,345 +1724,62 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: "rgba(2, 1, 6, 0.42)",
   },
-  menu: { alignItems: "center", padding: spacing.lg, paddingBottom: 48 },
+  menu: {
+    alignItems: "center",
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    // Room for the offset shadow under the last card, which is drawn outside
+    // the content box.
+    paddingBottom: 64,
+  },
   eyebrow: {
-    color: "#39ff14",
+    color: palette.cyan,
     fontSize: 11,
     fontWeight: "900",
     letterSpacing: 3,
   },
   title: {
     marginTop: spacing.sm,
-    color: colors.text,
-    fontSize: 38,
+    color: palette.ink,
+    fontSize: 34,
     fontWeight: "900",
-    letterSpacing: -2,
+    fontStyle: "italic",
+    letterSpacing: -1,
     textAlign: "center",
   },
   subtitle: {
-    marginTop: 4,
-    color: colors.muted,
-    letterSpacing: 1,
+    marginTop: 6,
+    color: palette.inkMuted,
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 3,
     textAlign: "center",
   },
   playerRecord: {
-    marginTop: 10,
+    marginTop: 12,
     paddingHorizontal: 14,
     paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: "#414a69",
-    borderRadius: 99,
-    color: "#c9d2ef",
+    overflow: "hidden",
+    borderWidth: border.thin,
+    borderColor: palette.ink,
+    borderRadius: radius.pill,
+    backgroundColor: palette.card,
+    color: palette.ink,
     fontSize: 12,
     fontWeight: "900",
     letterSpacing: 1,
   },
   sectionTitle: {
-    alignSelf: "flex-start",
-    marginTop: spacing.xl,
-    marginBottom: 12,
-    color: colors.text,
-    fontWeight: "800",
-    letterSpacing: 2,
-  },
-  bladeGrid: {
-    width: "100%",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  bladeCard: {
-    width: "48.5%",
-    minHeight: 135,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#303750",
-    borderRadius: radius.lg,
-    backgroundColor: "#111427",
-  },
-  bladeIcon: { fontSize: 30 },
-  bladeName: { marginTop: 8, color: colors.text, fontWeight: "800" },
-  bladeType: {
-    marginTop: 2,
-    color: "#00f0ff",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 1,
-  },
-  bladeStats: { marginTop: 8, color: colors.muted, fontSize: 10 },
-  disabled: { opacity: 0.45 },
-  garageButton: {
-    width: "100%",
-    marginTop: spacing.md,
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    borderWidth: 1,
-    borderColor: "#39ff1466",
-    borderRadius: radius.md,
-    backgroundColor: "#0d1a0c",
-  },
-  garageButtonText: {
-    color: "#39ff14",
-    fontWeight: "900",
-    letterSpacing: 1,
-  },
-  colorField: {
-    width: "100%",
-    marginTop: spacing.md,
-    gap: 8,
-  },
-  colorFieldLabel: {
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 1,
-  },
-  colorPalette: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  colorSwatch: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 2,
-    borderColor: "rgba(248, 249, 251, 0.25)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  colorSwatchActive: {
-    borderColor: "#f8f9fb",
-    borderWidth: 3,
-  },
-  colorSwatchDefault: {
-    backgroundColor: "transparent",
-  },
-  colorSwatchDefaultMark: {
-    color: colors.muted,
-    fontSize: 18,
-    fontWeight: "900",
-    lineHeight: 20,
-  },
-  primary: {
-    width: "100%",
-    marginTop: spacing.lg,
-    padding: 16,
-    alignItems: "center",
-    borderRadius: radius.md,
-    backgroundColor: "#713cff",
-  },
-  onlineButton: {
-    width: "100%",
-    marginTop: 10,
-    padding: 16,
-    alignItems: "center",
-    borderRadius: radius.md,
-    backgroundColor: "#007d91",
-  },
-  primaryText: { color: colors.text, fontWeight: "900" },
-  secondary: {
-    width: "100%",
-    marginTop: 10,
-    padding: 14,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#414a69",
-    borderRadius: radius.md,
-    backgroundColor: "#101426",
-  },
-  secondaryText: { color: colors.text, fontWeight: "700" },
-  launchScreen: { ...StyleSheet.absoluteFill, backgroundColor: "#02010688" },
-  launchContent: {
-    flex: 1,
-    padding: spacing.lg,
-    justifyContent: "space-between",
-  },
-  centered: { alignItems: "center", marginTop: 80 },
-  launchTitle: {
-    marginTop: 8,
-    color: colors.text,
-    fontSize: 42,
-    fontWeight: "900",
-  },
-  muted: { marginTop: 6, color: colors.muted, textAlign: "center" },
-  lobbyError: {
-    marginTop: 10,
-    color: colors.danger,
-    fontWeight: "800",
-    textAlign: "center",
-  },
-  roomCodeInput: {
-    width: "100%",
-    marginTop: 8,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#414a69",
-    borderRadius: radius.md,
-    backgroundColor: "#101426",
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: "900",
-    letterSpacing: 6,
-    textAlign: "center",
-  },
-  roomCode: {
-    marginTop: 14,
-    color: colors.accent,
-    fontSize: 42,
-    fontWeight: "900",
-    letterSpacing: 8,
-    textAlign: "center",
-  },
-  powerCard: {
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: "#414a69",
-    borderRadius: radius.lg,
-    backgroundColor: "#090b16e8",
-  },
-  row: { flexDirection: "row", justifyContent: "space-between" },
-  readyCopy: {
-    width: "100%",
-    marginTop: 8,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  cardLabel: { color: colors.text, fontWeight: "800", letterSpacing: 2 },
-  powerText: { color: "#39ff14", fontWeight: "900" },
-  powerTrack: {
-    width: "100%",
-    height: 20,
-    marginTop: 12,
-    overflow: "hidden",
-    borderRadius: 99,
-    backgroundColor: "#252a3d",
-  },
-  perfectZone: {
-    position: "absolute",
-    left: "85%",
-    width: "10%",
-    height: "100%",
-    backgroundColor: "#39ff1455",
-  },
-  powerFill: { height: "100%", backgroundColor: "#8e2dff" },
-  hint: {
-    marginTop: 10,
-    color: colors.muted,
-    fontSize: 11,
-    textAlign: "center",
-  },
-  hud: { flex: 1, justifyContent: "space-between" },
-  hudTop: {
-    padding: spacing.md,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  timer: {
-    marginLeft: "43%",
-    color: colors.text,
-    fontSize: 34,
-    fontWeight: "900",
-    textShadowColor: "#00f0ff",
-    textShadowRadius: 10,
-  },
-  exit: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderWidth: 1,
-    borderColor: "#414a69",
-    borderRadius: radius.md,
-    backgroundColor: "#090b16cc",
-  },
-  hudBottom: { padding: spacing.md, gap: 8 },
-  topHud: {
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#00f0ff66",
-    borderRadius: radius.md,
-    backgroundColor: "#050713e8",
-  },
-  hudName: { color: colors.text, fontWeight: "800" },
-  meter: { marginTop: 7 },
-  meterText: { color: colors.muted, fontSize: 10 },
-  meterTrack: {
-    height: 6,
-    marginTop: 3,
-    overflow: "hidden",
-    borderRadius: 9,
-    backgroundColor: "#30364a",
-  },
-  meterFill: { height: "100%", backgroundColor: "#00f0ff" },
-  dangerFill: { backgroundColor: "#ff4d71" },
-  overlay: {
-    flex: 1,
-    padding: spacing.lg,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#020106cc",
-  },
-  resultCard: {
-    width: "100%",
-    padding: spacing.xl,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#4a5270",
-    borderRadius: radius.lg,
-    backgroundColor: "#090b16f5",
-  },
-  overlayTitle: {
-    marginTop: 12,
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: "900",
-    textAlign: "center",
-  },
-  countdown: {
-    marginTop: 12,
-    color: "#39ff14",
-    fontSize: 72,
-    fontWeight: "900",
-  },
-  resultTitle: {
-    marginTop: 8,
-    color: colors.text,
-    fontSize: 48,
-    fontWeight: "900",
-  },
-  win: { color: "#39ff14" },
-  lose: { color: "#ff2a5f" },
-  finish: {
-    marginVertical: spacing.md,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    color: "#ffea00",
-    borderWidth: 1,
-    borderColor: "#ffea00",
-    borderRadius: 99,
-    fontSize: 11,
-    fontWeight: "900",
-  },
-  resultName: {
-    color: colors.text,
+    marginTop: 4,
+    color: palette.ink,
     fontSize: 20,
-    fontWeight: "800",
-    textAlign: "center",
+    fontWeight: "900",
+    letterSpacing: 0.5,
   },
-  connectionWarning: {
-    position: "absolute",
-    top: 54,
-    alignSelf: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: radius.md,
-    backgroundColor: "#8f351cee",
-  },
-  warningText: { color: colors.text, fontSize: 12, fontWeight: "800" },
+  pressed: { opacity: 0.85 },
+  disabled: { opacity: 0.45 },
+  actionSpacing: { marginTop: 12 },
+
   garageHeading: {
     width: "100%",
     marginTop: spacing.xl,
@@ -2052,97 +1787,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    borderBottomWidth: 2,
-    borderBottomColor: "#dfe3eb",
+    borderBottomWidth: border.thin,
+    borderBottomColor: palette.rule,
   },
   garageCounter: {
-    color: "#009bd6",
-    fontSize: 11,
+    color: palette.cyan,
+    fontSize: 12,
     fontWeight: "900",
-    letterSpacing: 1,
+    letterSpacing: 1.5,
   },
   menuPreview: {
     width: "100%",
-    height: 330,
+    height: 320,
     marginTop: spacing.sm,
     backgroundColor: "transparent",
   },
-  selectedBladePanel: {
-    width: "100%",
-    marginTop: spacing.md,
-    padding: spacing.md,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    borderWidth: 2,
-    borderColor: "#1f2235",
-    borderRadius: 8,
-    backgroundColor: "#f8f9fb",
-  },
-  previewColumn: {
-    width: "100%",
-    minHeight: 300,
-    alignItems: "center",
-    justifyContent: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#dfe3eb",
-  },
-  previewLabel: {
-    color: "#6c7488",
-    fontSize: 8,
-    fontWeight: "900",
-    letterSpacing: 1,
-  },
-  bladePreview: {
-    width: 112,
-    height: 112,
-    marginTop: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderRadius: 99,
-    backgroundColor: "#fff",
-  },
-  bladePreviewCanvas: { width: "100%", height: 260, marginTop: 8 },
-  previewArc: {
-    position: "absolute",
-    width: 92,
-    height: 58,
-    borderWidth: 8,
-    borderLeftColor: "transparent",
-    borderRadius: 99,
-    transform: [{ rotate: "25deg" }],
-  },
-  previewArcInner: {
-    position: "absolute",
-    width: 62,
-    height: 40,
-    borderWidth: 4,
-    borderRightColor: "transparent",
-    borderRadius: 99,
-    transform: [{ rotate: "-25deg" }],
-  },
-  previewCore: {
-    width: 22,
-    height: 22,
-    borderWidth: 4,
-    borderColor: "#1f2235",
-    borderRadius: 99,
-  },
-  previewType: {
-    marginTop: 12,
-    fontSize: 8,
-    fontWeight: "900",
-    letterSpacing: 1,
-  },
-  selectedCopy: {
-    flex: 1,
-    minWidth: 130,
-    paddingLeft: spacing.md,
-    justifyContent: "center",
-  },
+  selectedBladePanel: { width: "100%", marginTop: spacing.md },
+  selectedCopy: { width: "100%" },
   selectedName: {
     marginTop: 4,
-    color: "#1f2235",
+    color: palette.ink,
     fontSize: 24,
     fontWeight: "900",
   },
@@ -2151,27 +1815,297 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: 12,
   },
   statItem: { width: "47%" },
-  statLabel: { color: "#6c7488", fontSize: 10, fontWeight: "800" },
-  statValue: { color: "#1f2235", fontSize: 9, fontWeight: "800" },
-  statTrack: {
-    height: 6,
-    marginTop: 4,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#1f2235",
-    borderRadius: 2,
-    backgroundColor: "#e4e7ed",
+  statLabel: { color: palette.inkFaint, fontSize: 10, fontWeight: "800" },
+  statValue: { color: palette.ink, fontSize: 10, fontWeight: "800" },
+
+  bladeGrid: {
+    width: "100%",
+    marginTop: spacing.md,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    // The leaning cards and their offset shadows both spill past the card box,
+    // so the gutters are wider than the visual gap suggests.
+    gap: spacing.md,
+    paddingLeft: 10,
+    paddingBottom: 10,
   },
-  statFill: { height: "100%", backgroundColor: "#009bd6" },
+  bladeCardSlot: { width: "46%" },
+  bladeCardContent: { alignItems: "center", paddingVertical: 4 },
   bladeMiniPreview: {
-    width: 25,
-    height: 25,
-    marginBottom: 4,
-    borderWidth: 2,
-    borderRadius: 99,
-    backgroundColor: "#fff",
+    width: 34,
+    height: 34,
+    marginVertical: 10,
+    borderWidth: border.thick,
+    borderRadius: radius.pill,
+    backgroundColor: palette.card,
+  },
+  bladeName: { color: palette.ink, fontSize: 15, fontWeight: "900" },
+  bladeType: {
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.5,
+  },
+  bladeStats: {
+    marginTop: 6,
+    color: palette.inkFaint,
+    fontSize: 10,
+    fontWeight: "700",
+  },
+
+  garageButton: {
+    width: "100%",
+    marginTop: spacing.md,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderWidth: border.thick,
+    borderColor: palette.cyan,
+    borderRadius: radius.md,
+    backgroundColor: palette.card,
+  },
+  garageButtonText: {
+    color: palette.cyan,
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 1.5,
+  },
+  colorField: { width: "100%", marginTop: spacing.md, gap: 8 },
+  colorFieldLabel: {
+    color: palette.inkFaint,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.5,
+  },
+  colorPalette: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  colorSwatch: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.pill,
+    borderWidth: border.thin,
+    borderColor: palette.ink,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  colorSwatchActive: { borderWidth: 4, borderColor: palette.cyan },
+  colorSwatchDefault: { backgroundColor: palette.card },
+  colorSwatchDefaultMark: {
+    color: palette.inkFaint,
+    fontSize: 18,
+    fontWeight: "900",
+    lineHeight: 20,
+  },
+
+  secondaryText: { color: palette.ink, fontWeight: "800" },
+  muted: { marginTop: 6, color: palette.inkMuted, textAlign: "center" },
+  hint: {
+    marginTop: 10,
+    color: palette.inkFaint,
+    fontSize: 11,
+    textAlign: "center",
+  },
+  row: { flexDirection: "row", justifyContent: "space-between" },
+  centered: { alignItems: "center", marginTop: 80 },
+
+  // Launch and battle overlays sit on the GL scene, so they stay dark-on-dark
+  // rather than switching to paper.
+  launchScreen: { ...StyleSheet.absoluteFill, backgroundColor: "#02010688" },
+  launchContent: {
+    flex: 1,
+    padding: spacing.lg,
+    justifyContent: "space-between",
+  },
+  launchTitle: {
+    marginTop: 8,
+    color: "#ffffff",
+    fontSize: 42,
+    fontWeight: "900",
+    fontStyle: "italic",
+  },
+  powerCard: {
+    padding: spacing.lg,
+    borderWidth: border.thick,
+    borderColor: "#ffffff",
+    borderRadius: radius.lg,
+    backgroundColor: "rgba(9, 11, 22, 0.92)",
+  },
+  cardLabel: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 2,
+  },
+  powerText: { color: palette.cyanBright, fontSize: 16, fontWeight: "900" },
+  powerTrack: {
+    width: "100%",
+    height: 20,
+    marginTop: 12,
+    overflow: "hidden",
+    borderWidth: border.thin,
+    borderColor: palette.ink,
+    borderRadius: radius.sm,
+    backgroundColor: palette.track,
+  },
+  perfectZone: {
+    position: "absolute",
+    left: "85%",
+    width: "10%",
+    height: "100%",
+    backgroundColor: "rgba(0, 179, 126, 0.35)",
+  },
+  powerFill: { height: "100%", backgroundColor: palette.purple },
+  readyCopy: {
+    width: "100%",
+    marginTop: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  hud: { flex: 1, justifyContent: "space-between" },
+  hudTop: {
+    padding: spacing.md,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  timer: {
+    marginLeft: "43%",
+    color: "#ffffff",
+    fontSize: 34,
+    fontWeight: "900",
+    textShadowColor: palette.cyanBright,
+    textShadowRadius: 10,
+  },
+  exit: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderWidth: border.thin,
+    borderColor: "#ffffff",
+    borderRadius: radius.md,
+    backgroundColor: "rgba(9, 11, 22, 0.85)",
+  },
+  hudBottom: { padding: spacing.md, gap: 8 },
+  topHud: {
+    padding: 12,
+    borderWidth: border.thin,
+    borderColor: "#ffffff",
+    borderRadius: radius.md,
+    backgroundColor: "rgba(5, 7, 19, 0.9)",
+  },
+  hudName: { color: "#ffffff", fontWeight: "800" },
+  meter: { marginTop: 7 },
+  meterText: { color: "#c9cede", fontSize: 10 },
+  meterTrack: {
+    height: 6,
+    marginTop: 3,
+    overflow: "hidden",
+    borderRadius: radius.sm,
+    backgroundColor: "#30364a",
+  },
+  meterFill: { height: "100%", backgroundColor: palette.cyanBright },
+  dangerFill: { backgroundColor: palette.danger },
+  connectionWarning: {
+    position: "absolute",
+    top: 54,
+    alignSelf: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: border.thin,
+    borderColor: palette.ink,
+    borderRadius: radius.md,
+    backgroundColor: palette.warning,
+  },
+  warningText: { color: palette.ink, fontSize: 12, fontWeight: "900" },
+
+  overlay: {
+    flex: 1,
+    padding: spacing.lg,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(31, 34, 53, 0.55)",
+  },
+  resultCard: {
+    width: "100%",
+    padding: spacing.xl,
+    alignItems: "center",
+    borderWidth: border.thick,
+    borderColor: palette.ink,
+    borderRadius: radius.lg,
+    backgroundColor: palette.card,
+  },
+  overlayTitle: {
+    marginTop: 12,
+    color: palette.ink,
+    fontSize: 28,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  countdown: {
+    marginTop: 12,
+    color: palette.cyan,
+    fontSize: 72,
+    fontWeight: "900",
+    fontStyle: "italic",
+  },
+  resultTitle: {
+    marginTop: 8,
+    color: palette.ink,
+    fontSize: 48,
+    fontWeight: "900",
+    fontStyle: "italic",
+  },
+  win: { color: palette.cyan },
+  lose: { color: palette.danger },
+  finish: {
+    marginVertical: spacing.md,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    overflow: "hidden",
+    color: palette.ink,
+    borderWidth: border.thin,
+    borderColor: palette.ink,
+    borderRadius: radius.pill,
+    backgroundColor: palette.warning,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  resultName: {
+    color: palette.ink,
+    fontSize: 20,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  lobbyError: {
+    marginTop: 10,
+    color: palette.danger,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  roomCodeInput: {
+    width: "100%",
+    marginTop: 8,
+    padding: 14,
+    borderWidth: border.thick,
+    borderColor: palette.ink,
+    borderRadius: radius.md,
+    backgroundColor: palette.card,
+    color: palette.ink,
+    fontSize: 22,
+    fontWeight: "900",
+    letterSpacing: 6,
+    textAlign: "center",
+  },
+  roomCode: {
+    marginTop: 14,
+    color: palette.cyan,
+    fontSize: 42,
+    fontWeight: "900",
+    fontStyle: "italic",
+    letterSpacing: 8,
+    textAlign: "center",
   },
 });
