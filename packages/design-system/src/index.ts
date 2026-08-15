@@ -3,12 +3,8 @@
  * background, thick ink outlines, hard offset shadows with no blur, and skewed
  * cards.
  *
- * The values mirror `apps/web/src/styles.css`, which is where the language was
- * designed. The web app still reads them from its own stylesheet (plain CSS
- * cannot import a TS module without a build step); mobile reads them here. When
- * a value changes, change it in both — that duplication is the price of not
- * introducing a CSS-generation step, and these tokens are deliberately few
- * enough to keep in sync by hand.
+ * Both apps consume these values. React Native reads them directly; Web maps
+ * them to CSS custom properties during startup with `webThemeVariables`.
  */
 export const palette = {
   /** Outline and body text. Every border in the design is this colour. */
@@ -104,3 +100,24 @@ export const type = {
 
 export type ThemeColors = typeof colors;
 export type Palette = typeof palette;
+
+/** Canonical CSS custom properties used by the Web non-battle UI. */
+export function webThemeVariables(): Readonly<Record<string, string>> {
+  return {
+    "--cb-ink": palette.ink,
+    "--cb-ink-muted": palette.inkMuted,
+    "--cb-ink-faint": palette.inkFaint,
+    "--cb-paper": palette.paper,
+    "--cb-paper-deep": palette.paperDeep,
+    "--cb-card": palette.card,
+    "--cb-rule": palette.rule,
+    "--cb-track": palette.track,
+    "--cb-cyan": palette.cyan,
+    "--cb-cyan-bright": palette.cyanBright,
+    "--cb-blue": palette.blue,
+    "--cb-purple": palette.purple,
+    "--cb-danger": palette.danger,
+    "--cb-warning": palette.warning,
+    "--cb-positive": palette.positive,
+  };
+}

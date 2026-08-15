@@ -16,6 +16,11 @@ import {
   getBattleCameraView,
   getLaunchCameraView,
 } from "@cyberblade/visuals";
+import {
+  IS_SIMULATOR,
+  SimulatorFrameDriver,
+  SimulatorRenderSurface,
+} from "./render-performance";
 
 interface Props {
   config: MatchConfig;
@@ -29,19 +34,24 @@ interface Props {
 
 export function BattleScene(props: Props) {
   return (
-    <Canvas
-      shadows
-      camera={{ position: [0, 10, 15], fov: 45, near: 0.1, far: 100 }}
-      gl={{
-        toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.1,
-      }}
-      onCreated={({ gl }) => {
-        gl.outputColorSpace = THREE.SRGBColorSpace;
-      }}
-    >
-      <SceneContent {...props} />
-    </Canvas>
+    <SimulatorRenderSurface>
+      <Canvas
+        shadows={!IS_SIMULATOR}
+        camera={{ position: [0, 10, 15], fov: 45, near: 0.1, far: 100 }}
+        frameloop={IS_SIMULATOR ? "never" : "always"}
+        gl={{
+          antialias: !IS_SIMULATOR,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.1,
+        }}
+        onCreated={({ gl }) => {
+          gl.outputColorSpace = THREE.SRGBColorSpace;
+        }}
+      >
+        <SimulatorFrameDriver />
+        <SceneContent {...props} />
+      </Canvas>
+    </SimulatorRenderSurface>
   );
 }
 
@@ -82,6 +92,7 @@ function SceneContent({
     STADIUMS[0]!;
   const shake = useRef(0);
   const lastShakeTick = useRef(0);
+  const cameraPosition = useRef(new THREE.Vector3());
 
   useEffect(() => {
     return () => world.dispose();
@@ -125,7 +136,8 @@ function SceneContent({
     }
 
     const view = getBattleCameraView(localTopId, snapshot);
-    camera.position.lerp(new THREE.Vector3(...view.position), 0.08);
+    cameraPosition.current.set(...view.position);
+    camera.position.lerp(cameraPosition.current, 0.08);
     if (shake.current > 0.01) {
       camera.position.x += (Math.random() - 0.5) * shake.current;
       camera.position.y += (Math.random() - 0.5) * shake.current;
@@ -144,7 +156,7 @@ function SceneContent({
       <fogExp2 attach="fog" args={[backgroundColor, fogDensity]} />
       <ambientLight intensity={0.4} />
       <directionalLight
-        castShadow
+        castShadow={!IS_SIMULATOR}
         intensity={1.3}
         color={0xffffff}
         position={[8, 20, 8]}

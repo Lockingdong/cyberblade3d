@@ -58,6 +58,18 @@ describe("BeybladeVisualWorld", () => {
 });
 
 describe("BeybladePreviewWorld", () => {
+  it("can omit outlines for constrained renderers", () => {
+    const world = new BeybladePreviewWorld("attack", undefined, undefined, {
+      outlines: false,
+    });
+    let outlineCount = 0;
+    world.root.traverse((node) => {
+      if (node.userData.isOutline === true) outlineCount += 1;
+    });
+    expect(outlineCount).toBe(0);
+    world.dispose();
+  });
+
   it.each(["attack", "defense", "stamina", "balance"] as const)(
     "creates and switches the %s preview",
     (type) => {

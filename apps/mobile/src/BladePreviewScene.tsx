@@ -7,6 +7,11 @@ import {
   type PreviewCameraPreset,
 } from "@cyberblade/visuals";
 import type { BeybladeSpec, BeybladeType } from "@cyberblade/core";
+import {
+  IS_SIMULATOR,
+  SimulatorFrameDriver,
+  SimulatorRenderSurface,
+} from "./render-performance";
 
 export function BladePreviewScene({
   type,
@@ -30,17 +35,22 @@ export function BladePreviewScene({
   ];
 
   return (
-    <Canvas
-      camera={{ position: initialPosition, fov: 32, near: 0.1, far: 100 }}
-    >
-      <PreviewContent
-        type={type}
-        color={color ?? undefined}
-        exploded={exploded}
-        preset={preset}
-        customSpec={customSpec}
-      />
-    </Canvas>
+    <SimulatorRenderSurface>
+      <Canvas
+        camera={{ position: initialPosition, fov: 32, near: 0.1, far: 100 }}
+        frameloop={IS_SIMULATOR ? "never" : "always"}
+        gl={{ antialias: !IS_SIMULATOR }}
+      >
+        <SimulatorFrameDriver />
+        <PreviewContent
+          type={type}
+          color={color ?? undefined}
+          exploded={exploded}
+          preset={preset}
+          customSpec={customSpec}
+        />
+      </Canvas>
+    </SimulatorRenderSurface>
   );
 }
 
@@ -58,7 +68,10 @@ export function PreviewContent({
   customSpec?: BeybladeSpec | undefined;
 }) {
   const world = useMemo(
-    () => new BeybladePreviewWorld(type, color, customSpec),
+    () =>
+      new BeybladePreviewWorld(type, color, customSpec, {
+        outlines: !IS_SIMULATOR,
+      }),
     [type, color, customSpec],
   );
 

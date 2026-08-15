@@ -907,6 +907,10 @@ export class BeybladeVisualWorld {
 }
 
 /** A single, idle top used by loadout screens and other non-battle previews. */
+export interface BeybladeRenderOptions {
+  outlines?: boolean;
+}
+
 export class BeybladePreviewWorld {
   readonly root = new THREE.Group();
   #top: TopVisual;
@@ -914,10 +918,23 @@ export class BeybladePreviewWorld {
   #time = 0;
   #isExploded = false;
   #explodeFactor = 0;
+  #renderOptions: BeybladeRenderOptions;
 
-  constructor(type: BeybladeType, colorOverride?: number, customSpec?: BeybladeSpec) {
+  constructor(
+    type: BeybladeType,
+    colorOverride?: number,
+    customSpec?: BeybladeSpec,
+    renderOptions: BeybladeRenderOptions = {},
+  ) {
     this.#colorOverride = colorOverride;
-    this.#top = createBeyblade(type, "p1", colorOverride, customSpec);
+    this.#renderOptions = renderOptions;
+    this.#top = createBeyblade(
+      type,
+      "p1",
+      colorOverride,
+      customSpec,
+      renderOptions,
+    );
     this.root.add(this.#top.group);
     this.root.scale.setScalar(0.9);
     this.root.position.y = 0.3;
@@ -929,7 +946,13 @@ export class BeybladePreviewWorld {
   }
 
   setType(type: BeybladeType, customSpec?: BeybladeSpec): void {
-    const next = createBeyblade(type, "p1", this.#colorOverride, customSpec);
+    const next = createBeyblade(
+      type,
+      "p1",
+      this.#colorOverride,
+      customSpec,
+      this.#renderOptions,
+    );
     this.root.remove(this.#top.group);
     disposeObject(this.#top.group);
     this.#top = next;
@@ -1427,6 +1450,7 @@ function createBeyblade(
   id: TopId,
   colorOverride?: number,
   customSpec?: BeybladeSpec,
+  renderOptions: BeybladeRenderOptions = {},
 ): TopVisual {
   const spec = customSpec ?? BEYBLADES[type];
   const color = colorOverride ?? spec.color;
@@ -1451,7 +1475,11 @@ function createBeyblade(
 
   const parts = [blade, ratchet, bit, chip];
   group.add(...parts);
-  applyToonAndOutline(group, 0.022, 0x020106);
+  applyToonAndOutline(
+    group,
+    renderOptions.outlines === false ? 0 : 0.022,
+    0x020106,
+  );
   group.traverse((object) => {
     if (object instanceof THREE.Mesh) {
       if (object.userData.isOutline) {

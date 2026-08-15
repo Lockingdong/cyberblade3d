@@ -14,7 +14,9 @@ CyberBlade 3D 是獨立的 monorepo 專案，包含 React Web、Expo / React Nat
 apps/web ─────┬──> packages/core <── packages/simulation
               ├──> packages/simulation
               ├──> packages/visuals ──> packages/core
-              └──> packages/multiplayer ──> packages/core
+              ├──> packages/multiplayer ──> packages/core
+              ├──> packages/ui-model ──> packages/core
+              └──> packages/design-system
 
 apps/mobile ──┴──> 同一組 packages/*
 
@@ -35,34 +37,37 @@ TypeScript 與 Go 各自有一份線上協定定義，兩邊必須保持一致�
 - `simulation` 實作 `core` 定義的模擬介面，只負責物理與戰鬥數值。
 - `visuals` 消費快照與事件，只負責 Three.js 畫面，不可反過來決定勝負或物理狀態。
 - `multiplayer` 消費 `core` 型別，封裝 WebSocket 協定、線上狀態機與 guest 端插值。
+- `ui-model` 消費 `core` 型別，提供兩端非戰鬥畫面的內容、順序與顯示狀態，不可依賴 React 或平台 API。
+- `design-system` 是兩端顏色、間距與視覺 token 的唯一來源；Web 將 token 映射成 CSS variables，Mobile 直接使用 TypeScript token。
 - `apps/*` 組裝上述套件，持有平台 UI、生命週期與 I/O。
 - `services/api` 負責連線、FIFO 配對、房間狀態、協定驗證、限流與訊息轉送。
 
 ## 需求 → 優先修改位置
 
-| 需求 | 先看／先改 | 常見連帶位置 |
-| --- | --- | --- |
-| 陀螺種類、名稱、能力值、剋制、顯示數值、組裝零件與限定規則 | `packages/core/src/parts/` 的 `blades.ts`/`ratchets.ts`/`bits.ts`/`chips.ts` 零件庫、`compatibility.ts` 限定與相容性驗證、`assembly.ts` 的 `assembleBeybladeSpec`、`packages/core/src/index.ts` 的 `BEYBLADES` | `packages/simulation/src/index.ts`、兩端 `App.tsx` 的 `descriptions`、協定驗證 |
-| 戰鬥物理、AI 移動、撞擊傷害、轉速衰減、出界判定 | `packages/simulation/src/index.ts` | `packages/simulation/src/battle.test.ts`、`index.test.ts`；若勝負規則改變再看 `core` |
-| 勝負條件、遊戲 phase、runtime 狀態轉換 | `packages/core/src/index.ts` 的 `resolveMatchFinish`、`BeybladeRuntime` | `packages/core/src/index.test.ts`、兩端 `App.tsx` |
-| 陀螺 3D 模型、場館、特效、背景環境 | `packages/visuals/src/index.ts`；標準競技場與專屬背景映射：`packages/core/src/index.ts` 的 `environmentSceneForStadium` | `packages/visuals/src/detailed/*`、`geometry-utils.ts`、相關 visuals tests |
-| 高精度陀螺零件、3D 樣式拼裝與註冊 | `packages/visuals/src/detailed/` 的 `detailed/index.ts`（包含 `BLADE_BUILDERS`/`RATCHET_BUILDERS`/`BIT_BUILDERS`/`CHIP_BUILDERS`） | 各陀螺類型在 `detailed/` 擁有獨立 builder，並於 `index.ts` 進行零件註冊與導出 |
-| 戰鬥／發射鏡頭 | `packages/visuals/src/camera.ts` | `apps/web/src/BattleScene.tsx`、`apps/mobile/src/BattleScene.tsx` |
-| Web 頁面流程、選單、HUD、結果頁 | `apps/web/src/App.tsx` | `apps/web/src/styles.css`、對應元件與 `App.test.tsx` |
-| Mobile 頁面流程、選單、HUD、結果頁 | `apps/mobile/App.tsx` | `apps/mobile/src/*`、`feedback.ts` |
-| Web 音效／背景音樂 | `apps/web/src/audio.ts`、`apps/web/public/bgm.mp3` | `apps/web/src/App.tsx` |
-| Mobile 震動回饋 | `apps/mobile/src/feedback.ts`、`feedback-deduper.ts` | `apps/mobile/App.tsx`、feedback tests |
-| 玩家名稱、顏色、戰績保存 | Web：`apps/web/src/profile.ts`；共用資料規則：`packages/core/src/index.ts` | Web `App.tsx`；Mobile 目前只保存於當次 session |
-| 分享卡資料內容 | `packages/core/src/share-card.ts` | Web：`ShareCardModal.tsx`、`share-card.ts`；Mobile：`src/ShareCard.tsx` |
-| WebSocket URL 或平台連線差異 | Web：`apps/web/src/online.ts`；Mobile：`apps/mobile/src/online.ts` | `.env.example`、部署設定 |
-| 配對 client、線上 phase、host／guest 協調 | `packages/multiplayer/src/matchmaking-client.ts`、`online-match-coordinator.ts` | 兩端 `App.tsx`、multiplayer tests |
-| 好友房、房號、邀請連結、再戰 | 房號規則：`packages/multiplayer/src/room-code.ts`；狀態機：`online-match-coordinator.ts`；房間生命週期：`services/api/internal/matchmaking/hub.go` | Web：`apps/web/src/OnlineLobby.tsx`、`online.ts`；Mobile：`apps/mobile/App.tsx`、`src/online.ts`；兩邊 protocol |
-| guest 畫面插值、外插、網路不穩判斷 | `packages/multiplayer/src/snapshot-timeline.ts` | `snapshot-timeline.test.ts` |
-| WebSocket 訊息格式 | TS：`packages/multiplayer/src/protocol.ts`；Go：`services/api/internal/matchmaking/protocol.go` | 兩邊 protocol tests、client、hub；必要時同步升級兩邊 `PROTOCOL_VERSION` / `ProtocolVersion` |
-| 配對順序、房間 phase、timeout、轉送與限流 | `services/api/internal/matchmaking/hub.go`、`room.go` | `hub_test.go`、`server_test.go` |
-| HTTP 路由、Origin、WebSocket 升級 | `services/api/internal/matchmaking/server.go` | `services/api/cmd/api/main.go`、server tests |
-| 開發／建置指令 | `Taskfile.yml`、各目錄 `package.json` | 專案根目錄 workspace 設定 |
-| 未實作或規劃中的大功能 | `design_docs/` | 先確認文件描述是否已落地，不要把計畫當成現況 |
+| 需求                                                       | 先看／先改                                                                                                                                                                                                     | 常見連帶位置                                                                                                    |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| 陀螺種類、名稱、能力值、剋制、顯示數值、組裝零件與限定規則 | `packages/core/src/parts/` 的 `blades.ts`/`ratchets.ts`/`bits.ts`/`chips.ts` 零件庫、`compatibility.ts` 限定與相容性驗證、`assembly.ts` 的 `assembleBeybladeSpec`、`packages/core/src/index.ts` 的 `BEYBLADES` | `packages/simulation/src/index.ts`、兩端 `App.tsx` 的 `descriptions`、協定驗證                                  |
+| 戰鬥物理、AI 移動、撞擊傷害、轉速衰減、出界判定            | `packages/simulation/src/index.ts`                                                                                                                                                                             | `packages/simulation/src/battle.test.ts`、`index.test.ts`；若勝負規則改變再看 `core`                            |
+| 勝負條件、遊戲 phase、runtime 狀態轉換                     | `packages/core/src/index.ts` 的 `resolveMatchFinish`、`BeybladeRuntime`                                                                                                                                        | `packages/core/src/index.test.ts`、兩端 `App.tsx`                                                               |
+| 陀螺 3D 模型、場館、特效、背景環境                         | `packages/visuals/src/index.ts`；標準競技場與專屬背景映射：`packages/core/src/index.ts` 的 `environmentSceneForStadium`                                                                                        | `packages/visuals/src/detailed/*`、`geometry-utils.ts`、相關 visuals tests                                      |
+| 高精度陀螺零件、3D 樣式拼裝與註冊                          | `packages/visuals/src/detailed/` 的 `detailed/index.ts`（包含 `BLADE_BUILDERS`/`RATCHET_BUILDERS`/`BIT_BUILDERS`/`CHIP_BUILDERS`）                                                                             | 各陀螺類型在 `detailed/` 擁有獨立 builder，並於 `index.ts` 進行零件註冊與導出                                   |
+| 戰鬥／發射鏡頭                                             | `packages/visuals/src/camera.ts`                                                                                                                                                                               | `apps/web/src/BattleScene.tsx`、`apps/mobile/src/BattleScene.tsx`                                               |
+| Web 頁面流程、選單、HUD、結果頁                            | `apps/web/src/App.tsx`                                                                                                                                                                                         | `apps/web/src/styles.css`、對應元件與 `App.test.tsx`                                                            |
+| Mobile 頁面流程、選單、HUD、結果頁                         | `apps/mobile/App.tsx`                                                                                                                                                                                          | `apps/mobile/src/*`、`feedback.ts`                                                                              |
+| Web／Mobile 非戰鬥流程、選角內容與共用文案                 | `packages/ui-model/src/index.ts`                                                                                                                                                                               | 兩端 `App.tsx`、`packages/design-system/src/index.ts`                                                           |
+| Web 音效／背景音樂                                         | `apps/web/src/audio.ts`、`apps/web/public/bgm.mp3`                                                                                                                                                             | `apps/web/src/App.tsx`                                                                                          |
+| Mobile 震動回饋                                            | `apps/mobile/src/feedback.ts`、`feedback-deduper.ts`                                                                                                                                                           | `apps/mobile/App.tsx`、feedback tests                                                                           |
+| 玩家名稱、顏色、戰績保存                                   | Web：`apps/web/src/profile.ts`；Mobile：`apps/mobile/src/profile.ts`；共用資料規則：`packages/core/src/index.ts`                                                                                               | 兩端 `App.tsx`                                                                                                  |
+| 分享卡資料內容                                             | `packages/core/src/share-card.ts`                                                                                                                                                                              | Web：`ShareCardModal.tsx`、`share-card.ts`；Mobile：`src/ShareCard.tsx`                                         |
+| WebSocket URL 或平台連線差異                               | Web：`apps/web/src/online.ts`；Mobile：`apps/mobile/src/online.ts`                                                                                                                                             | `.env.example`、部署設定                                                                                        |
+| 配對 client、線上 phase、host／guest 協調                  | `packages/multiplayer/src/matchmaking-client.ts`、`online-match-coordinator.ts`                                                                                                                                | 兩端 `App.tsx`、multiplayer tests                                                                               |
+| 好友房、房號、邀請連結、再戰                               | 房號規則：`packages/multiplayer/src/room-code.ts`；狀態機：`online-match-coordinator.ts`；房間生命週期：`services/api/internal/matchmaking/hub.go`                                                             | Web：`apps/web/src/OnlineLobby.tsx`、`online.ts`；Mobile：`apps/mobile/App.tsx`、`src/online.ts`；兩邊 protocol |
+| guest 畫面插值、外插、網路不穩判斷                         | `packages/multiplayer/src/snapshot-timeline.ts`                                                                                                                                                                | `snapshot-timeline.test.ts`                                                                                     |
+| WebSocket 訊息格式                                         | TS：`packages/multiplayer/src/protocol.ts`；Go：`services/api/internal/matchmaking/protocol.go`                                                                                                                | 兩邊 protocol tests、client、hub；必要時同步升級兩邊 `PROTOCOL_VERSION` / `ProtocolVersion`                     |
+| 配對順序、房間 phase、timeout、轉送與限流                  | `services/api/internal/matchmaking/hub.go`、`room.go`                                                                                                                                                          | `hub_test.go`、`server_test.go`                                                                                 |
+| HTTP 路由、Origin、WebSocket 升級                          | `services/api/internal/matchmaking/server.go`                                                                                                                                                                  | `services/api/cmd/api/main.go`、server tests                                                                    |
+| 開發／建置指令                                             | `Taskfile.yml`、各目錄 `package.json`                                                                                                                                                                          | 專案根目錄 workspace 設定                                                                                       |
+| 未實作或規劃中的大功能                                     | `design_docs/`                                                                                                                                                                                                 | 先確認文件描述是否已落地，不要把計畫當成現況                                                                    |
 
 ## 目錄與重要檔案
 
@@ -87,7 +92,7 @@ TypeScript 與 Go 各自有一份線上協定定義，兩邊必須保持一致�
 - `src/ShareCard.tsx`：原生截圖與分享。
 - `metro.config.js`：monorepo / Expo bundling 設定。
 
-Web 與 Mobile UI 是兩份實作。改平台 UI 時只改目標 app；改遊戲規則、資料型別、物理、3D world 或線上狀態機時，優先改共用 package，然後驗證兩個 app。若必須在兩端複製邏輯，先判斷它是否應下沉到 `packages/*`。
+Web 與 Mobile UI 是兩份平台 renderer，但非戰鬥內容、順序與顯示狀態由 `ui-model` 共用。改平台元件時只改目標 app；改共用 UI 流程、遊戲規則、資料型別、物理、3D world 或線上狀態機時，優先改共用 package，然後驗證兩個 app。
 
 ### `packages/core/`
 
@@ -96,6 +101,16 @@ Web 與 Mobile UI 是兩份實作。改平台 UI 時只改目標 app；改遊戲
 - `src/share-card.ts`：平台中立的分享卡 view model 與尺寸常數。
 
 這裡的型別是 simulation、visuals、multiplayer 與兩個 app 的共同契約。型別改動通常是跨層改動。
+
+### `packages/ui-model/`
+
+- `src/index.ts`：平台中立的陀螺輪播、選中詳情、非戰鬥文案、線上準備與結果 view model。
+- 不可持有 React state、storage、WebSocket 或平台 UI；兩端把 action callback 接回各自的 composition root。
+
+### `packages/design-system/`
+
+- `src/index.ts`：兩端共用的視覺 token，以及 Web CSS custom properties 映射。
+- 修改 palette 或語意 token 後需同時驗證 Web 實際 CSS 與 Mobile 原生畫面。
 
 ### `packages/simulation/`
 
@@ -228,6 +243,12 @@ pnpm -C packages/visuals test
 
 pnpm -C packages/multiplayer typecheck
 pnpm -C packages/multiplayer test
+
+pnpm -C packages/ui-model typecheck
+pnpm -C packages/ui-model test
+
+pnpm -C packages/design-system typecheck
+pnpm -C packages/design-system test
 
 # 平台 app
 pnpm -C apps/web typecheck

@@ -1,41 +1,101 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { BeybladeType, CustomBeybladeConfig } from "@cyberblade/core";
+import {
+  EMPTY_BATTLE_RECORD,
+  isPlayerColor,
+  sanitizeBattleRecord,
+  type BattleRecord,
+  type BeybladeType,
+  type CustomBeybladeConfig,
+} from "@cyberblade/core";
 
-/**
- * Mirrors the web profile store (apps/web/src/profile.ts) for the one thing
- * mobile persists today: the garage loadout. The key is shared so the shape on
- * disk stays identical across platforms.
- *
- * AsyncStorage is asynchronous, so callers start from `{}` and fill it in once
- * `loadCustomParts` resolves. Player name and battle record stay session-only
- * on mobile.
- */
+const NAME_KEY = "cyberblade.playerName";
+const RECORD_KEY = "cyberblade.battleRecord";
+const COLOR_KEY = "cyberblade.playerColor";
 const PARTS_KEY = "cyberblade.customPartsMap";
+
+export const MOBILE_PROFILE_KEYS = [
+  NAME_KEY,
+  RECORD_KEY,
+  COLOR_KEY,
+  PARTS_KEY,
+] as const;
 
 export type CustomPartsMap = Partial<
   Record<BeybladeType, Partial<CustomBeybladeConfig>>
 >;
 
-export async function loadCustomParts(): Promise<CustomPartsMap> {
+async function read(key: string): Promise<string | null> {
   try {
-    const raw = await AsyncStorage.getItem(PARTS_KEY);
-    if (!raw) return {};
+    return await AsyncStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+async function write(key: string, value: string | null): Promise<void> {
+  try {
+    if (value === null) await AsyncStorage.removeItem(key);
+    else await AsyncStorage.setItem(key, value);
+  } catch {
+    // A full or unavailable store must not prevent the game from running.
+  }
+}
+
+export async function loadPlayerName(): Promise<string> {
+  return (await read(NAME_KEY)) ?? "";
+}
+
+export async function savePlayerName(name: string): Promise<void> {
+  const normalized = name.trim().slice(0, 24);
+  await write(NAME_KEY, normalized || null);
+}
+
+export async function loadPlayerColor(): Promise<number | null> {
+  const raw = await read(COLOR_KEY);
+  if (!raw) return null;
+  const value = Number(raw);
+  return isPlayerColor(value) ? value : null;
+}
+
+export async function savePlayerColor(color: number | null): Promise<void> {
+  await write(COLOR_KEY, color === null ? null : String(color));
+}
+
+export async function loadBattleRecord(): Promise<BattleRecord> {
+  const raw = await read(RECORD_KEY);
+  if (!raw) return EMPTY_BATTLE_RECORD;
+  try {
+    return sanitizeBattleRecord(JSON.parse(raw));
+  } catch {
+    return EMPTY_BATTLE_RECORD;
+  }
+}
+
+export async function saveBattleRecord(record: BattleRecord): Promise<void> {
+  await write(RECORD_KEY, JSON.stringify(sanitizeBattleRecord(record)));
+}
+
+export async function loadCustomParts(): Promise<CustomPartsMap> {
+  const raw = await read(PARTS_KEY);
+  if (!raw) return {};
+  try {
     const parsed: unknown = JSON.parse(raw);
-    // Anything that is not an object would break the per-type lookups below;
-    // resolveCustomConfig repairs bad part ids, but not a bad container.
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
       return {};
     return parsed as CustomPartsMap;
   } catch {
-    // Unreadable or corrupt storage just means the stock loadout.
     return {};
   }
 }
 
 export async function saveCustomParts(map: CustomPartsMap): Promise<void> {
+  await write(PARTS_KEY, JSON.stringify(map));
+}
+
+export async function resetMobileProfile(): Promise<void> {
   try {
-    await AsyncStorage.setItem(PARTS_KEY, JSON.stringify(map));
+    await AsyncStorage.multiRemove([...MOBILE_PROFILE_KEYS]);
   } catch {
-    // Storage can fail on a full device; the config just won't persist.
+    await Promise.all(MOBILE_PROFILE_KEYS.map((key) => write(key, null)));
   }
 }

@@ -12,9 +12,11 @@
   },
   "dependencies": {
     "@cyberblade/core": "workspace:*",
+    "@cyberblade/design-system": "workspace:*",
     "@cyberblade/multiplayer": "workspace:*",
     "@cyberblade/simulation": "workspace:*",
     "@cyberblade/visuals": "workspace:*",
+    "@cyberblade/ui-model": "workspace:*",
     "@react-three/fiber": "^9.3.0",
     "@react-three/postprocessing": "^3.0.4",
     "postprocessing": "^6.39.2",

@@ -1,5 +1,5 @@
 {
-  "name": "@cyberblade/design-system",
+  "name": "@cyberblade/ui-model",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,8 +8,11 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@cyberblade/core": "workspace:*"
   },
   "devDependencies": {
     "@cyberblade/config-typescript": "workspace:*",

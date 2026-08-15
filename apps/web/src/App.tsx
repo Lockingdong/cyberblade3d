@@ -2,11 +2,9 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   BEYBLADES,
-  BEYBLADE_DESCRIPTIONS,
   BeybladeRuntime,
   darkenColor,
   applyBattleOutcome,
-  beybladeDisplayStats,
   buildShareCardData,
   formatBattleRecord,
   localMatchOutcome,
@@ -42,6 +40,13 @@ import {
 } from "@cyberblade/multiplayer";
 import { CannonBattleSimulation } from "@cyberblade/simulation";
 import { PREVIEW_CAMERA_PRESET_ORDER } from "@cyberblade/visuals";
+import {
+  NON_BATTLE_COPY,
+  buildBladeSelectionViewModel,
+  buildOnlinePreparationCopy,
+  resultOutcomeCopy,
+  type BladeSelectionViewModel,
+} from "@cyberblade/ui-model";
 import { BattleScene } from "./BattleScene";
 import { BladeMiniIcon } from "./components/BladeMiniIcon";
 import { GarageIcon } from "./components/CustomizerIcons";
@@ -77,8 +82,6 @@ import {
   savePlayerColor,
   savePlayerName,
 } from "./profile";
-
-
 
 const LOCAL_TOP_ID: TopId = "p1";
 type AppMode = "menu" | "local" | "online";
@@ -159,7 +162,10 @@ export function App() {
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   const [customPartsMap, setCustomPartsMap] = useState<
     Partial<Record<BeybladeType, CustomBeybladeConfig>>
-  >(() => loadCustomParts() as Partial<Record<BeybladeType, CustomBeybladeConfig>>);
+  >(
+    () =>
+      loadCustomParts() as Partial<Record<BeybladeType, CustomBeybladeConfig>>,
+  );
 
   const currentConfig = useMemo<CustomBeybladeConfig>(
     () => resolveCustomConfig(playerType, customPartsMap[playerType]),
@@ -243,12 +249,20 @@ export function App() {
       ...(online.start.p2.color !== undefined
         ? { p2Color: online.start.p2.color }
         : {}),
-      ...(online.start.p1.bladeId ? { p1BladeId: online.start.p1.bladeId } : {}),
-      ...(online.start.p1.ratchetId ? { p1RatchetId: online.start.p1.ratchetId } : {}),
+      ...(online.start.p1.bladeId
+        ? { p1BladeId: online.start.p1.bladeId }
+        : {}),
+      ...(online.start.p1.ratchetId
+        ? { p1RatchetId: online.start.p1.ratchetId }
+        : {}),
       ...(online.start.p1.bitId ? { p1BitId: online.start.p1.bitId } : {}),
       ...(online.start.p1.chipId ? { p1ChipId: online.start.p1.chipId } : {}),
-      ...(online.start.p2.bladeId ? { p2BladeId: online.start.p2.bladeId } : {}),
-      ...(online.start.p2.ratchetId ? { p2RatchetId: online.start.p2.ratchetId } : {}),
+      ...(online.start.p2.bladeId
+        ? { p2BladeId: online.start.p2.bladeId }
+        : {}),
+      ...(online.start.p2.ratchetId
+        ? { p2RatchetId: online.start.p2.ratchetId }
+        : {}),
       ...(online.start.p2.bitId ? { p2BitId: online.start.p2.bitId } : {}),
       ...(online.start.p2.chipId ? { p2ChipId: online.start.p2.chipId } : {}),
     };
@@ -743,23 +757,23 @@ export function App() {
   const localName = customName.trim() || BEYBLADES[playerType].name;
   const onlineNames = online.start
     ? {
-      p1: online.start.p1.name ?? BEYBLADES[online.start.p1.blade].name,
-      p2: online.start.p2.name ?? BEYBLADES[online.start.p2.blade].name,
-    }
+        p1: online.start.p1.name ?? BEYBLADES[online.start.p1.blade].name,
+        p2: online.start.p2.name ?? BEYBLADES[online.start.p2.blade].name,
+      }
     : null;
   const onlineLocalName = onlineNames?.[localTopId] || localName;
   const onlineOpponentName = onlineNames?.[opponentTopId(localTopId)] || "對手";
   const onlineRecords = online.start
     ? {
-      p1: {
-        wins: online.start.p1.wins ?? 0,
-        losses: online.start.p1.losses ?? 0,
-      },
-      p2: {
-        wins: online.start.p2.wins ?? 0,
-        losses: online.start.p2.losses ?? 0,
-      },
-    }
+        p1: {
+          wins: online.start.p1.wins ?? 0,
+          losses: online.start.p1.losses ?? 0,
+        },
+        p2: {
+          wins: online.start.p2.wins ?? 0,
+          losses: online.start.p2.losses ?? 0,
+        },
+      }
     : null;
   const onlineLocalRecord = onlineRecords?.[localTopId] ?? null;
   const onlineOpponentRecord =
@@ -773,7 +787,7 @@ export function App() {
     0,
     Math.ceil(
       ((online.countdownEndsAt ?? countdownReference) - countdownReference) /
-      1000,
+        1000,
     ),
   );
   const sceneConfig = mode === "online" ? onlineConfig : game.config;
@@ -796,8 +810,9 @@ export function App() {
 
   return (
     <main
-      className={`app mode-${mode} phase-${mode === "online" ? onlinePhase : game.phase
-        }`}
+      className={`app mode-${mode} phase-${
+        mode === "online" ? onlinePhase : game.phase
+      }`}
     >
       {showIntro && <IntroScreen onComplete={() => setShowIntro(false)} />}
       {showScene && sceneConfig && (
@@ -1065,6 +1080,10 @@ function MainMenu({
 
   const totalMatches = record.wins + record.losses;
   const winRate = totalMatches > 0 ? (record.wins / totalMatches) * 100 : 0;
+  const bladeModel = useMemo(
+    () => buildBladeSelectionViewModel(playerType, customSpec),
+    [customSpec, playerType],
+  );
 
   return (
     <section className="screen menu-screen">
@@ -1101,7 +1120,7 @@ function MainMenu({
         <p className="player-record">線上戰績 {formatBattleRecord(record)}</p>
       )}
       <BladePicker
-        value={playerType}
+        model={bladeModel}
         onChange={onBlade}
         customName={customName}
         onCustomNameChange={onCustomNameChange}
@@ -1152,16 +1171,16 @@ function MainMenu({
           customSpec={customSpec}
         />
       </div>
-      <BladeDetails value={playerType} customSpec={customSpec} />
+      <BladeDetails model={bladeModel} />
       <div className="mode-actions">
         <button className="primary start" onClick={onOnline}>
-          線上對戰
+          {NON_BATTLE_COPY.onlineAction}
         </button>
         <button className="secondary start" onClick={onLocal}>
-          單機 VS AI
+          {NON_BATTLE_COPY.localAction}
         </button>
       </div>
-      <p className="credits">抓準時機發射，20 秒定勝負</p>
+      <p className="credits">{NON_BATTLE_COPY.footer}</p>
 
       {/* 側邊收合選單 (Drawer) */}
       {isDrawerOpen && (
@@ -1447,15 +1466,15 @@ function MainMenu({
 function Logo() {
   return (
     <header className="logo">
-      <p className="eyebrow">DONGSTUDIO PRESENTS</p>
-      <h1>CYBERBLADE 3D</h1>
-      <p>極限爆裂對決</p>
+      <p className="eyebrow">{NON_BATTLE_COPY.brandEyebrow}</p>
+      <h1>{NON_BATTLE_COPY.brandTitle}</h1>
+      <p>{NON_BATTLE_COPY.brandSubtitle}</p>
     </header>
   );
 }
 
 function BladePicker({
-  value,
+  model,
   onChange,
   customName,
   onCustomNameChange,
@@ -1464,7 +1483,7 @@ function BladePicker({
   onUpcomingClick,
   disabled = false,
 }: {
-  value: BeybladeType;
+  model: BladeSelectionViewModel;
   onChange: (type: BeybladeType) => void;
   customName?: string;
   onCustomNameChange?: (name: string) => void;
@@ -1473,9 +1492,11 @@ function BladePicker({
   onUpcomingClick?: (() => void) | undefined;
   disabled?: boolean;
 }) {
-  const selected = BEYBLADES[value];
-  const keys = Object.keys(BEYBLADES) as BeybladeType[];
-  const listItems = [...keys, "upcoming" as const];
+  const value = model.selectedType;
+  const selected = model.details;
+  const keys = model.items
+    .filter((item) => item.type !== null)
+    .map((item) => item.type!);
   const currentIndex = keys.indexOf(value);
 
   const dragStartX = useRef<number | null>(null);
@@ -1511,12 +1532,10 @@ function BladePicker({
     <section className="garage-picker">
       <div className="garage-heading">
         <div>
-          <p className="eyebrow">SELECT YOUR BLADE</p>
-          <h2>選擇戰鬥陀螺</h2>
+          <p className="eyebrow">{model.eyebrow}</p>
+          <h2>{model.title}</h2>
         </div>
-        <span className="garage-counter">
-          {currentIndex + 1} / {String(listItems.length).padStart(2, "0")}
-        </span>
+        <span className="garage-counter">{model.counter}</span>
       </div>
 
       <div className="blade-carousel-container">
@@ -1552,8 +1571,8 @@ function BladePicker({
             role="listbox"
             aria-label="選擇戰鬥陀螺"
           >
-            {listItems.map((type) => {
-              if (type === "upcoming") {
+            {model.items.map((item) => {
+              if (item.type === null) {
                 return (
                   <button
                     key="upcoming"
@@ -1577,6 +1596,7 @@ function BladePicker({
                   </button>
                 );
               }
+              const type = item.type;
               const blade = BEYBLADES[type];
               const bladeColor = `#${blade.color.toString(16).padStart(6, "0")}`;
               return (
@@ -1639,71 +1659,71 @@ function BladePicker({
           />
         </label>
       )}
-      {customColor !== undefined && onCustomColorChange && (() => {
-        const baseColor = BEYBLADES[value].color;
-        const darkColor = darkenColor(baseColor);
-        const options: { key: string; label: string; color: number | null; display: string }[] = [
-          {
-            key: "original",
-            label: "原色",
-            color: null,
-            display: `#${baseColor.toString(16).padStart(6, "0")}`,
-          },
-          {
-            key: "dark",
-            label: "暗色",
-            color: darkColor,
-            display: `#${darkColor.toString(16).padStart(6, "0")}`,
-          },
-        ];
-        return (
-          <div className="garage-color-field">
-            <span>陀螺配色</span>
-            <div
-              className="color-palette"
-              role="radiogroup"
-              aria-label="選擇陀螺配色"
-            >
-              {options.map((opt) => {
-                const isActive =
-                  opt.color === null
-                    ? customColor === null
-                    : customColor === opt.color;
-                return (
-                  <button
-                    key={opt.key}
-                    type="button"
-                    className={`color-swatch ${isActive ? "active" : ""}`}
-                    style={{ backgroundColor: opt.display }}
-                    onClick={() => {
-                      synth.click();
-                      onCustomColorChange(opt.color);
-                    }}
-                    disabled={disabled}
-                    aria-label={`選擇${opt.label}`}
-                    aria-pressed={isActive}
-                    title={opt.label}
-                  />
-                );
-              })}
+      {customColor !== undefined &&
+        onCustomColorChange &&
+        (() => {
+          const baseColor = BEYBLADES[value].color;
+          const darkColor = darkenColor(baseColor);
+          const options: {
+            key: string;
+            label: string;
+            color: number | null;
+            display: string;
+          }[] = [
+            {
+              key: "original",
+              label: "原色",
+              color: null,
+              display: `#${baseColor.toString(16).padStart(6, "0")}`,
+            },
+            {
+              key: "dark",
+              label: "暗色",
+              color: darkColor,
+              display: `#${darkColor.toString(16).padStart(6, "0")}`,
+            },
+          ];
+          return (
+            <div className="garage-color-field">
+              <span>陀螺配色</span>
+              <div
+                className="color-palette"
+                role="radiogroup"
+                aria-label="選擇陀螺配色"
+              >
+                {options.map((opt) => {
+                  const isActive =
+                    opt.color === null
+                      ? customColor === null
+                      : customColor === opt.color;
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      className={`color-swatch ${isActive ? "active" : ""}`}
+                      style={{ backgroundColor: opt.display }}
+                      onClick={() => {
+                        synth.click();
+                        onCustomColorChange(opt.color);
+                      }}
+                      disabled={disabled}
+                      aria-label={`選擇${opt.label}`}
+                      aria-pressed={isActive}
+                      title={opt.label}
+                    />
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        );
-      })()}
+          );
+        })()}
     </section>
   );
 }
 
-function BladeDetails({
-  value,
-  customSpec,
-}: {
-  value: BeybladeType;
-  customSpec?: BeybladeSpec | undefined;
-}) {
-  const selected = customSpec ?? BEYBLADES[value];
+function BladeDetails({ model }: { model: BladeSelectionViewModel }) {
+  const selected = model.details;
   const color = `#${selected.color.toString(16).padStart(6, "0")}`;
-  const stats = beybladeDisplayStats(value, customSpec);
 
   return (
     <article
@@ -1713,10 +1733,10 @@ function BladeDetails({
       <div className="blade-detail-copy">
         <p className="eyebrow">{selected.englishName}</p>
         <h3>{selected.name}</h3>
-        <p>{selected.description ?? BEYBLADE_DESCRIPTIONS[value]}</p>
+        <p>{selected.description}</p>
       </div>
       <div className="stat-grid">
-        {stats.map((stat) => (
+        {selected.stats.map((stat) => (
           <div className="stat-item" key={stat.key}>
             <div className="stat-label">
               <span>{stat.label}</span>
@@ -1770,25 +1790,27 @@ function OnlineSelection({
   // The meter is a timing minigame, so it must not swing while the player is
   // browsing blades — it only starts once they commit to a top.
   const meter = usePowerMeter(powerRef, step === "power" && !locked);
-
-  const opponentLabel = online.opponentReady
-    ? "對手 READY"
-    : "等待對手 READY";
+  const bladeModel = useMemo(
+    () => buildBladeSelectionViewModel(playerType, customSpec),
+    [customSpec, playerType],
+  );
+  const copy = buildOnlinePreparationCopy({
+    step,
+    canSelectBlade,
+    locked,
+    opponentReady: online.opponentReady,
+  });
 
   if (step === "select") {
     return (
       <section className="screen menu-screen online-selection">
         <header className="online-heading">
-          <p className="eyebrow">OPPONENT FOUND</p>
-          <h1>選擇出戰陀螺</h1>
-          <p>
-            {online.opponentReady
-              ? "對手已準備，挑好你的陀螺"
-              : "挑選陀螺與零件，確定後再鎖定發射"}
-          </p>
+          <p className="eyebrow">{copy.eyebrow}</p>
+          <h1>{copy.title}</h1>
+          <p>{copy.detail}</p>
         </header>
         <BladePicker
-          value={playerType}
+          model={bladeModel}
           onChange={onBlade}
           customColor={customColor}
           onCustomColorChange={onCustomColorChange}
@@ -1813,7 +1835,7 @@ function OnlineSelection({
             customSpec={customSpec}
           />
         </div>
-        <BladeDetails value={playerType} customSpec={customSpec} />
+        <BladeDetails model={bladeModel} />
         <div className="online-ready-actions">
           <button
             className="primary"
@@ -1822,11 +1844,11 @@ function OnlineSelection({
               setStep("power");
             }}
           >
-            確定出戰
+            {copy.primaryAction}
           </button>
-          <button onClick={onLeave}>離開房間</button>
+          <button onClick={onLeave}>{copy.leaveAction}</button>
         </div>
-        <p className="credits">{opponentLabel}</p>
+        <p className="credits">{copy.opponentLabel}</p>
       </section>
     );
   }
@@ -1834,29 +1856,19 @@ function OnlineSelection({
   return (
     <section className="screen menu-screen online-selection">
       <header className="online-heading">
-        <p className="eyebrow">OPPONENT FOUND</p>
-        <h1>準備戰鬥</h1>
-        <p>
-          {locked
-            ? online.opponentReady
-              ? "雙方已準備，等待伺服器開始"
-              : canSelectBlade
-                ? "你的發射資料已鎖定，等待對手選角"
-                : "你的發射資料已鎖定，等待對手"
-            : online.opponentReady
-              ? "對手已準備，輪到你了"
-              : "鎖定發射力道"}
-        </p>
+        <p className="eyebrow">{copy.eyebrow}</p>
+        <h1>{copy.title}</h1>
+        <p>{copy.detail}</p>
       </header>
       <div className="online-ready-panel">
         <PowerMeter fillRef={meter.fillRef} />
         <div className="online-ready-copy">
-          <span>{opponentLabel}</span>
+          <span>{copy.opponentLabel}</span>
           <strong className="power-value" ref={meter.valueRef} />
         </div>
         <div className="online-ready-actions">
           <button disabled={locked} className="primary" onClick={onReady}>
-            {locked ? "已鎖定發射" : "鎖定發射並準備"}
+            {copy.primaryAction}
           </button>
           {canSelectBlade && (
             <button
@@ -1866,10 +1878,10 @@ function OnlineSelection({
                 setStep("select");
               }}
             >
-              返回重選陀螺
+              {copy.secondaryAction}
             </button>
           )}
-          <button onClick={onLeave}>離開房間</button>
+          <button onClick={onLeave}>{copy.leaveAction}</button>
         </div>
       </div>
     </section>
@@ -1903,7 +1915,11 @@ function LaunchScreen({
   );
 }
 
-function PowerMeter({ fillRef }: { fillRef: RefObject<HTMLSpanElement | null> }) {
+function PowerMeter({
+  fillRef,
+}: {
+  fillRef: RefObject<HTMLSpanElement | null>;
+}) {
   return (
     <div className="power-track">
       <span className="perfect-zone" />
@@ -2046,11 +2062,7 @@ function ResultScreen({
             outcome === "victory" ? "win" : outcome === "defeat" ? "lose" : ""
           }
         >
-          {outcome === "victory"
-            ? "VICTORY"
-            : outcome === "defeat"
-              ? "DEFEAT"
-              : "DRAW MATCH"}
+          {resultOutcomeCopy(outcome)}
         </h2>
         <span
           className={`finish-badge ${result.finishType.toLowerCase().replace(" ", "-")}`}
@@ -2279,13 +2291,9 @@ function UpcomingModal({ onClose }: { onClose: () => void }) {
       <div className="upcoming-modal-backdrop" onClick={onClose} />
       <div className="upcoming-modal-card">
         <div className="upcoming-modal-accent" />
-        <p className="upcoming-eyebrow">COMING SOON</p>
-        <h2>敬請期待</h2>
-        <p className="upcoming-description">
-          全新世代的神祕陀螺正在開發中！
-          <br />
-          敬請關注後續更新，解鎖更多爆裂對決與專屬技能。
-        </p>
+        <p className="upcoming-eyebrow">{NON_BATTLE_COPY.upcomingEyebrow}</p>
+        <h2>{NON_BATTLE_COPY.upcomingTitle}</h2>
+        <p className="upcoming-description">{NON_BATTLE_COPY.upcomingDetail}</p>
         <div className="upcoming-silhouette-wrap">
           <div className="upcoming-silhouette-shadow" />
         </div>

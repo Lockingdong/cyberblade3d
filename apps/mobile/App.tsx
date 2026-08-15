@@ -1,7 +1,8 @@
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/purity */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AppState,
+  Modal,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -10,18 +11,19 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from "react-native";
 import {
   BEYBLADES,
-  BEYBLADE_DESCRIPTIONS,
   BeybladeRuntime,
   EMPTY_BATTLE_RECORD,
-  PLAYER_COLOR_PALETTE,
   applyBattleOutcome,
   assembleBeybladeSpec,
-  beybladeDisplayStats,
   buildShareCardData,
+  darkenColor,
   formatBattleRecord,
   localMatchOutcome,
   opponentTopId,
@@ -58,6 +60,18 @@ import {
 import { CannonBattleSimulation } from "@cyberblade/simulation";
 import { border, palette, radius, spacing } from "@cyberblade/design-system";
 import {
+  NON_BATTLE_COPY,
+  buildBladeSelectionViewModel,
+  buildOnlinePreparationCopy,
+  resultOutcomeCopy,
+  type BladeCarouselItem,
+  type BladeSelectionViewModel,
+} from "@cyberblade/ui-model";
+import {
+  PREVIEW_CAMERA_PRESET_ORDER,
+  type PreviewCameraPreset,
+} from "@cyberblade/visuals";
+import {
   Eyebrow,
   InkButton,
   InkCard,
@@ -69,12 +83,24 @@ import {
 } from "./src/ui";
 import { BattleScene } from "./src/BattleScene";
 import { BladePreviewScene } from "./src/BladePreviewScene";
-import { GarageIcon } from "./src/CustomizerIcons";
+import { IS_SIMULATOR } from "./src/render-performance";
+import {
+  CameraPresetIcon,
+  ExplodedLayersIcon,
+  GarageIcon,
+} from "./src/CustomizerIcons";
 import { PartCustomizer } from "./src/PartCustomizer";
 import { ShareCardModal } from "./src/ShareCard";
 import {
+  loadBattleRecord,
   loadCustomParts,
+  loadPlayerColor,
+  loadPlayerName,
+  resetMobileProfile,
+  saveBattleRecord,
   saveCustomParts,
+  savePlayerColor,
+  savePlayerName,
   type CustomPartsMap,
 } from "./src/profile";
 import {
@@ -106,10 +132,8 @@ export default function App() {
   const [online, setOnline] = useState<OnlineMatchState>(coordinator.state);
   const [mode, setMode] = useState<AppMode>("menu");
   const [playerType, setPlayerType] = useState<BeybladeType>("attack");
-  // Session-only custom accent color, matching the session-only record above.
+  const [customName, setCustomName] = useState("");
   const [customColor, setCustomColor] = useState<number | null>(null);
-  // Session-only record: mobile has no storage dependency, so this resets on
-  // app restart. Web persists its record in localStorage.
   const [record, setRecord] = useState<BattleRecord>(EMPTY_BATTLE_RECORD);
   const [scene, setScene] = useState<EnvironmentScene>(() =>
     environmentSceneForStadium("neon"),
@@ -119,8 +143,6 @@ export default function App() {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [lobbyOpen, setLobbyOpen] = useState(false);
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
-  // AsyncStorage is async, so the garage starts on the stock loadout and swaps
-  // to the stored one as soon as it is read back.
   const [customPartsMap, setCustomPartsMap] = useState<CustomPartsMap>({});
 
   const modeRef = useRef<AppMode>("menu");
@@ -135,7 +157,7 @@ export default function App() {
   const remoteFeedback = useRef(new RemoteFeedbackDeduper());
   const recordRef = useRef(record);
   const recordedMatch = useRef<string | null>(null);
-  const partsLoaded = useRef(false);
+  const profileLoaded = useRef(false);
   const lastOnlinePhase = useRef<OnlineMatchState["phase"]>("idle");
 
   function recordOnlineOutcome(
@@ -523,16 +545,21 @@ export default function App() {
     setIsCustomizerOpen(false);
   }, [mode, online.phase]);
 
-  // Reading is async, so a player could in principle reach the garage first.
-  // Merging (rather than replacing) keeps whatever they just picked, and the
-  // save is deferred until the read lands so a half-empty map is never the
-  // thing written back over the stored one.
   useEffect(() => {
     let cancelled = false;
-    void loadCustomParts().then((stored) => {
+    void Promise.all([
+      loadPlayerName(),
+      loadPlayerColor(),
+      loadBattleRecord(),
+      loadCustomParts(),
+    ]).then(([name, color, storedRecord, storedParts]) => {
       if (cancelled) return;
-      setCustomPartsMap((current) => ({ ...stored, ...current }));
-      partsLoaded.current = true;
+      setCustomName(name);
+      setCustomColor(color);
+      setRecord(storedRecord);
+      recordRef.current = storedRecord;
+      setCustomPartsMap((current) => ({ ...storedParts, ...current }));
+      profileLoaded.current = true;
     });
     return () => {
       cancelled = true;
@@ -540,9 +567,24 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!partsLoaded.current) return;
+    if (!profileLoaded.current) return;
     void saveCustomParts(customPartsMap);
   }, [customPartsMap]);
+
+  useEffect(() => {
+    if (!profileLoaded.current) return;
+    void savePlayerName(customName);
+  }, [customName]);
+
+  useEffect(() => {
+    if (!profileLoaded.current) return;
+    void savePlayerColor(customColor);
+  }, [customColor]);
+
+  useEffect(() => {
+    if (!profileLoaded.current) return;
+    void saveBattleRecord(record);
+  }, [record]);
 
   useEffect(
     () => () => {
@@ -649,7 +691,7 @@ export default function App() {
     selectionFeedback();
     coordinator.ready({
       blade: playerType,
-      name: BEYBLADES[playerType].name,
+      name: customName.trim() || BEYBLADES[playerType].name,
       wins: record.wins,
       losses: record.losses,
       power,
@@ -676,6 +718,17 @@ export default function App() {
     modeRef.current = "menu";
     setMode("menu");
     setConnectionError(null);
+  }
+
+  async function resetProfile(): Promise<void> {
+    await resetMobileProfile();
+    profileLoaded.current = false;
+    setCustomName("");
+    setCustomColor(null);
+    setRecord(EMPTY_BATTLE_RECORD);
+    recordRef.current = EMPTY_BATTLE_RECORD;
+    setCustomPartsMap({});
+    profileLoaded.current = true;
   }
 
   const onlineSnapshot =
@@ -751,12 +804,15 @@ export default function App() {
           onPlayerType={setPlayerType}
           customColor={customColor}
           onCustomColor={setCustomColor}
+          customName={customName}
+          onCustomName={setCustomName}
           customSpec={customSpec}
           onOpenCustomizer={() => {
             selectionFeedback();
             setIsCustomizerOpen(true);
           }}
           record={record}
+          onResetProfile={resetProfile}
           onLocal={prepareLocal}
           onOnline={openOnlineLobby}
         />
@@ -882,7 +938,7 @@ export default function App() {
           localTopId={LOCAL_TOP_ID}
           online={false}
           playerNames={{
-            p1: BEYBLADES[playerType].name,
+            p1: customName.trim() || BEYBLADES[playerType].name,
             p2: BEYBLADES[game.config.p2Type].name,
           }}
           record={record}
@@ -938,123 +994,272 @@ export default function App() {
 function Menu({
   playerType,
   onPlayerType,
+  customName,
+  onCustomName,
   customColor,
   onCustomColor,
   customSpec,
   onOpenCustomizer,
   record,
+  onResetProfile,
   onLocal,
   onOnline,
 }: {
   playerType: BeybladeType;
   onPlayerType: (type: BeybladeType) => void;
+  customName: string;
+  onCustomName: (name: string) => void;
   customColor: number | null;
   onCustomColor: (color: number | null) => void;
   customSpec: BeybladeSpec;
   onOpenCustomizer: () => void;
   record: BattleRecord;
+  onResetProfile: () => Promise<void>;
   onLocal: () => void;
   onOnline: () => void;
 }) {
+  const [cameraPreset, setCameraPreset] =
+    useState<PreviewCameraPreset>("default");
+  const [isExploded, setIsExploded] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [resetConfirm, setResetConfirm] = useState(false);
+  const [upcomingOpen, setUpcomingOpen] = useState(false);
+  const model = useMemo(
+    () => buildBladeSelectionViewModel(playerType, customSpec),
+    [customSpec, playerType],
+  );
+
+  function cycleCamera(): void {
+    selectionFeedback();
+    const index = PREVIEW_CAMERA_PRESET_ORDER.indexOf(cameraPreset);
+    setCameraPreset(
+      PREVIEW_CAMERA_PRESET_ORDER[
+        (index + 1) % PREVIEW_CAMERA_PRESET_ORDER.length
+      ] ?? "default",
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.menu}>
-        <Eyebrow>DONGSTUDIO PRESENTS</Eyebrow>
-        <LogoTitle text="CYBERBLADE 3D" />
-        <Text style={styles.subtitle}>極限爆裂對決</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="開啟玩家設定"
+          onPress={() => setSettingsOpen(true)}
+          style={styles.settingsTrigger}
+        >
+          <Text style={styles.settingsTriggerText}>☰</Text>
+        </Pressable>
+        <Eyebrow>{NON_BATTLE_COPY.brandEyebrow}</Eyebrow>
+        <LogoTitle text={NON_BATTLE_COPY.brandTitle} />
+        <Text style={styles.subtitle}>{NON_BATTLE_COPY.brandSubtitle}</Text>
         {(record.wins > 0 || record.losses > 0) && (
           <Text style={styles.playerRecord}>
             線上戰績 {formatBattleRecord(record)}
           </Text>
         )}
-        <View style={styles.menuPreview}>
+
+        <BladePicker
+          model={model}
+          onChange={onPlayerType}
+          onUpcoming={() => setUpcomingOpen(true)}
+        />
+
+        <View style={styles.identityFields}>
+          <Text style={styles.fieldLabel}>自訂名稱</Text>
+          <TextInput
+            accessibilityLabel="自訂名稱"
+            value={customName}
+            maxLength={24}
+            placeholder={model.details.name}
+            placeholderTextColor={palette.inkFaint}
+            onChangeText={onCustomName}
+            style={styles.nameInput}
+          />
+          <ColorPalette
+            value={customColor}
+            baseColor={BEYBLADES[playerType].color}
+            onChange={onCustomColor}
+          />
+        </View>
+
+        <View
+          style={[
+            styles.previewStage,
+            IS_SIMULATOR && styles.previewStageSimulator,
+          ]}
+        >
+          <View style={styles.previewControls}>
+            <PreviewControl label="開啟零件改裝工坊" onPress={onOpenCustomizer}>
+              <GarageIcon size={18} color={palette.card} />
+            </PreviewControl>
+            <PreviewControl label="切換預覽視角" onPress={cycleCamera}>
+              <CameraPresetIcon
+                preset={cameraPreset}
+                size={18}
+                color={palette.card}
+              />
+            </PreviewControl>
+            <PreviewControl
+              label={isExploded ? "切換組裝檢視" : "切換四零件拆解檢視"}
+              active={isExploded}
+              onPress={() => {
+                selectionFeedback();
+                setIsExploded((current) => !current);
+              }}
+            >
+              <ExplodedLayersIcon size={18} color={palette.card} />
+            </PreviewControl>
+          </View>
           <BladePreviewScene
             type={playerType}
             color={customColor}
+            exploded={isExploded}
+            preset={cameraPreset}
             customSpec={customSpec}
           />
         </View>
-        <BladePicker
-          value={playerType}
-          onChange={onPlayerType}
-          customSpec={customSpec}
+
+        <BladeDetails model={model} />
+        <Action
+          label={NON_BATTLE_COPY.onlineAction}
+          primary
+          onPress={onOnline}
         />
-        <GarageButton onPress={onOpenCustomizer} />
-        <ColorPalette value={customColor} onChange={onCustomColor} />
-        <Action label="線上對戰" primary onPress={onOnline} />
-        <Action label="單機 VS AI" onPress={onLocal} />
+        <Action label={NON_BATTLE_COPY.localAction} onPress={onLocal} />
+        <Text style={styles.footerCopy}>{NON_BATTLE_COPY.footer}</Text>
       </ScrollView>
+
+      <InfoModal
+        visible={upcomingOpen}
+        eyebrow={NON_BATTLE_COPY.upcomingEyebrow}
+        title={NON_BATTLE_COPY.upcomingTitle}
+        detail={NON_BATTLE_COPY.upcomingDetail}
+        onClose={() => setUpcomingOpen(false)}
+      />
+
+      <Modal
+        visible={settingsOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSettingsOpen(false)}
+      >
+        <SafeAreaView style={styles.sheetBackdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setSettingsOpen(false)}
+          />
+          <View style={styles.profileSheet}>
+            <Eyebrow>PLAYER PROFILE</Eyebrow>
+            <Text style={styles.sheetTitle}>
+              {customName.trim() || "未知戰士"}
+            </Text>
+            <Text style={styles.profileRecord}>
+              {formatBattleRecord(record)}
+            </Text>
+            <TextInput
+              accessibilityLabel="玩家名稱"
+              value={customName}
+              maxLength={24}
+              placeholder="輸入玩家名稱"
+              placeholderTextColor={palette.inkFaint}
+              onChangeText={onCustomName}
+              style={styles.nameInput}
+            />
+            {resetConfirm ? (
+              <>
+                <Text style={styles.resetWarning}>
+                  將清除名稱、配色、戰績與所有零件配置。
+                </Text>
+                <Action
+                  label="確認清除資料"
+                  primary
+                  onPress={() => {
+                    void onResetProfile().then(() => {
+                      setResetConfirm(false);
+                      setSettingsOpen(false);
+                    });
+                  }}
+                />
+                <Action label="取消" onPress={() => setResetConfirm(false)} />
+              </>
+            ) : (
+              <Action
+                label="重設遊戲資料"
+                onPress={() => setResetConfirm(true)}
+              />
+            )}
+            <Action
+              label="關閉"
+              primary
+              onPress={() => setSettingsOpen(false)}
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-function GarageButton({
+function PreviewControl({
+  children,
+  label,
+  active = false,
   onPress,
-  disabled = false,
 }: {
+  children: ReactNode;
+  label: string;
+  active?: boolean;
   onPress: () => void;
-  disabled?: boolean;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="開啟陀螺改裝工坊"
-      disabled={disabled}
+      accessibilityLabel={label}
       style={({ pressed }) => [
-        styles.garageButton,
-        disabled && styles.disabled,
-        pressed && !disabled ? styles.pressed : null,
+        styles.previewControl,
+        active && styles.previewControlActive,
+        pressed && styles.pressed,
       ]}
       onPress={onPress}
     >
-      <GarageIcon size={17} color={palette.cyan} />
-      <Text style={styles.garageButtonText}>陀螺改裝工坊</Text>
+      {children}
     </Pressable>
   );
 }
 
 function ColorPalette({
   value,
+  baseColor,
   onChange,
   disabled = false,
 }: {
   value: number | null;
+  baseColor: number;
   onChange: (color: number | null) => void;
   disabled?: boolean;
 }) {
+  const darkColor = darkenColor(baseColor);
+  const options = [
+    { key: "original", label: "原色", value: null, display: baseColor },
+    { key: "dark", label: "暗色", value: darkColor, display: darkColor },
+  ] as const;
   return (
     <View style={styles.colorField}>
-      <Text style={styles.colorFieldLabel}>自訂顏色</Text>
+      <Text style={styles.colorFieldLabel}>陀螺配色</Text>
       <View style={styles.colorPalette}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="使用預設顏色"
-          disabled={disabled}
-          onPress={() => {
-            selectionFeedback();
-            onChange(null);
-          }}
-          style={[
-            styles.colorSwatch,
-            styles.colorSwatchDefault,
-            value === null && styles.colorSwatchActive,
-            disabled && styles.disabled,
-          ]}
-        >
-          <Text style={styles.colorSwatchDefaultMark}>×</Text>
-        </Pressable>
-        {PLAYER_COLOR_PALETTE.map((paletteColor) => {
-          const hex = `#${paletteColor.toString(16).padStart(6, "0")}`;
-          const isActive = value === paletteColor;
+        {options.map((option) => {
+          const hex = `#${option.display.toString(16).padStart(6, "0")}`;
+          const isActive = value === option.value;
           return (
             <Pressable
-              key={paletteColor}
+              key={option.key}
               accessibilityRole="button"
-              accessibilityLabel={`選擇顏色 ${hex}`}
+              accessibilityLabel={`選擇${option.label}`}
               disabled={disabled}
               onPress={() => {
                 selectionFeedback();
-                onChange(paletteColor);
+                onChange(option.value);
               }}
               style={[
                 styles.colorSwatch,
@@ -1071,95 +1276,181 @@ function ColorPalette({
 }
 
 function BladePicker({
-  value,
+  model,
   onChange,
-  customSpec,
+  onUpcoming,
   disabled = false,
 }: {
-  value: BeybladeType;
+  model: BladeSelectionViewModel;
   onChange: (type: BeybladeType) => void;
-  // The assembled loadout, so the panel and the stat bars show what the player
-  // built in the garage rather than the stock preset.
-  customSpec?: BeybladeSpec | undefined;
+  onUpcoming: () => void;
   disabled?: boolean;
 }) {
-  const selected = customSpec ?? BEYBLADES[value];
-  const selectedColor = `#${selected.color.toString(16).padStart(6, "0")}`;
-  const stats = beybladeDisplayStats(value, customSpec);
+  const { width } = useWindowDimensions();
+  const scrollRef = useRef<ScrollView>(null);
+  const cardWidth = Math.min(248, Math.max(210, width - 112));
+  const interval = cardWidth + spacing.md;
+  const selectedIndex = model.items.findIndex(
+    (item) => item.type === model.selectedType,
+  );
+
+  function activate(item: BladeCarouselItem): void {
+    if (!item.selectable || !item.type) {
+      onUpcoming();
+      return;
+    }
+    selectionFeedback();
+    onChange(item.type);
+  }
+
+  function move(offset: number): void {
+    const nextIndex = Math.max(
+      0,
+      Math.min(model.items.length - 1, selectedIndex + offset),
+    );
+    const item = model.items[nextIndex];
+    if (!item) return;
+    scrollRef.current?.scrollTo({ x: nextIndex * interval, animated: true });
+    activate(item);
+  }
+
+  function settle(event: NativeSyntheticEvent<NativeScrollEvent>): void {
+    const index = Math.round(event.nativeEvent.contentOffset.x / interval);
+    const item = model.items[index];
+    if (item) activate(item);
+  }
+
   return (
-    <>
+    <View style={styles.carouselSection}>
       <View style={styles.garageHeading}>
         <View>
-          <Eyebrow>SELECT YOUR BLADE</Eyebrow>
-          <Text style={styles.sectionTitle}>選擇戰鬥陀螺</Text>
+          <Eyebrow>{model.eyebrow}</Eyebrow>
+          <Text style={styles.sectionTitle}>{model.title}</Text>
         </View>
-        <Text style={styles.garageCounter}>
-          {Object.keys(BEYBLADES).indexOf(value) + 1} /{" "}
-          {String(Object.keys(BEYBLADES).length).padStart(2, "0")}
-        </Text>
+        <Text style={styles.garageCounter}>{model.counter}</Text>
       </View>
-      <InkPanel style={styles.selectedBladePanel}>
-        <View style={styles.selectedCopy}>
-          <Eyebrow style={{ color: selectedColor }}>
-            {selected.englishName}
-          </Eyebrow>
-          <Text style={styles.selectedName}>{selected.name}</Text>
-          <Text style={styles.muted}>
-            {selected.description ?? BEYBLADE_DESCRIPTIONS[value]}
-          </Text>
-        </View>
-        <View style={styles.statGrid}>
-          {stats.map((stat) => (
-            <View style={styles.statItem} key={stat.key}>
-              <View style={styles.row}>
-                <Text style={styles.statLabel}>{stat.label}</Text>
-                <Text style={styles.statValue}>{stat.displayValue}</Text>
-              </View>
-              <StatBar ratio={stat.ratio} />
-            </View>
-          ))}
-        </View>
-      </InkPanel>
-      <View style={styles.bladeGrid}>
-        {(Object.keys(BEYBLADES) as BeybladeType[]).map((type) => {
-          const blade = BEYBLADES[type];
-          const bladeColor = `#${blade.color.toString(16).padStart(6, "0")}`;
-          const isActive = value === type;
-          return (
-            <Pressable
-              key={type}
-              disabled={disabled}
-              style={[styles.bladeCardSlot, disabled && styles.disabled]}
-              onPress={() => {
-                selectionFeedback();
-                onChange(type);
-              }}
-            >
-              <InkCard
-                lean
-                active={isActive}
-                accent={bladeColor}
-                contentStyle={styles.bladeCardContent}
+      <View style={styles.carouselRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="上一個陀螺"
+          disabled={selectedIndex <= 0 || disabled}
+          onPress={() => move(-1)}
+          style={[styles.carouselArrow, selectedIndex <= 0 && styles.disabled]}
+        >
+          <Text style={styles.carouselArrowText}>‹</Text>
+        </Pressable>
+        <ScrollView
+          ref={scrollRef}
+          style={styles.carouselViewport}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={interval}
+          decelerationRate="fast"
+          contentOffset={{ x: selectedIndex * interval, y: 0 }}
+          contentContainerStyle={styles.carouselContent}
+          onMomentumScrollEnd={settle}
+        >
+          {model.items.map((item) => {
+            const accent =
+              item.color === null
+                ? palette.ruleStrong
+                : `#${item.color.toString(16).padStart(6, "0")}`;
+            return (
+              <Pressable
+                key={item.id}
+                disabled={disabled}
+                accessibilityRole="button"
+                accessibilityLabel={`${item.typeLabel} ${item.name}`}
+                style={{ width: cardWidth, marginRight: spacing.md }}
+                onPress={() => activate(item)}
               >
-                <Text style={[styles.bladeType, { color: bladeColor }]}>
-                  {type.toUpperCase()}
-                </Text>
-                <View
-                  style={[
-                    styles.bladeMiniPreview,
-                    { borderColor: palette.ink, backgroundColor: bladeColor },
-                  ]}
-                />
-                <Text style={styles.bladeName}>{blade.name}</Text>
-                <Text style={styles.bladeStats}>
-                  {blade.maxRpm} RPM · {blade.maxStability} STB
-                </Text>
-              </InkCard>
-            </Pressable>
-          );
-        })}
+                <InkCard
+                  lean
+                  active={item.selected}
+                  accent={accent}
+                  contentStyle={styles.carouselCardContent}
+                >
+                  <Text style={[styles.bladeType, { color: accent }]}>
+                    {item.typeLabel}
+                  </Text>
+                  <Text style={styles.carouselGlyph}>
+                    {item.kind === "upcoming" ? "?" : "◎"}
+                  </Text>
+                  <Text style={styles.bladeName}>{item.name}</Text>
+                  <Text style={styles.bladeStats}>{item.englishName}</Text>
+                </InkCard>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="下一個陀螺"
+          disabled={selectedIndex >= model.items.length - 1 || disabled}
+          onPress={() => move(1)}
+          style={[
+            styles.carouselArrow,
+            selectedIndex >= model.items.length - 1 && styles.disabled,
+          ]}
+        >
+          <Text style={styles.carouselArrowText}>›</Text>
+        </Pressable>
       </View>
-    </>
+    </View>
+  );
+}
+
+function BladeDetails({ model }: { model: BladeSelectionViewModel }) {
+  const accent = `#${model.details.color.toString(16).padStart(6, "0")}`;
+  return (
+    <InkPanel style={styles.bladeDetails}>
+      <Eyebrow style={{ color: accent }}>{model.details.englishName}</Eyebrow>
+      <Text style={styles.selectedName}>{model.details.name}</Text>
+      <Text style={styles.detailDescription}>{model.details.description}</Text>
+      <View style={styles.statGrid}>
+        {model.details.stats.map((stat) => (
+          <View style={styles.statItem} key={stat.key}>
+            <View style={styles.row}>
+              <Text style={styles.statLabel}>{stat.label}</Text>
+              <Text style={styles.statValue}>{stat.displayValue}</Text>
+            </View>
+            <StatBar ratio={stat.ratio} />
+          </View>
+        ))}
+      </View>
+    </InkPanel>
+  );
+}
+
+function InfoModal({
+  visible,
+  eyebrow,
+  title,
+  detail,
+  onClose,
+}: {
+  visible: boolean;
+  eyebrow: string;
+  title: string;
+  detail: string;
+  onClose: () => void;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <SafeAreaView style={styles.modalBackdrop}>
+        <InkPanel style={styles.infoModalCard}>
+          <Eyebrow>{eyebrow}</Eyebrow>
+          <Text style={styles.sheetTitle}>{title}</Text>
+          <Text style={styles.detailDescription}>{detail}</Text>
+          <Action label="知道了" primary onPress={onClose} />
+        </InkPanel>
+      </SafeAreaView>
+    </Modal>
   );
 }
 
@@ -1192,44 +1483,102 @@ function OnlineSelection({
 }) {
   const canSelectBlade = online.roomKind === "friend";
   const locked = online.phase === "waiting_ready";
-  const opponentLabel = online.opponentReady ? "對手 READY" : "等待對手 READY";
+  const [cameraPreset, setCameraPreset] =
+    useState<PreviewCameraPreset>("default");
+  const [isExploded, setIsExploded] = useState(false);
+  const [upcomingOpen, setUpcomingOpen] = useState(false);
+  const model = useMemo(
+    () => buildBladeSelectionViewModel(playerType, customSpec),
+    [customSpec, playerType],
+  );
+  const copy = buildOnlinePreparationCopy({
+    step,
+    canSelectBlade,
+    locked,
+    opponentReady: online.opponentReady,
+  });
+
+  function cycleCamera(): void {
+    const index = PREVIEW_CAMERA_PRESET_ORDER.indexOf(cameraPreset);
+    setCameraPreset(
+      PREVIEW_CAMERA_PRESET_ORDER[
+        (index + 1) % PREVIEW_CAMERA_PRESET_ORDER.length
+      ] ?? "default",
+    );
+  }
 
   if (step === "select") {
     return (
       <SafeAreaView style={styles.safe}>
         <ScrollView contentContainerStyle={styles.menu}>
-          <Text style={styles.eyebrow}>OPPONENT FOUND</Text>
-          <Text style={styles.title}>選擇出戰陀螺</Text>
-          <Text style={styles.subtitle}>
-            {online.opponentReady
-              ? "對手已準備，挑好你的陀螺"
-              : "挑選陀螺與零件，確定後再鎖定發射"}
-          </Text>
-          <View style={styles.menuPreview}>
+          <Eyebrow>{copy.eyebrow}</Eyebrow>
+          <Text style={styles.title}>{copy.title}</Text>
+          <Text style={styles.subtitle}>{copy.detail}</Text>
+          <BladePicker
+            model={model}
+            onChange={onPlayerType}
+            onUpcoming={() => setUpcomingOpen(true)}
+          />
+          <ColorPalette
+            value={customColor}
+            baseColor={BEYBLADES[playerType].color}
+            onChange={onCustomColor}
+          />
+          <View
+            style={[
+              styles.previewStage,
+              IS_SIMULATOR && styles.previewStageSimulator,
+            ]}
+          >
+            <View style={styles.previewControls}>
+              <PreviewControl
+                label="開啟零件改裝工坊"
+                onPress={onOpenCustomizer}
+              >
+                <GarageIcon size={18} color={palette.card} />
+              </PreviewControl>
+              <PreviewControl label="切換預覽視角" onPress={cycleCamera}>
+                <CameraPresetIcon
+                  preset={cameraPreset}
+                  size={18}
+                  color={palette.card}
+                />
+              </PreviewControl>
+              <PreviewControl
+                label={isExploded ? "切換組裝檢視" : "切換四零件拆解檢視"}
+                active={isExploded}
+                onPress={() => setIsExploded((current) => !current)}
+              >
+                <ExplodedLayersIcon size={18} color={palette.card} />
+              </PreviewControl>
+            </View>
             <BladePreviewScene
               type={playerType}
               color={customColor}
+              exploded={isExploded}
+              preset={cameraPreset}
               customSpec={customSpec}
             />
           </View>
-          <BladePicker
-            value={playerType}
-            onChange={onPlayerType}
-            customSpec={customSpec}
-          />
-          <GarageButton onPress={onOpenCustomizer} />
-          <ColorPalette value={customColor} onChange={onCustomColor} />
+          <BladeDetails model={model} />
           <Action
-            label="確定出戰"
+            label={copy.primaryAction}
             primary
             onPress={() => {
               selectionFeedback();
               onStep("power");
             }}
           />
-          <Action label="離開房間" onPress={onLeave} />
-          <Text style={styles.muted}>{opponentLabel}</Text>
+          <Action label={copy.leaveAction} onPress={onLeave} />
+          <Text style={styles.muted}>{copy.opponentLabel}</Text>
         </ScrollView>
+        <InfoModal
+          visible={upcomingOpen}
+          eyebrow={NON_BATTLE_COPY.upcomingEyebrow}
+          title={NON_BATTLE_COPY.upcomingTitle}
+          detail={NON_BATTLE_COPY.upcomingDetail}
+          onClose={() => setUpcomingOpen(false)}
+        />
       </SafeAreaView>
     );
   }
@@ -1237,32 +1586,23 @@ function OnlineSelection({
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.menu}>
-        <Text style={styles.title}>準備戰鬥</Text>
-        <Text style={styles.subtitle}>
-          {locked
-            ? online.opponentReady
-              ? "雙方已準備，等待伺服器開始"
-              : canSelectBlade
-                ? "已鎖定發射，等待對手選角"
-                : "已鎖定發射，等待對手"
-            : online.opponentReady
-              ? "對手已準備，輪到你了"
-              : "鎖定發射力道"}
-        </Text>
+        <Eyebrow>{copy.eyebrow}</Eyebrow>
+        <Text style={styles.title}>{copy.title}</Text>
+        <Text style={styles.subtitle}>{copy.detail}</Text>
         <PowerMeter power={power} />
         <View style={styles.readyCopy}>
-          <Text style={styles.muted}>{opponentLabel}</Text>
+          <Text style={styles.muted}>{copy.opponentLabel}</Text>
           <Text style={styles.powerText}>{Math.round(power)}%</Text>
         </View>
         <Action
-          label={locked ? "已鎖定發射" : "鎖定發射並準備"}
+          label={copy.primaryAction}
           primary
           disabled={locked}
           onPress={onReady}
         />
         {canSelectBlade && (
           <Action
-            label="返回重選陀螺"
+            label={copy.secondaryAction ?? "返回重選陀螺"}
             disabled={locked}
             onPress={() => {
               selectionFeedback();
@@ -1270,7 +1610,7 @@ function OnlineSelection({
             }}
           />
         )}
-        <Action label="離開房間" onPress={onLeave} />
+        <Action label={copy.leaveAction} onPress={onLeave} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -1411,11 +1751,7 @@ function ResultScreen({
                 : null,
           ]}
         >
-          {outcome === "victory"
-            ? "VICTORY"
-            : outcome === "defeat"
-              ? "DEFEAT"
-              : "DRAW"}
+          {resultOutcomeCopy(outcome)}
         </Text>
         <Text style={styles.finish}>{result.finishType}</Text>
         <Text style={styles.resultName}>
@@ -1779,6 +2115,165 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.85 },
   disabled: { opacity: 0.45 },
   actionSpacing: { marginTop: 12 },
+  settingsTrigger: {
+    position: "absolute",
+    top: 14,
+    right: spacing.lg,
+    zIndex: 10,
+    width: 44,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: border.thick,
+    borderColor: palette.ink,
+    borderRadius: radius.md,
+    backgroundColor: palette.card,
+  },
+  settingsTriggerText: {
+    color: palette.ink,
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  identityFields: { width: "100%", marginTop: spacing.md },
+  fieldLabel: {
+    marginBottom: 6,
+    color: palette.inkFaint,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.5,
+  },
+  nameInput: {
+    width: "100%",
+    minHeight: 48,
+    paddingHorizontal: 14,
+    borderWidth: border.thin,
+    borderColor: palette.ink,
+    borderRadius: radius.md,
+    backgroundColor: palette.card,
+    color: palette.ink,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  previewStage: {
+    width: "100%",
+    height: 340,
+    marginTop: spacing.md,
+    position: "relative",
+  },
+  previewStageSimulator: { height: 240 },
+  previewControls: {
+    position: "absolute",
+    top: spacing.sm,
+    right: spacing.sm,
+    zIndex: 5,
+    flexDirection: "row",
+    gap: 8,
+  },
+  previewControl: {
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: border.thin,
+    borderColor: palette.cyan,
+    borderRadius: radius.md,
+    backgroundColor: palette.ink,
+  },
+  previewControlActive: { backgroundColor: palette.purple },
+  footerCopy: {
+    marginTop: spacing.md,
+    color: palette.inkMuted,
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textAlign: "center",
+  },
+  carouselSection: { width: "100%" },
+  carouselRow: {
+    width: "100%",
+    marginTop: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  carouselContent: { paddingVertical: 16, paddingHorizontal: 6 },
+  carouselViewport: { flex: 1 },
+  carouselArrow: {
+    width: 38,
+    height: 38,
+    zIndex: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: border.thick,
+    borderColor: palette.ink,
+    borderRadius: radius.pill,
+    backgroundColor: palette.card,
+  },
+  carouselArrowText: {
+    marginTop: -3,
+    color: palette.ink,
+    fontSize: 30,
+    fontWeight: "900",
+  },
+  carouselCardContent: {
+    minHeight: 132,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  carouselGlyph: {
+    marginVertical: 8,
+    color: palette.ink,
+    fontSize: 34,
+    fontWeight: "900",
+  },
+  bladeDetails: { width: "100%", marginTop: spacing.md },
+  detailDescription: {
+    marginTop: spacing.sm,
+    color: palette.inkMuted,
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  modalBackdrop: {
+    flex: 1,
+    padding: spacing.lg,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(31, 34, 53, 0.55)",
+  },
+  infoModalCard: { width: "100%" },
+  sheetBackdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(31, 34, 53, 0.45)",
+  },
+  profileSheet: {
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
+    borderTopWidth: border.thick,
+    borderColor: palette.ink,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    backgroundColor: palette.card,
+  },
+  sheetTitle: {
+    marginTop: spacing.sm,
+    color: palette.ink,
+    fontSize: 28,
+    fontWeight: "900",
+  },
+  profileRecord: {
+    marginVertical: spacing.md,
+    color: palette.cyan,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  resetWarning: {
+    marginTop: spacing.md,
+    color: palette.danger,
+    fontSize: 13,
+    fontWeight: "800",
+    textAlign: "center",
+  },
 
   garageHeading: {
     width: "100%",
