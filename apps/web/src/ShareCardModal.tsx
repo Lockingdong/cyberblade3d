@@ -88,7 +88,7 @@ export function ShareCardModal({
           {asset && (
             <button
               className={canShareFile(asset.file) ? "" : "primary"}
-              onClick={() => downloadCard(asset.blob)}
+              onClick={() => void downloadCard(asset.blob)}
             >
               下載圖片
             </button>

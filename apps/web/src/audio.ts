@@ -1,3 +1,5 @@
+import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
+
 class AudioSynth {
   #context?: AudioContext;
   #master?: GainNode;
@@ -89,6 +91,7 @@ class AudioSynth {
   }
 
   click(): void {
+    void Haptics.selectionChanged().catch(() => {});
     const context = this.#ensure();
     const oscillator = context.createOscillator();
     const gain = context.createGain();
@@ -105,95 +108,97 @@ class AudioSynth {
   }
 
   collision(intensity: number): void {
+    void Haptics.impact({
+      style: intensity > 5 ? ImpactStyle.Heavy : ImpactStyle.Medium,
+    }).catch(() => {});
     const context = this.#ensure();
     const time = context.currentTime;
     if (time - this.#lastCollisionTime < 0.05) return;
     this.#lastCollisionTime = time;
 
-    this.#ensureCollisionBus();
-    this.#ensureShaper();
+    const collisionBus = this.#ensureCollisionBus();
+    const shaper = this.#ensureShaper();
 
     const volume = Math.min(Math.max(intensity * 0.22, 0.2), 0.95);
 
     // === Layer 0: BOOM — deep sub thump with pitch dive ===
     const boom = context.createOscillator();
     boom.type = "sine";
-    boom.frequency.setValueAtTime(120, time);
-    boom.frequency.exponentialRampToValueAtTime(25, time + 0.4);
+    boom.frequency.setValueAtTime(90, time);
+    boom.frequency.exponentialRampToValueAtTime(30, time + 0.35);
     const boomGain = context.createGain();
-    boomGain.gain.setValueAtTime(volume * 0.95, time);
-    boomGain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+    boomGain.gain.setValueAtTime(0, time);
+    boomGain.gain.linearRampToValueAtTime(volume * 0.85, time + 0.005);
+    boomGain.gain.exponentialRampToValueAtTime(0.001, time + 0.35);
     boom.connect(boomGain).connect(this.#master!);
     boom.start(time);
-    boom.stop(time + 0.52);
+    boom.stop(time + 0.36);
 
-    // === Layer 1: SHOCKWAVE — sharp HP noise crack (the initial burst) ===
-    const shock = context.createBufferSource();
-    shock.buffer = this.#getNoiseBuffer("crack");
-    const shockFilter = context.createBiquadFilter();
-    shockFilter.type = "highpass";
-    shockFilter.frequency.setValueAtTime(500, time);
-    const shockGain = context.createGain();
-    shockGain.gain.setValueAtTime(volume * 1.3, time);
-    shockGain.gain.exponentialRampToValueAtTime(0.001, time + 0.025);
-    shock.connect(shockFilter).connect(shockGain);
-    shockGain.connect(this.#shaper!);
-    shockGain.connect(this.#collisionBus!);
-    shock.start(time);
-    shock.stop(time + 0.04);
+    // === Layer 1: TRANSIENT — high punchy snap ===
+    const snap = context.createOscillator();
+    snap.type = "triangle";
+    snap.frequency.setValueAtTime(800, time);
+    snap.frequency.exponentialRampToValueAtTime(120, time + 0.04);
+    const snapGain = context.createGain();
+    snapGain.gain.setValueAtTime(volume * 0.7, time);
+    snapGain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
+    snap.connect(snapGain).connect(this.#master!);
+    snap.start(time);
+    snap.stop(time + 0.045);
 
-    // === Layer 2: BLAST BODY — 4 sub oscillators with pitch dives for thickness ===
-    [60, 95, 140, 200].forEach((startFreq, i) => {
-      const osc = context.createOscillator();
-      osc.type = i === 1 ? "triangle" : "sine";
-      osc.frequency.setValueAtTime(startFreq, time);
-      osc.frequency.exponentialRampToValueAtTime(startFreq * 0.5, time + 0.3);
-      const g = context.createGain();
-      const vol = (volume * 0.5) * (1 - i * 0.15);
-      g.gain.setValueAtTime(vol, time);
-      g.gain.exponentialRampToValueAtTime(0.001, time + 0.35);
-      osc.connect(g);
-      g.connect(this.#shaper!);
-      g.connect(this.#collisionBus!);
-      osc.start(time);
-      osc.stop(time + 0.37);
-    });
+    // === Layer 2: METALLIC CLANG — dissonant high sine ring ===
+    const freqs = [1840, 2760, 4120];
+    const ringDuration = Math.min(0.08 + intensity * 0.04, 0.35);
+    for (const [i, baseFreq] of freqs.entries()) {
+      const f = baseFreq * (0.95 + Math.random() * 0.1);
+      const ring = context.createOscillator();
+      ring.type = "sine";
+      ring.frequency.setValueAtTime(f, time);
+      const ringGain = context.createGain();
+      const ringVol = (volume * 0.3) / (i + 1);
+      ringGain.gain.setValueAtTime(ringVol, time);
+      ringGain.gain.exponentialRampToValueAtTime(
+        0.001,
+        time + ringDuration / (i + 1),
+      );
+      ring.connect(ringGain);
+      ringGain.connect(collisionBus);
+      ring.start(time);
+      ring.stop(time + ringDuration + 0.02);
+    }
 
-    // === Layer 3: DEBRIS — bandpass noise sweep 5k→1.5kHz (shrapnel) ===
-    const debris = context.createBufferSource();
-    debris.buffer = this.#getNoiseBuffer("sizzle");
-    const debrisFilter = context.createBiquadFilter();
-    debrisFilter.type = "bandpass";
-    debrisFilter.frequency.setValueAtTime(5000, time);
-    debrisFilter.frequency.exponentialRampToValueAtTime(1500, time + 0.3);
-    debrisFilter.Q.setValueAtTime(3, time);
-    const debrisGain = context.createGain();
-    debrisGain.gain.setValueAtTime(volume * 0.45, time);
-    debrisGain.gain.exponentialRampToValueAtTime(0.001, time + 0.35);
-    debris.connect(debrisFilter).connect(debrisGain);
-    debrisGain.connect(this.#shaper!);
-    debrisGain.connect(this.#collisionBus!);
-    debris.start(time);
-    debris.stop(time + 0.37);
+    // === Layer 3: CRACK — sharp burst of shaped noise ===
+    const crack = context.createBufferSource();
+    crack.buffer = this.#getNoiseBuffer("crack");
+    const crackFilter = context.createBiquadFilter();
+    crackFilter.type = "highpass";
+    crackFilter.frequency.setValueAtTime(2000, time);
+    const crackGain = context.createGain();
+    crackGain.gain.setValueAtTime(volume * 0.5, time);
+    crackGain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+    crack.connect(crackFilter).connect(crackGain).connect(collisionBus);
+    crack.start(time);
+    crack.stop(time + 0.055);
 
-    // === Layer 4: CRACKLE — 3 short HP noise bursts (energy discharge) ===
-    for (let i = 0; i < 3; i += 1) {
-      const delay = i * 0.035;
+    // === Layer 4: CRACKLE / DEBRIS — 2-3 tiny micro-clicks ===
+    const crackleCount = Math.min(Math.floor(intensity * 0.6), 4);
+    for (let i = 0; i < crackleCount; i += 1) {
+      const delay = 0.015 + Math.random() * 0.06;
       const crackle = context.createBufferSource();
       crackle.buffer = this.#getNoiseBuffer("click");
       const crackleFilter = context.createBiquadFilter();
-      crackleFilter.type = "highpass";
-      crackleFilter.frequency.setValueAtTime(4000, time + delay);
+      crackleFilter.type = "bandpass";
+      crackleFilter.frequency.setValueAtTime(3000 + Math.random() * 3000, time);
+      crackleFilter.Q.setValueAtTime(3, time);
       const crackleGain = context.createGain();
-      const crackleVol = volume * (0.4 - i * 0.1);
-      crackleGain.gain.setValueAtTime(0, time);
+      const crackleVol = volume * (0.1 + Math.random() * 0.15);
       crackleGain.gain.setValueAtTime(crackleVol, time + delay);
       crackleGain.gain.exponentialRampToValueAtTime(
         0.001,
         time + delay + 0.015,
       );
       crackle.connect(crackleFilter).connect(crackleGain);
-      crackleGain.connect(this.#shaper!);
+      crackleGain.connect(shaper);
       crackle.start(time + delay);
       crackle.stop(time + delay + 0.02);
     }
@@ -219,6 +224,9 @@ class AudioSynth {
 
   // Burst: low boom sweep plus a band-passed shatter noise tail.
   burst(): void {
+    void Haptics.notification({
+      type: NotificationType.Error,
+    }).catch(() => {});
     const context = this.#ensure();
     const time = context.currentTime;
 
@@ -308,8 +316,8 @@ class AudioSynth {
     for (const id of [...this.#spins.keys()]) this.stopSpin(id);
   }
 
-  #ensureCollisionBus(): void {
-    if (this.#collisionBus) return;
+  #ensureCollisionBus(): GainNode {
+    if (this.#collisionBus) return this.#collisionBus;
     const context = this.#ensure();
     const convolver = context.createConvolver();
     convolver.buffer = this.#getIRBuffer(context);
@@ -327,6 +335,7 @@ class AudioSynth {
     this.#collisionBus = send;
     this.#convolver = convolver;
     this.#compressor = compressor;
+    return send;
   }
 
   #ensureShaper(): WaveShaperNode {

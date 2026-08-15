@@ -1,0 +1,24 @@
+{
+  "name": "@cyberblade/mobile-capacitor",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "pnpm --filter @cyberblade/web build && pnpm sync",
+    "sync": "export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 && cap sync",
+    "open:ios": "cap open ios",
+    "run:ios": "export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 && cap run ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "^7.0.1",
+    "@capacitor/filesystem": "^7.1.8",
+    "@capacitor/haptics": "^7.0.0",
+    "@capacitor/ios": "^7.0.1",
+    "@capacitor/screen-orientation": "^7.0.0",
+    "@capacitor/share": "^7.0.4",
+    "@capacitor/status-bar": "^7.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.1",
+    "typescript": "^5.7.3"
+  }
+}

@@ -1,4 +1,7 @@
 import * as THREE from "three";
+import { Capacitor } from "@capacitor/core";
+import { Directory, Filesystem } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 import { BeybladePreviewWorld } from "@cyberblade/visuals";
 import {
   SHARE_CARD,
@@ -365,27 +368,70 @@ export async function composeShareCard(data: ShareCardData): Promise<Blob> {
   });
 }
 
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error ?? new Error("讀取圖片失敗"));
+    reader.readAsDataURL(blob);
+  });
+}
+
 export function canShareFile(file: File): boolean {
+  if (Capacitor.isNativePlatform()) return true;
   return (
+    typeof navigator !== "undefined" &&
     typeof navigator.canShare === "function" &&
     navigator.canShare({ files: [file] })
   );
 }
 
 export async function shareCard(file: File): Promise<void> {
-  try {
-    await navigator.share({
-      files: [file],
-      title: "CYBERBLADE 3D",
-      text: "我在 CYBERBLADE 3D 打贏了！",
-    });
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") return;
-    throw error;
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const dataUrl = await blobToDataUrl(file);
+      const fileName = `cyberblade-victory-${Date.now()}.png`;
+      const savedFile = await Filesystem.writeFile({
+        path: fileName,
+        data: dataUrl,
+        directory: Directory.Cache,
+      });
+
+      await Share.share({
+        title: "CYBERBLADE 3D",
+        url: savedFile.uri,
+        dialogTitle: "分享勝利戰績",
+      });
+      return;
+    } catch (e) {
+      console.warn("Native share failed:", e);
+      return;
+    }
+  }
+
+  if (typeof navigator !== "undefined" && navigator.share) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: "CYBERBLADE 3D",
+        text: "我在 CYBERBLADE 3D 打贏了！",
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      throw error;
+    }
   }
 }
 
-export function downloadCard(blob: Blob): void {
+export async function downloadCard(blob: Blob): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    const file = new File([blob], "cyberblade-victory.png", {
+      type: "image/png",
+    });
+    await shareCard(file);
+    return;
+  }
+
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
