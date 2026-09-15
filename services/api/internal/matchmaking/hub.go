@@ -24,6 +24,7 @@ type Config struct {
 	RematchWindow      time.Duration
 	ControlBuffer      int
 	StateRate          int
+	EventRate          int
 	RateLimitBreaches  int
 	MaxPendingRooms    int
 	MaxJoinFailures    int
@@ -39,6 +40,7 @@ func DefaultConfig() Config {
 		RematchWindow:      60 * time.Second,
 		ControlBuffer:      64,
 		StateRate:          40,
+		EventRate:          30,
 		RateLimitBreaches:  3,
 		MaxPendingRooms:    5000,
 		MaxJoinFailures:    10,
@@ -90,6 +92,9 @@ func NewHub(config Config, logger *slog.Logger) *Hub {
 	}
 	if config.StateRate <= 0 {
 		config.StateRate = 40
+	}
+	if config.EventRate <= 0 {
+		config.EventRate = 30
 	}
 	if config.RateLimitBreaches <= 0 {
 		config.RateLimitBreaches = 3
@@ -589,6 +594,19 @@ func (h *Hub) relayEvent(client *Client, value *battleEventMessage, raw []byte) 
 	if current == nil {
 		return
 	}
+	// Events share the reliable control queue. Disconnect the producer before
+	// an event flood can evict a healthy guest through control-buffer overflow.
+	now := time.Now()
+	if now.Sub(current.eventWindow) >= time.Second {
+		current.eventWindow = now
+		current.eventCount = 0
+	}
+	current.eventCount++
+	if current.eventCount > h.config.EventRate {
+		h.sendError(client, "RATE_LIMIT", "battle event rate limit exceeded")
+		h.removeClient(client, true)
+		return
+	}
 	switch value.Event.Kind {
 	case "collision", "burst":
 		if current.phase != phaseBattle {
@@ -685,6 +703,8 @@ func (h *Hub) restartRoom(current *room) {
 	current.guestRematch = false
 	current.stateCount = 0
 	current.rateBreaches = 0
+	current.eventWindow = time.Time{}
+	current.eventCount = 0
 	h.rooms[current.id] = current
 	if !h.sendMatched(current) {
 		h.closeRoom(current)

@@ -9,15 +9,18 @@ import { PROTOCOL_VERSION } from "./protocol";
 
 class FakeSocket implements WebSocketLike {
   readyState = 0;
+  bufferedAmount = 0;
   sent: string[] = [];
   closed = false;
+  closeCode: number | undefined;
   listeners = new Map<string, Set<(event: unknown) => void>>();
 
   send(data: string): void {
     this.sent.push(data);
   }
 
-  close(): void {
+  close(code?: number): void {
+    this.closeCode = code;
     this.closed = true;
   }
 
@@ -165,5 +168,59 @@ describe("MatchmakingClient", () => {
     expect(
       events.filter((event) => event.type === "protocol_error"),
     ).toHaveLength(2);
+  });
+});
+
+describe("outbound backpressure", () => {
+  function connected() {
+    const socket = new FakeSocket();
+    const client = new MatchmakingClient(() => socket);
+    client.connect("ws://test");
+    socket.readyState = 1;
+    socket.emit("open");
+    socket.emit("message", {
+      data: JSON.stringify({
+        type: "matched",
+        matchId: "m1",
+        role: "host",
+        localTopId: "p1",
+      }),
+    });
+    return { socket, client };
+  }
+  it("skips stale snapshots without gaps and preserves reliable ending messages", () => {
+    const { socket, client } = connected();
+    expect(client.sendHostSnapshot(snapshot)).toBe(1);
+    const sent = socket.sent.length;
+    socket.bufferedAmount = 20 * 1024;
+    expect(client.sendHostSnapshot(snapshot)).toBe(1);
+    expect(client.sendHostSnapshot(snapshot)).toBe(1);
+    expect(socket.sent.length).toBe(sent);
+    client.sendHostEvent(
+      { type: "ending", winnerId: "p1", finishType: "SPIN FINISH" },
+      1,
+      2,
+    );
+    expect(JSON.parse(socket.sent.at(-1)!)).toMatchObject({
+      type: "battle_event",
+      stateSeq: 1,
+    });
+    socket.bufferedAmount = 0;
+    expect(client.sendHostSnapshot(snapshot)).toBe(2);
+  });
+  it("closes a stalled connection before reliable data can grow without bound", () => {
+    const { socket, client } = connected();
+    client.sendHostSnapshot(snapshot);
+    socket.bufferedAmount = 257 * 1024;
+    const sent = socket.sent.length;
+    client.sendHostSnapshot(snapshot);
+    client.sendHostEvent(
+      { type: "ending", winnerId: "p1", finishType: "SPIN FINISH" },
+      1,
+      2,
+    );
+    expect(socket.closed).toBe(true);
+    expect(socket.closeCode).toBe(4008);
+    expect(socket.sent.length).toBe(sent);
   });
 });

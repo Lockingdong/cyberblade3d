@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { BEYBLADES, assembleBeybladeSpec, type BattleSnapshot, type TopId } from "@cyberblade/core";
+import {
+  BEYBLADES,
+  assembleBeybladeSpec,
+  type BattleSnapshot,
+  type TopId,
+} from "@cyberblade/core";
 import {
   BeybladePreviewWorld,
   BeybladeVisualWorld,
@@ -102,8 +107,9 @@ describe("BeybladePreviewWorld", () => {
       const assembledMesh = bladeGroup!.children[0] as THREE.Mesh;
       const referenceMesh = referenceBlade.children[0] as THREE.Mesh;
 
-      expect(assembledMesh.geometry.attributes.position!.count)
-        .toBe(referenceMesh.geometry.attributes.position!.count);
+      expect(assembledMesh.geometry.attributes.position!.count).toBe(
+        referenceMesh.geometry.attributes.position!.count,
+      );
 
       disposeObject(referenceBlade);
       world.dispose();
@@ -168,4 +174,82 @@ describe("BeybladePreviewWorld", () => {
     expect(world.root.children[0]!.children).toHaveLength(4);
     world.dispose();
   });
+});
+
+describe("resource lifecycle", () => {
+  it("disposes shared nested geometry, material and texture exactly once", () => {
+    const root = new THREE.Group();
+    const nested = new THREE.Group();
+    const geometry = new THREE.BoxGeometry();
+    const texture = new THREE.Texture();
+    const material = new THREE.MeshBasicMaterial({ map: texture });
+    const counts = { geometry: 0, material: 0, texture: 0 };
+    geometry.addEventListener("dispose", () => counts.geometry++);
+    material.addEventListener("dispose", () => counts.material++);
+    texture.addEventListener("dispose", () => counts.texture++);
+    root.add(new THREE.Mesh(geometry, material), nested);
+    nested.add(new THREE.Mesh(geometry, material));
+    disposeObject(root);
+    expect(counts).toEqual({ geometry: 1, material: 1, texture: 1 });
+  });
+
+  it("reuses expired trails and releases scene resources once on exit", () => {
+    const world = new BeybladeVisualWorld("attack", "defense", "neon", "p1");
+    const event = {
+      type: "trail" as const,
+      top: "p1" as const,
+      position: { x: 1, y: 0, z: 1 },
+      intensity: 1,
+    };
+    world.apply(snapshot(), [event], 1);
+    const trail = world.root.getObjectByName("battle-trail") as THREE.Mesh;
+    let geometryDisposals = 0;
+    let materialDisposals = 0;
+    trail.geometry.addEventListener("dispose", () => geometryDisposals++);
+    (trail.material as THREE.Material).addEventListener(
+      "dispose",
+      () => materialDisposals++,
+    );
+    world.update(0.5);
+    expect(world.root.getObjectByName("battle-trail")).toBeUndefined();
+    expect(geometryDisposals).toBe(0);
+    world.apply(snapshot(), [event], 2);
+    expect(world.root.getObjectByName("battle-trail")).toBe(trail);
+    world.reset();
+    world.apply(snapshot(), [event], 1);
+    expect(world.root.getObjectByName("battle-trail")).toBe(trail);
+    const counts = new Map<THREE.BufferGeometry, number>();
+    world.root.traverse((node) => {
+      if (!(node instanceof THREE.Mesh) || counts.has(node.geometry)) return;
+      counts.set(node.geometry, 0);
+      node.geometry.addEventListener("dispose", () =>
+        counts.set(node.geometry, counts.get(node.geometry)! + 1),
+      );
+    });
+    world.dispose();
+    world.dispose();
+    expect([...counts.values()].every((count) => count === 1)).toBe(true);
+    expect(geometryDisposals).toBe(1);
+    expect(materialDisposals).toBe(1);
+  });
+});
+
+it("releases burst parts even after their flight has removed them from the scene", () => {
+  const world = new BeybladeVisualWorld("attack", "defense", "neon", "p1");
+  const counts = new Map<THREE.BufferGeometry, number>();
+  world.p1.traverse((node) => {
+    if (!(node instanceof THREE.Mesh) || counts.has(node.geometry)) return;
+    counts.set(node.geometry, 0);
+    node.geometry.addEventListener("dispose", () =>
+      counts.set(node.geometry, counts.get(node.geometry)! + 1),
+    );
+  });
+  world.apply(
+    snapshot(),
+    [{ type: "burst", top: "p1", position: { x: 0, y: 0, z: 0 } }],
+    1,
+  );
+  world.update(10);
+  world.dispose();
+  expect([...counts.values()].every((count) => count === 1)).toBe(true);
 });

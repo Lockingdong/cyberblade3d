@@ -1,15 +1,14 @@
+import { GRAPHICS_QUALITY, type GraphicsQuality } from "./graphics-quality";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import { BlendFunction, KernelSize } from "postprocessing";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import {
   STADIUMS,
   getEnvironmentSceneConfig,
-  type BattleSnapshot,
   type MatchConfig,
   type MatchPhase,
-  type SimulationEvent,
   type TopId,
   type EnvironmentScene,
 } from "@cyberblade/core";
@@ -19,22 +18,24 @@ import {
   getLaunchCameraView,
 } from "@cyberblade/visuals";
 
+import type { BattleFrame } from "./battle-presentation";
+
 interface Props {
+  quality: GraphicsQuality;
   config: MatchConfig;
   phase: MatchPhase;
-  snapshot: BattleSnapshot | null;
-  events: readonly SimulationEvent[];
-  eventsTick: number;
+  readFrame: () => BattleFrame;
   localTopId: TopId;
   scene: EnvironmentScene;
 }
 
 export function BattleScene(props: Props) {
+  const graphics = GRAPHICS_QUALITY[props.quality];
   return (
     <div className="battle-canvas" aria-hidden="true">
       <Canvas
-        shadows
-        dpr={[1, 1.5]}
+        shadows={graphics.shadows}
+        dpr={[1, graphics.dpr]}
         camera={{ position: [0, 10, 15], fov: 45, near: 0.1, far: 100 }}
         gl={{
           antialias: false,
@@ -46,7 +47,7 @@ export function BattleScene(props: Props) {
         }}
       >
         <SceneContent {...props} />
-        <ScenePostFX />
+        {graphics.bloom && <ScenePostFX />}
         {import.meta.env.DEV && window.location.search.includes("debug") && (
           <PerfProbe />
         )}
@@ -57,42 +58,23 @@ export function BattleScene(props: Props) {
 
 function SceneContent({
   config,
+  quality,
   phase,
-  snapshot,
-  events,
-  eventsTick,
+  readFrame,
   localTopId,
   scene,
 }: Props) {
-  const world = useMemo(
-    () =>
-      new BeybladeVisualWorld(
-        config.p1Type,
-        config.p2Type,
-        config.stadiumTheme,
-        localTopId,
-        scene,
-        config.p1Color,
-        config.p2Color,
-        config.stadiumVariant,
-        config.p1BladeId,
-        config.p1RatchetId,
-        config.p1BitId,
-        config.p1ChipId,
-        config.p2BladeId,
-        config.p2RatchetId,
-        config.p2BitId,
-        config.p2ChipId,
-      ),
-    [
+  const [world, setWorld] = useState<BeybladeVisualWorld | null>(null);
+  useEffect(() => {
+    const next = new BeybladeVisualWorld(
       config.p1Type,
       config.p2Type,
       config.stadiumTheme,
-      config.stadiumVariant,
       localTopId,
       scene,
       config.p1Color,
       config.p2Color,
+      config.stadiumVariant,
       config.p1BladeId,
       config.p1RatchetId,
       config.p1BitId,
@@ -101,24 +83,39 @@ function SceneContent({
       config.p2RatchetId,
       config.p2BitId,
       config.p2ChipId,
-    ],
-  );
+    );
+    setWorld(next);
+    return () => next.dispose();
+  }, [
+    config.p1Type,
+    config.p2Type,
+    config.stadiumTheme,
+    config.stadiumVariant,
+    localTopId,
+    scene,
+    config.p1Color,
+    config.p2Color,
+    config.p1BladeId,
+    config.p1RatchetId,
+    config.p1BitId,
+    config.p1ChipId,
+    config.p2BladeId,
+    config.p2RatchetId,
+    config.p2BitId,
+    config.p2ChipId,
+  ]);
+
   const colors =
     STADIUMS.find((stadium) => stadium.type === config.stadiumTheme) ??
     STADIUMS[0]!;
   const shake = useRef(0);
+  const cameraTarget = useMemo(() => new THREE.Vector3(), []);
   const lastShakeTick = useRef(0);
-
-  useEffect(() => {
-    return () => {
-      world.dispose();
-    };
-  }, [world]);
 
   // A rematch with the same config reuses the memoized world, so restore any
   // burst/toppled tops when a new launch phase begins.
   useEffect(() => {
-    if (phase === "launch") {
+    if (phase === "launch" && world) {
       world.reset();
       shake.current = 0;
       lastShakeTick.current = 0;
@@ -126,7 +123,9 @@ function SceneContent({
   }, [phase, world]);
 
   useFrame((state, delta) => {
+    if (!world) return;
     const { camera } = state;
+    const { snapshot, events, tick: eventsTick } = readFrame();
     if (snapshot) world.apply(snapshot, events, eventsTick);
     world.update(Math.min(delta, 0.1));
 
@@ -153,12 +152,13 @@ function SceneContent({
     }
 
     const view = getBattleCameraView(localTopId, snapshot);
-    camera.position.lerp(new THREE.Vector3(...view.position), 0.08);
+    cameraTarget.set(...view.position);
+    camera.position.lerp(cameraTarget, 1 - Math.exp(-5 * delta));
     if (shake.current > 0.01) {
       camera.position.x += (Math.random() - 0.5) * shake.current;
       camera.position.y += (Math.random() - 0.5) * shake.current;
       camera.position.z += (Math.random() - 0.5) * shake.current;
-      shake.current *= 0.9;
+      shake.current *= Math.exp(-6.3 * delta);
     }
     camera.lookAt(...view.target);
   });
@@ -172,11 +172,14 @@ function SceneContent({
       <fogExp2 attach="fog" args={[backgroundColor, fogDensity]} />
       <ambientLight intensity={0.45} />
       <directionalLight
-        castShadow
+        castShadow={GRAPHICS_QUALITY[quality].shadows}
         intensity={1.5}
         color={0xffffff}
         position={[8, 20, 8]}
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={[
+          GRAPHICS_QUALITY[quality].shadowSize,
+          GRAPHICS_QUALITY[quality].shadowSize,
+        ]}
         shadow-camera-near={0.5}
         shadow-camera-far={50}
         shadow-camera-left={-15}
@@ -200,7 +203,7 @@ function SceneContent({
         distance={20}
         position={[-6, 3, -6]}
       />
-      <primitive object={world.root} />
+      {world && <primitive object={world.root} />}
     </>
   );
 }

@@ -108,113 +108,169 @@ class AudioSynth {
   }
 
   collision(intensity: number): void {
-    void Haptics.impact({
-      style: intensity > 5 ? ImpactStyle.Heavy : ImpactStyle.Medium,
-    }).catch(() => {});
+    const hapticStyle =
+      intensity >= 6
+        ? ImpactStyle.Heavy
+        : intensity >= 2.5
+          ? ImpactStyle.Medium
+          : ImpactStyle.Light;
+    void Haptics.impact({ style: hapticStyle }).catch(() => {});
+
     const context = this.#ensure();
     const time = context.currentTime;
-    if (time - this.#lastCollisionTime < 0.05) return;
+    const isHeavy = intensity >= 0.8;
+    const cooldown = isHeavy ? 0.06 : 0.035;
+    if (time - this.#lastCollisionTime < cooldown) return;
     this.#lastCollisionTime = time;
 
     const collisionBus = this.#ensureCollisionBus();
     const shaper = this.#ensureShaper();
 
-    const volume = Math.min(Math.max(intensity * 0.22, 0.2), 0.95);
+    // Boost overall volume scale for punch and impact presence
+    const volume = Math.min(Math.max(intensity * 0.28, 0.28), 1.0);
 
-    // === Layer 0: BOOM — deep sub thump with pitch dive ===
+    if (!isHeavy) {
+      // === Light glance: crisp snap with dry metallic bite ===
+      const snap = context.createOscillator();
+      snap.type = "sawtooth";
+      snap.frequency.setValueAtTime(900, time);
+      snap.frequency.exponentialRampToValueAtTime(280, time + 0.025);
+      const snapGain = context.createGain();
+      snapGain.gain.setValueAtTime(volume * 0.7, time);
+      snapGain.gain.exponentialRampToValueAtTime(0.001, time + 0.025);
+      snap.connect(snapGain).connect(this.#master!);
+      snap.start(time);
+      snap.stop(time + 0.03);
+
+      const crack = context.createBufferSource();
+      crack.buffer = this.#getNoiseBuffer("crack");
+      const filter = context.createBiquadFilter();
+      filter.type = "highpass";
+      filter.frequency.setValueAtTime(2000, time);
+      const crackGain = context.createGain();
+      crackGain.gain.setValueAtTime(volume * 0.5, time);
+      crackGain.gain.exponentialRampToValueAtTime(0.001, time + 0.025);
+      crack.connect(filter).connect(crackGain).connect(this.#master!);
+      crack.start(time);
+      crack.stop(time + 0.03);
+      return;
+    }
+
+    // ==============================================================
+    // === EXPLOSIVE HEAVY IMPACT: Tearing metal clash, dry punch ===
+    // ==============================================================
+
+    // === Layer 0: HEAVY SUB KICK — explosive low end thump ===
     const boom = context.createOscillator();
-    boom.type = "sine";
-    boom.frequency.setValueAtTime(90, time);
-    boom.frequency.exponentialRampToValueAtTime(30, time + 0.35);
+    boom.type = "triangle";
+    boom.frequency.setValueAtTime(140, time);
+    boom.frequency.exponentialRampToValueAtTime(38, time + 0.22);
     const boomGain = context.createGain();
     boomGain.gain.setValueAtTime(0, time);
-    boomGain.gain.linearRampToValueAtTime(volume * 0.85, time + 0.005);
-    boomGain.gain.exponentialRampToValueAtTime(0.001, time + 0.35);
+    boomGain.gain.linearRampToValueAtTime(volume * 0.95, time + 0.003);
+    boomGain.gain.exponentialRampToValueAtTime(0.001, time + 0.22);
     boom.connect(boomGain).connect(this.#master!);
     boom.start(time);
-    boom.stop(time + 0.36);
+    boom.stop(time + 0.23);
 
-    // === Layer 1: TRANSIENT — high punchy snap ===
+    // === Layer 1: TRANSIENT TEAR (SAWTOOTH PUNCH) — sharp ripping initial crack ===
     const snap = context.createOscillator();
-    snap.type = "triangle";
-    snap.frequency.setValueAtTime(800, time);
-    snap.frequency.exponentialRampToValueAtTime(120, time + 0.04);
+    snap.type = "sawtooth";
+    snap.frequency.setValueAtTime(1400, time);
+    snap.frequency.exponentialRampToValueAtTime(110, time + 0.04);
     const snapGain = context.createGain();
-    snapGain.gain.setValueAtTime(volume * 0.7, time);
+    snapGain.gain.setValueAtTime(volume * 0.95, time);
     snapGain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
-    snap.connect(snapGain).connect(this.#master!);
+    snap.connect(snapGain).connect(shaper);
+    snapGain.connect(this.#master!);
     snap.start(time);
     snap.stop(time + 0.045);
 
-    // === Layer 2: METALLIC CLANG — dissonant high sine ring ===
-    const freqs = [1840, 2760, 4120];
-    const ringDuration = Math.min(0.08 + intensity * 0.04, 0.35);
+    // === Layer 2: EXPLOSIVE STEEL SLAM — aggressive saturated ring (Dry + Wet) ===
+    const freqs = [760, 1260, 1940];
+    const ringDuration = Math.min(0.07 + intensity * 0.015, 0.15);
     for (const [i, baseFreq] of freqs.entries()) {
-      const f = baseFreq * (0.95 + Math.random() * 0.1);
+      const f = baseFreq * (0.97 + Math.random() * 0.06);
       const ring = context.createOscillator();
-      ring.type = "sine";
+      ring.type = "sawtooth";
       ring.frequency.setValueAtTime(f, time);
+
+      // Low-pass filter to tame harsh ultra-highs while keeping gritty steel harmonics
+      const filter = context.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(3200, time);
+
       const ringGain = context.createGain();
-      const ringVol = (volume * 0.3) / (i + 1);
+      const ringVol = (volume * 0.45) / (i * 0.8 + 1);
       ringGain.gain.setValueAtTime(ringVol, time);
       ringGain.gain.exponentialRampToValueAtTime(
         0.001,
-        time + ringDuration / (i + 1),
+        time + ringDuration / (i * 0.5 + 1),
       );
-      ring.connect(ringGain);
+
+      ring.connect(filter).connect(ringGain);
+      // Dry saturated signal directly to master
+      ringGain.connect(shaper);
+      // Wet diffuse signal to arena reverb bus
       ringGain.connect(collisionBus);
+
       ring.start(time);
       ring.stop(time + ringDuration + 0.02);
     }
 
-    // === Layer 3: CRACK — sharp burst of shaped noise ===
+    // === Layer 3: EXPLOSIVE SPARK BURST — raw highpass spark blast ===
     const crack = context.createBufferSource();
     crack.buffer = this.#getNoiseBuffer("crack");
     const crackFilter = context.createBiquadFilter();
     crackFilter.type = "highpass";
-    crackFilter.frequency.setValueAtTime(2000, time);
+    crackFilter.frequency.setValueAtTime(1500, time);
     const crackGain = context.createGain();
-    crackGain.gain.setValueAtTime(volume * 0.5, time);
+    crackGain.gain.setValueAtTime(volume * 0.75, time);
     crackGain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
-    crack.connect(crackFilter).connect(crackGain).connect(collisionBus);
+    crack.connect(crackFilter).connect(crackGain);
+    // Direct dry punch + reverb tail
+    crackGain.connect(shaper);
+    crackGain.connect(collisionBus);
     crack.start(time);
     crack.stop(time + 0.055);
 
-    // === Layer 4: CRACKLE / DEBRIS — 2-3 tiny micro-clicks ===
-    const crackleCount = Math.min(Math.floor(intensity * 0.6), 4);
+    // === Layer 4: SHRED / DEBRIS — high-frequency metallic grinding clicks ===
+    const crackleCount = Math.min(Math.floor(intensity * 0.6) + 1, 4);
     for (let i = 0; i < crackleCount; i += 1) {
-      const delay = 0.015 + Math.random() * 0.06;
+      const delay = 0.008 + Math.random() * 0.04;
       const crackle = context.createBufferSource();
       crackle.buffer = this.#getNoiseBuffer("click");
       const crackleFilter = context.createBiquadFilter();
       crackleFilter.type = "bandpass";
-      crackleFilter.frequency.setValueAtTime(3000 + Math.random() * 3000, time);
-      crackleFilter.Q.setValueAtTime(3, time);
+      crackleFilter.frequency.setValueAtTime(3000 + Math.random() * 2000, time);
+      crackleFilter.Q.setValueAtTime(2.0, time);
       const crackleGain = context.createGain();
-      const crackleVol = volume * (0.1 + Math.random() * 0.15);
+      const crackleVol = volume * (0.15 + Math.random() * 0.15);
       crackleGain.gain.setValueAtTime(crackleVol, time + delay);
       crackleGain.gain.exponentialRampToValueAtTime(
         0.001,
-        time + delay + 0.015,
+        time + delay + 0.02,
       );
       crackle.connect(crackleFilter).connect(crackleGain);
-      crackleGain.connect(shaper);
+      crackleGain.connect(this.#master!);
       crackle.start(time + delay);
-      crackle.stop(time + delay + 0.02);
+      crackle.stop(time + delay + 0.025);
     }
 
-    // === Layer 5: RUMBLE — long low sine, floor shake after the blast ===
-    const rumble = context.createOscillator();
-    rumble.type = "sine";
-    rumble.frequency.setValueAtTime(40, time);
-    rumble.frequency.exponentialRampToValueAtTime(25, time + 0.5);
-    const rumbleGain = context.createGain();
-    rumbleGain.gain.setValueAtTime(0, time);
-    rumbleGain.gain.linearRampToValueAtTime(volume * 0.4, time + 0.02);
-    rumbleGain.gain.exponentialRampToValueAtTime(0.001, time + 0.7);
-    rumble.connect(rumbleGain).connect(this.#master!);
-    rumble.start(time);
-    rumble.stop(time + 0.72);
+    // === Layer 5: ARENA SHAKE — sub rumble for heavy slams ===
+    if (intensity >= 4.0) {
+      const rumble = context.createOscillator();
+      rumble.type = "sine";
+      rumble.frequency.setValueAtTime(45, time);
+      rumble.frequency.exponentialRampToValueAtTime(25, time + 0.35);
+      const rumbleGain = context.createGain();
+      rumbleGain.gain.setValueAtTime(0, time);
+      rumbleGain.gain.linearRampToValueAtTime(volume * 0.35, time + 0.02);
+      rumbleGain.gain.exponentialRampToValueAtTime(0.001, time + 0.45);
+      rumble.connect(rumbleGain).connect(this.#master!);
+      rumble.start(time);
+      rumble.stop(time + 0.47);
+    }
   }
 
   // Toppled top scraping across the arena floor.
@@ -342,7 +398,7 @@ class AudioSynth {
     if (this.#shaper) return this.#shaper;
     const context = this.#ensure();
     const shaper = context.createWaveShaper();
-    shaper.curve = this.#makeDistortionCurve(6) as WaveShaperNode["curve"];
+    shaper.curve = this.#makeDistortionCurve(16) as WaveShaperNode["curve"];
     shaper.oversample = "2x";
     shaper.connect(this.#master!);
     this.#shaper = shaper;

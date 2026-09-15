@@ -75,6 +75,9 @@ TypeScript 與 Go 各自有一份線上協定定義，兩邊必須保持一致�
 
 - `src/main.tsx`：瀏覽器入口。
 - `src/App.tsx`：Web 的應用組裝與主要 UI；同時協調 local／online 模式、runtime、配對、戰績與頁面 phase。這是大型 composition root，不應把可共用的規則繼續堆進來。
+- `src/battle-presentation.ts`、`src/use-battle-presentation.ts`：Web 最新快照與事件橋接，3D／音效不經 React 逐幀更新；HUD 約 10 Hz，階段變化即時發布。
+- `src/lazy-scenes.tsx`、`src/preview-controls.tsx`：3D／組裝／分享介面的延遲載入，以及不依賴 Three.js 的預覽控制 UI。
+- `src/graphics-quality.ts`：Web 畫質設定、儲存與預覽／戰鬥的畫質參數。
 - `src/BattleScene.tsx`：React Three Fiber Canvas 與共用 `BeybladeVisualWorld` 的 Web adapter。
 - `src/BladePreviewScene.tsx`：選角預覽。
 - `src/styles.css`：主要 Web 視覺樣式。
@@ -120,14 +123,16 @@ Web 與 Mobile UI 是兩份平台 renderer，但非戰鬥內容、順序與顯�
 
 ### `packages/visuals/`
 
-- `src/index.ts`：`BeybladeVisualWorld`、`BeybladePreviewWorld`、場館、通用陀螺模型、戰鬥特效與五種環境背景。
+- `src/index.ts`：`BeybladeVisualWorld`、`BeybladePreviewWorld`、場館、通用陀螺模型、戰鬥特效與八種環境背景。
 - `src/camera.ts`：平台共用鏡頭計算。
-- `src/detailed/`：全 10 種陀螺類型的高精度 4 件套模型 Builder (`<type>.ts`)、晶片圖騰 (`chip-art.ts`)，並於 `detailed/index.ts` 中以 `BLADE_BUILDERS`/`RATCHET_BUILDERS`/`BIT_BUILDERS`/`CHIP_BUILDERS` 完整註冊與導出。
+- `src/detailed/`：全 4 種陀螺類型的高精度 4 件套模型 Builder (`<type>.ts`)、晶片圖騰 (`chip-art.ts`)，並於 `detailed/index.ts` 中以 `BLADE_BUILDERS`/`RATCHET_BUILDERS`/`BIT_BUILDERS`/`CHIP_BUILDERS` 完整註冊與導出。
 - `src/geometry-utils.ts`：靜態 geometry 合併工具。
 
 世界物件必須妥善重設與 dispose；Mobile 的 frame budget 也要納入考量。純模型或特效修改通常不需要進入兩端 Canvas adapter。
 
 ### `packages/multiplayer/`
+
+- `src/battle-session.ts`：平台中立的 host runtime 協調、開始、快照／事件轉送與結算；目前 Web 使用，Mobile 保留原有組裝方式。
 
 - `src/protocol.ts`：TypeScript wire message、runtime decoder 與 protocol version。
 - `src/room-code.ts`：好友房房號字母表、normalize 與驗證，Web／Mobile／protocol 共用。
@@ -259,11 +264,15 @@ pnpm -C apps/mobile test
 # Go service
 go test ./services/api/...
 
-# app + Go 的既定整合檢查
+# Web 瀏覽器端到端測試（自動啟動 4173 Web 與 4174 API）
+pnpm -C apps/web exec playwright install chromium
+pnpm -C apps/web test:e2e
+
+# 所有 workspace + Go 的既定整合檢查
 task check
 ```
 
-`task check` 目前檢查兩個 app 與 Go service，不會取代四個共用 package 自己的 tests。共用型別或 package 行為有改動時，先跑該 package，再跑受影響 app 的 typecheck。3D 或 Expo 行為仍需在瀏覽器／實機驗證；自動測試無法完整覆蓋 WebGL、音效、觸覺回饋與原生分享。
+`task check` 會遞迴執行所有提供 typecheck／test 指令的 workspace，以及 Go service tests。共用型別或 package 行為有改動時，先跑該 package，再跑受影響 app 的 typecheck。CI 另跑 Web 瀏覽器測試，涵蓋好友房、結算、再戰、斷線與畫質。3D 或 Expo 行為仍需在瀏覽器／實機驗證；自動測試無法完整覆蓋 WebGL、音效、觸覺回饋與原生分享。
 
 ## AI 修改時的最短流程
 

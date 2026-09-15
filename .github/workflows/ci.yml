@@ -72,16 +72,43 @@ jobs:
       - name: Build
         run: go -C services/api build ./cmd/api
 
+  web-e2e:
+    name: Web browser flows
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/api/go.mod
+          cache-dependency-path: services/api/go.sum
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -C apps/web exec playwright install --with-deps chromium
+      - run: pnpm -C apps/web test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: web-browser-failures
+          path: apps/web/test-results/
+          retention-days: 7
+
   quality-gate:
     name: Quality Gate
     if: always()
-    needs: [javascript, go]
+    needs: [javascript, go, web-e2e]
     runs-on: ubuntu-latest
     steps:
       - name: Require all checks
         env:
           JAVASCRIPT_RESULT: ${{ needs.javascript.result }}
           GO_RESULT: ${{ needs.go.result }}
+          WEB_E2E_RESULT: ${{ needs.web-e2e.result }}
         run: |
           test "$JAVASCRIPT_RESULT" = "success"
           test "$GO_RESULT" = "success"
+          test "$WEB_E2E_RESULT" = "success"

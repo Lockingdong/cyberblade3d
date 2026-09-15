@@ -84,3 +84,7 @@ services/api/api
 *.njsproj
 *.sln
 *.sw?
+
+# Browser test artifacts
+playwright-report/
+test-results/

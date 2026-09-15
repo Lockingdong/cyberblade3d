@@ -262,3 +262,42 @@ func consumeType(t *testing.T, channel <-chan []byte, messageType string) map[st
 		return nil
 	}
 }
+
+func TestEventFloodDisconnectsHostWithoutEvictingGuest(t *testing.T) {
+	config := DefaultConfig()
+	config.EventRate = 2
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	// Drive the single-owner hub synchronously to test window boundaries without sleeps.
+	hub := &Hub{config: config, logger: logger, clients: make(map[*Client]struct{}), rooms: make(map[string]*room), clientRoom: make(map[*Client]*room)}
+	host := newClient("host", hub, nil, logger)
+	guest := newClient("guest", hub, nil, logger)
+	current := &room{id: "m1", host: host, guest: guest, phase: phaseBattle}
+	hub.clients[host] = struct{}{}
+	hub.clients[guest] = struct{}{}
+	hub.rooms[current.id] = current
+	hub.clientRoom[host] = current
+	hub.clientRoom[guest] = current
+	event := &battleEventMessage{MatchID: "m1", Event: wireBattleEvent{Kind: "collision"}}
+	for i := 0; i < config.EventRate; i++ {
+		hub.relayEvent(host, event, []byte(`{"type":"battle_event"}`))
+		consumeType(t, guest.control, "battle_event")
+	}
+	// A fresh window allows legitimate traffic again.
+	current.eventWindow = time.Now().Add(-2 * time.Second)
+	hub.relayEvent(host, event, []byte(`{"type":"battle_event"}`))
+	consumeType(t, guest.control, "battle_event")
+	hub.relayEvent(host, event, []byte(`{"type":"battle_event"}`))
+	consumeType(t, guest.control, "battle_event")
+	hub.relayEvent(host, event, []byte(`{"type":"battle_event"}`))
+	failure := consumeType(t, host.control, "error")
+	if failure["code"] != "RATE_LIMIT" {
+		t.Fatalf("unexpected error: %v", failure)
+	}
+	consumeType(t, guest.control, "opponent_left")
+	if _, exists := hub.clients[host]; exists {
+		t.Fatal("flooding host remained connected")
+	}
+	if _, exists := hub.clients[guest]; !exists {
+		t.Fatal("healthy guest was evicted")
+	}
+}

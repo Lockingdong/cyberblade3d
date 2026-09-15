@@ -3428,3 +3428,27 @@ button:disabled {
     font-size: 0.68rem;
   }
 }
+
+.graphics-quality {
+  position: absolute;
+  left: max(1rem, env(safe-area-inset-left));
+  top: max(1rem, env(safe-area-inset-top));
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+.graphics-quality select {
+  color: inherit;
+  background: var(--cb-paper);
+  border: 2px solid var(--cb-ink);
+  border-radius: 0.4rem;
+  padding: 0.35rem 0.5rem;
+}
+.scene-loading {
+  display: grid;
+  place-items: center;
+  min-height: 8rem;
+  color: var(--cb-ink);
+}

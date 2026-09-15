@@ -1,3 +1,4 @@
+import { BladePreviewScene } from "./lazy-scenes";
 import React, { useState, type JSX } from "react";
 import {
   BEYBLADES,
@@ -11,13 +12,12 @@ import {
   type CustomBeybladeConfig,
   type BeybladeSpec,
 } from "@cyberblade/core";
-import { PREVIEW_CAMERA_PRESET_ORDER } from "@cyberblade/visuals";
+import { PREVIEW_CAMERA_PRESET_ORDER } from "./preview-controls";
 import {
-  BladePreviewScene,
   CAMERA_PRESETS,
   ExplodedLayersIcon,
   type CameraPreset,
-} from "./BladePreviewScene";
+} from "./preview-controls";
 import { synth } from "./audio";
 import {
   GarageIcon,

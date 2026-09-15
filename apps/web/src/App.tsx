@@ -1,3 +1,10 @@
+import {
+  GRAPHICS_QUALITY,
+  GraphicsQualityContext,
+  loadGraphicsQuality,
+  saveGraphicsQuality,
+} from "./graphics-quality";
+import { BladePreviewScene } from "./lazy-scenes";
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/purity */
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
@@ -29,7 +36,6 @@ import {
   environmentSceneForStadium,
   environmentSceneForMatch,
   stadiumThemeFromSeed,
-  stadiumVariantFromMatchId,
   stadiumVariantFromSeed,
   type CustomBeybladeConfig,
 } from "@cyberblade/core";
@@ -37,9 +43,11 @@ import {
   MatchmakingClient,
   OnlineMatchCoordinator,
   type OnlineMatchState,
+  BattleSession,
+  onlineMatchConfig,
 } from "@cyberblade/multiplayer";
 import { CannonBattleSimulation } from "@cyberblade/simulation";
-import { PREVIEW_CAMERA_PRESET_ORDER } from "@cyberblade/visuals";
+import { PREVIEW_CAMERA_PRESET_ORDER } from "./preview-controls";
 import {
   NON_BATTLE_COPY,
   buildBladeSelectionViewModel,
@@ -47,17 +55,16 @@ import {
   resultOutcomeCopy,
   type BladeSelectionViewModel,
 } from "@cyberblade/ui-model";
-import { BattleScene } from "./BattleScene";
+import { BattleScene, preloadBattleScene } from "./lazy-scenes";
 import { BladeMiniIcon } from "./components/BladeMiniIcon";
 import { GarageIcon } from "./components/CustomizerIcons";
 import {
-  BladePreviewScene,
   CAMERA_PRESETS,
   ExplodedLayersIcon,
   type CameraPreset,
-} from "./BladePreviewScene";
-import { PartCustomizerModal } from "./PartCustomizerModal";
-import { ShareCardModal } from "./ShareCardModal";
+} from "./preview-controls";
+import { PartCustomizerModal } from "./lazy-scenes";
+import { ShareCardModal } from "./lazy-scenes";
 import { synth } from "./audio";
 import {
   clearRoomParamFromUrl,
@@ -82,6 +89,9 @@ import {
   savePlayerColor,
   savePlayerName,
 } from "./profile";
+
+import { HudPublisher } from "./battle-presentation";
+import { useBattlePresentation } from "./use-battle-presentation";
 
 const LOCAL_TOP_ID: TopId = "p1";
 type AppMode = "menu" | "local" | "online";
@@ -154,10 +164,14 @@ export function App() {
         new MatchmakingClient((url) => createWebSocket(url)),
       ),
   );
+  const [session] = useState(() => new BattleSession(runtime, coordinator));
   const [game, setGame] = useState<BeybladeState>(runtime.state);
   const [online, setOnline] = useState<OnlineMatchState>(coordinator.state);
   const [mode, setMode] = useState<AppMode>("menu");
   const modeRef = useRef<AppMode>("menu");
+  const presentation = useBattlePresentation(runtime, coordinator, modeRef);
+  const [gamePublisher] = useState(() => new HudPublisher(setGame));
+  const [onlinePublisher] = useState(() => new HudPublisher(setOnline));
   const [playerType, setPlayerType] = useState<BeybladeType>("attack");
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   const [customPartsMap, setCustomPartsMap] = useState<
@@ -193,6 +207,7 @@ export function App() {
   );
   const [record, setRecord] = useState<BattleRecord>(() => loadBattleRecord());
   const [countdownNow, setCountdownNow] = useState(0);
+  const [quality, setQuality] = useState(loadGraphicsQuality);
   const [showIntro, setShowIntro] = useState(true);
   const [upcomingModalOpen, setUpcomingModalOpen] = useState(false);
   const [lobbyOpen, setLobbyOpen] = useState(false);
@@ -204,12 +219,6 @@ export function App() {
   // imperatively, see usePowerMeter) avoids re-rendering the whole app — and
   // the 3D scene under it — on every frame.
   const powerRef = useRef<PowerState>({ value: POWER_START, direction: 1 });
-  const preparedMatch = useRef<string | null>(null);
-  const launchedMatch = useRef<string | null>(null);
-  const endingSentMatch = useRef<string | null>(null);
-  const resultSentMatch = useRef<string | null>(null);
-  const lastHostSeq = useRef(0);
-  const lastRelayedEventsTick = useRef(0);
   const recordRef = useRef(record);
   const recordedMatch = useRef<string | null>(null);
   const lastOnlinePhase = useRef<OnlineMatchState["phase"]>("idle");
@@ -235,38 +244,10 @@ export function App() {
     setRecord(next);
   }
 
-  const onlineConfig = useMemo<MatchConfig | null>(() => {
-    if (!online.start || !online.matchId) return null;
-    return {
-      p1Type: online.start.p1.blade,
-      p2Type: online.start.p2.blade,
-      stadiumTheme: online.start.stadium,
-      stadiumVariant: stadiumVariantFromMatchId(online.matchId),
-      perfectLaunchTopIds: ["p1", "p2"],
-      ...(online.start.p1.color !== undefined
-        ? { p1Color: online.start.p1.color }
-        : {}),
-      ...(online.start.p2.color !== undefined
-        ? { p2Color: online.start.p2.color }
-        : {}),
-      ...(online.start.p1.bladeId
-        ? { p1BladeId: online.start.p1.bladeId }
-        : {}),
-      ...(online.start.p1.ratchetId
-        ? { p1RatchetId: online.start.p1.ratchetId }
-        : {}),
-      ...(online.start.p1.bitId ? { p1BitId: online.start.p1.bitId } : {}),
-      ...(online.start.p1.chipId ? { p1ChipId: online.start.p1.chipId } : {}),
-      ...(online.start.p2.bladeId
-        ? { p2BladeId: online.start.p2.bladeId }
-        : {}),
-      ...(online.start.p2.ratchetId
-        ? { p2RatchetId: online.start.p2.ratchetId }
-        : {}),
-      ...(online.start.p2.bitId ? { p2BitId: online.start.p2.bitId } : {}),
-      ...(online.start.p2.chipId ? { p2ChipId: online.start.p2.chipId } : {}),
-    };
-  }, [online.matchId, online.start]);
+  const onlineConfig = useMemo(
+    () => onlineMatchConfig(online),
+    [online.matchId, online.start],
+  );
 
   const activeScene: EnvironmentScene = useMemo(() => {
     if (mode === "online" && online.start) return online.start.environment;
@@ -276,7 +257,16 @@ export function App() {
   useEffect(
     () =>
       coordinator.subscribe((state) => {
-        setOnline(state);
+        const { view, ...flow } = state;
+        onlinePublisher.update(
+          state,
+          JSON.stringify({
+            ...flow,
+            result: view.result,
+            connectionUnstable: view.connectionUnstable,
+          }),
+          performance.now(),
+        );
         const previousPhase = lastOnlinePhase.current;
         lastOnlinePhase.current = state.phase;
         if (
@@ -303,7 +293,7 @@ export function App() {
           runtime.dispatch({ type: "leave" });
         }
       }),
-    [coordinator, runtime],
+    [coordinator, runtime, onlinePublisher],
   );
 
   useEffect(
@@ -311,105 +301,15 @@ export function App() {
       runtime.subscribe((event) => {
         if (event.type !== "stateChanged") return;
         const next = event.state;
-        setGame(next);
-        const currentOnline = coordinator.state;
-        if (
-          modeRef.current !== "online" ||
-          currentOnline.role !== "host" ||
-          !currentOnline.matchId
-        )
-          return;
-
-        if (
-          next.battle &&
-          (next.phase === "battle" || next.phase === "ending")
-        ) {
-          const seq = coordinator.publishHostSnapshot(next.battle);
-          if (seq !== null) lastHostSeq.current = seq;
-        }
-        if (
-          currentOnline.phase === "battle" &&
-          next.battle &&
-          next.eventsTick > lastRelayedEventsTick.current
-        ) {
-          if (lastHostSeq.current === 0) {
-            lastHostSeq.current =
-              coordinator.publishHostSnapshot(
-                next.battle,
-                performance.now(),
-                true,
-              ) ?? 0;
-          }
-          for (const simulationEvent of next.events) {
-            if (simulationEvent.type === "trail") continue;
-            coordinator.publishHostEvent(
-              simulationEvent,
-              lastHostSeq.current,
-              next.battle.elapsed,
-            );
-          }
-          lastRelayedEventsTick.current = next.eventsTick;
-        }
-        if (
-          next.phase === "ending" &&
-          next.result &&
-          endingSentMatch.current !== currentOnline.matchId
-        ) {
-          if (next.battle && lastHostSeq.current === 0) {
-            lastHostSeq.current =
-              coordinator.publishHostSnapshot(
-                next.battle,
-                performance.now(),
-                true,
-              ) ?? 0;
-          }
-          coordinator.publishHostEvent(
-            {
-              type: "ending",
-              winnerId: next.result.winnerId,
-              finishType: next.result.finishType,
-            },
-            lastHostSeq.current,
-            next.battle?.elapsed ?? next.result.duration,
-          );
-          endingSentMatch.current = currentOnline.matchId;
-        }
-        if (
-          next.phase === "result" &&
-          next.result &&
-          next.battle &&
-          resultSentMatch.current !== currentOnline.matchId
-        ) {
-          const finalSeq = coordinator.publishHostSnapshot(
-            next.battle,
-            performance.now(),
-            true,
-          );
-          if (finalSeq !== null) lastHostSeq.current = finalSeq;
-          coordinator.publishMatchEnd(
-            next.result,
-            lastHostSeq.current,
-            next.battle.elapsed,
-          );
-          resultSentMatch.current = currentOnline.matchId;
-        }
+        gamePublisher.update(next, next.phase, performance.now());
+        if (modeRef.current === "online") session.publish(next);
       }),
-    [coordinator, runtime],
+    [runtime, gamePublisher, session],
   );
 
   useEffect(() => {
-    if (
-      mode !== "online" ||
-      online.role !== "host" ||
-      online.phase !== "countdown" ||
-      !online.matchId ||
-      !onlineConfig ||
-      preparedMatch.current === online.matchId
-    )
-      return;
-    runtime.dispatch({ type: "prepare", config: onlineConfig });
-    preparedMatch.current = online.matchId;
-  }, [mode, online.matchId, online.phase, online.role, onlineConfig, runtime]);
+    if (mode === "online") session.prepare();
+  }, [mode, online.matchId, online.phase, session]);
 
   useEffect(() => {
     if (
@@ -420,44 +320,13 @@ export function App() {
     let frame = 0;
     let previous = performance.now();
     const tick = (now: number) => {
-      coordinator.update(now);
-      const current = coordinator.state;
-      if (
-        current.role === "host" &&
-        current.phase === "battle" &&
-        current.matchId &&
-        current.start &&
-        runtime.state.phase === "launch" &&
-        launchedMatch.current !== current.matchId
-      ) {
-        runtime.dispatch({
-          type: "launch",
-          launch: {
-            p1Power: current.start.p1.power,
-            p1Angle: current.start.p1.angle,
-            p2Power: current.start.p2.power,
-            // Network angles are local deviations; p2 launches inward from +x.
-            p2Angle: 180 + current.start.p2.angle,
-          },
-        });
-        launchedMatch.current = current.matchId;
-      }
-      if (
-        current.role === "host" &&
-        (current.phase === "battle" || current.phase === "ending") &&
-        (runtime.state.phase === "battle" || runtime.state.phase === "ending")
-      ) {
-        runtime.dispatch({
-          type: "tick",
-          deltaSeconds: (now - previous) / 1000,
-        });
-      }
+      session.tick(now, (now - previous) / 1000);
       previous = now;
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [coordinator, mode, online.phase, runtime]);
+  }, [session, mode, online.phase]);
 
   useEffect(() => {
     if (
@@ -567,76 +436,13 @@ export function App() {
     : onlineBattleActive
       ? onlineSnapshot
       : null;
-  const activeEvents =
-    mode === "online" && online.role === "guest"
-      ? online.view.visualEvents
-      : game.events;
-  const activeEventsTick =
-    mode === "online" && online.role === "guest"
-      ? online.view.eventsTick
-      : game.eventsTick;
-  const lastAudioTick = useRef(0);
-  const scraped = useRef({ p1: false, p2: false });
-  useEffect(() => {
-    if (activeEventsTick > lastAudioTick.current) {
-      lastAudioTick.current = activeEventsTick;
-      let maxCollisionIntensity = 0;
-      let hasBurst = false;
-      for (const event of activeEvents) {
-        if (event.type === "collision") {
-          maxCollisionIntensity = Math.max(
-            maxCollisionIntensity,
-            event.intensity,
-          );
-        }
-        if (event.type === "burst") {
-          hasBurst = true;
-        }
-      }
-      if (maxCollisionIntensity > 0) {
-        synth.collision(maxCollisionIntensity);
-      }
-      if (hasBurst) {
-        synth.burst();
-      }
-    }
-    if (activeSnapshot && (localBattleActive || onlineBattleActive)) {
-      for (const id of ["p1", "p2"] as const) {
-        const top = activeSnapshot[id];
-        if (!top.isStopped && !top.isBurst) {
-          synth.startSpin(id, top.rpm);
-          synth.updateSpin(id, top.rpm);
-        } else {
-          if (top.isStopped && !top.isBurst && !scraped.current[id])
-            synth.scrape();
-          scraped.current[id] = true;
-          synth.stopSpin(id);
-        }
-      }
-    } else {
-      synth.stop();
-    }
-  }, [
-    activeEvents,
-    activeEventsTick,
-    activeSnapshot,
-    localBattleActive,
-    onlineBattleActive,
-  ]);
-
   function resetMatchRefs(): void {
+    session.reset();
     powerRef.current = { value: POWER_START, direction: 1 };
-    lastAudioTick.current = 0;
-    scraped.current = { p1: false, p2: false };
-    preparedMatch.current = null;
-    launchedMatch.current = null;
-    endingSentMatch.current = null;
-    resultSentMatch.current = null;
-    lastHostSeq.current = 0;
-    lastRelayedEventsTick.current = 0;
   }
 
   function prepareLocal(): void {
+    preloadBattleScene();
     synth.click();
     resetMatchRefs();
     modeRef.current = "local";
@@ -686,6 +492,7 @@ export function App() {
   }
 
   function beginOnline(choice: OnlineLobbyChoice): void {
+    preloadBattleScene();
     synth.click();
     setLobbyOpen(false);
     // A rejected room code keeps the socket open in the lobby phase, so the
@@ -791,7 +598,6 @@ export function App() {
     ),
   );
   const sceneConfig = mode === "online" ? onlineConfig : game.config;
-  const sceneSnapshot = mode === "online" ? onlineSnapshot : game.battle;
   const scenePhase: MatchPhase =
     mode === "online"
       ? onlinePhase === "countdown"
@@ -809,214 +615,237 @@ export function App() {
         ["countdown", "battle", "ending", "result"].includes(onlinePhase)));
 
   return (
-    <main
-      className={`app mode-${mode} phase-${
-        mode === "online" ? onlinePhase : game.phase
-      }`}
-    >
-      {showIntro && <IntroScreen onComplete={() => setShowIntro(false)} />}
-      {showScene && sceneConfig && (
-        <BattleScene
-          config={sceneConfig}
-          phase={scenePhase}
-          snapshot={sceneSnapshot}
-          events={activeEvents}
-          eventsTick={activeEventsTick}
-          localTopId={mode === "online" ? localTopId : LOCAL_TOP_ID}
-          scene={activeScene}
-        />
-      )}
-      {mode === "online" &&
-        online.role === "guest" &&
-        (onlinePhase === "battle" || onlinePhase === "ending") &&
-        online.view.connectionUnstable && (
-          <div className="connection-warning" role="status">
-            連線不穩 · 畫面已暫停同步
-          </div>
+    <GraphicsQualityContext value={quality}>
+      <main
+        className={`app mode-${mode} phase-${
+          mode === "online" ? onlinePhase : game.phase
+        }`}
+      >
+        {mode === "menu" && (
+          <label className="graphics-quality">
+            畫質
+            <select
+              aria-label="畫質"
+              value={quality}
+              onChange={(event) => {
+                const next = event.target.value as typeof quality;
+                setQuality(next);
+                saveGraphicsQuality(next);
+              }}
+            >
+              {Object.entries(GRAPHICS_QUALITY).map(([value, settings]) => (
+                <option key={value} value={value}>
+                  {settings.label}
+                </option>
+              ))}
+            </select>
+          </label>
         )}
-
-      {mode === "menu" && game.phase === "menu" && (
-        <MainMenu
-          playerType={playerType}
-          onBlade={handleBladeChange}
-          customName={customName}
-          onCustomNameChange={setCustomName}
-          customColor={customColor}
-          onCustomColorChange={setCustomColor}
-          record={record}
-          onLocal={prepareLocal}
-          onOnline={openOnlineLobby}
-          onUpcomingClick={() => setUpcomingModalOpen(true)}
-          customSpec={customSpec}
-          selectedBladeId={selectedBladeId}
-          onBladeIdChange={(bladeId) =>
-            handleCustomConfigChange({ ...currentConfig, bladeId })
-          }
-          onOpenCustomizer={() => setIsCustomizerOpen(true)}
-        />
-      )}
-
-      <PartCustomizerModal
-        isOpen={isCustomizerOpen}
-        onClose={() => setIsCustomizerOpen(false)}
-        beybladeType={playerType}
-        config={currentConfig}
-        onChangeConfig={handleCustomConfigChange}
-      />
-
-      {mode === "local" && game.phase === "launch" && (
-        <LaunchScreen powerRef={powerRef} onLaunch={launchLocal} />
-      )}
-
-      {(lobbyOpen || (mode === "online" && onlinePhase === "lobby")) && (
-        <OnlineLobby
-          error={onlinePhase === "lobby" ? online.error : null}
-          onSelect={beginOnline}
-          onClose={returnToMenu}
-        />
-      )}
-
-      {mode === "online" && onlinePhase === "hosting" && online.roomCode && (
-        <OnlineRoomCode code={online.roomCode} onCancel={cancelQueue} />
-      )}
-
-      {mode === "online" &&
-        (onlinePhase === "connecting" ||
-          onlinePhase === "queued" ||
-          onlinePhase === "joining") && (
-          <OnlineOverlay
-            eyebrow={onlinePhase === "queued" ? "MATCHMAKING" : "CONNECTING"}
-            title={
-              onlinePhase === "queued"
-                ? "正在尋找對手"
-                : onlinePhase === "joining"
-                  ? "正在加入好友房"
-                  : "正在連線至競技場"
-            }
-            detail={
-              onlinePhase === "queued"
-                ? "找到對手前會持續等待。"
-                : "請稍候片刻。"
-            }
-            busy
-          >
-            <button onClick={cancelQueue}>取消</button>
-          </OnlineOverlay>
+        {showIntro && <IntroScreen onComplete={() => setShowIntro(false)} />}
+        {showScene && sceneConfig && (
+          <BattleScene
+            config={sceneConfig}
+            phase={scenePhase}
+            readFrame={presentation.read}
+            quality={quality}
+            localTopId={mode === "online" ? localTopId : LOCAL_TOP_ID}
+            scene={activeScene}
+          />
         )}
+        {mode === "online" &&
+          online.role === "guest" &&
+          (onlinePhase === "battle" || onlinePhase === "ending") &&
+          online.view.connectionUnstable && (
+            <div className="connection-warning" role="status">
+              連線不穩 · 畫面已暫停同步
+            </div>
+          )}
 
-      {mode === "online" &&
-        (onlinePhase === "matched" || onlinePhase === "waiting_ready") && (
-          <OnlineSelection
-            // A rematch arrives as a fresh match id. Remounting resets the
-            // friend room back to its blade-selection step.
-            key={online.matchId ?? "pending"}
-            online={online}
-            powerRef={powerRef}
+        {mode === "menu" && game.phase === "menu" && (
+          <MainMenu
             playerType={playerType}
             onBlade={handleBladeChange}
+            customName={customName}
+            onCustomNameChange={setCustomName}
             customColor={customColor}
             onCustomColorChange={setCustomColor}
+            record={record}
+            onLocal={prepareLocal}
+            onOnline={openOnlineLobby}
+            onUpcomingClick={() => setUpcomingModalOpen(true)}
             customSpec={customSpec}
+            selectedBladeId={selectedBladeId}
+            onBladeIdChange={(bladeId) =>
+              handleCustomConfigChange({ ...currentConfig, bladeId })
+            }
             onOpenCustomizer={() => setIsCustomizerOpen(true)}
-            onReady={readyOnline}
-            onLeave={returnToMenu}
           />
         )}
 
-      {mode === "online" && onlinePhase === "countdown" && onlineConfig && (
-        <OnlineOverlay
-          eyebrow="READY TO LAUNCH"
-          title="3, 2, 1, GO SHOOT!"
-          detail={`對手: ${withRecordLabel(onlineOpponentName, onlineOpponentRecord)}`}
-          countdown
-          countdownVal={countdown > 0 ? String(countdown) : "GO SHOOT!"}
-        />
-      )}
+        {isCustomizerOpen && (
+          <PartCustomizerModal
+            isOpen={isCustomizerOpen}
+            onClose={() => setIsCustomizerOpen(false)}
+            beybladeType={playerType}
+            config={currentConfig}
+            onChangeConfig={handleCustomConfigChange}
+          />
+        )}
 
-      {mode === "local" && game.phase === "battle" && game.battle && (
-        <BattleHud
-          snapshot={game.battle}
-          localTopId={LOCAL_TOP_ID}
-          localLabel={localName}
-          opponentLabel="AI"
-          onExit={returnToMenu}
-        />
-      )}
+        {mode === "local" && game.phase === "launch" && (
+          <LaunchScreen powerRef={powerRef} onLaunch={launchLocal} />
+        )}
 
-      {mode === "online" &&
-        (onlinePhase === "battle" || onlinePhase === "ending") &&
-        onlineSnapshot && (
+        {(lobbyOpen || (mode === "online" && onlinePhase === "lobby")) && (
+          <OnlineLobby
+            error={onlinePhase === "lobby" ? online.error : null}
+            onSelect={beginOnline}
+            onClose={returnToMenu}
+          />
+        )}
+
+        {mode === "online" && onlinePhase === "hosting" && online.roomCode && (
+          <OnlineRoomCode code={online.roomCode} onCancel={cancelQueue} />
+        )}
+
+        {mode === "online" &&
+          (onlinePhase === "connecting" ||
+            onlinePhase === "queued" ||
+            onlinePhase === "joining") && (
+            <OnlineOverlay
+              eyebrow={onlinePhase === "queued" ? "MATCHMAKING" : "CONNECTING"}
+              title={
+                onlinePhase === "queued"
+                  ? "正在尋找對手"
+                  : onlinePhase === "joining"
+                    ? "正在加入好友房"
+                    : "正在連線至競技場"
+              }
+              detail={
+                onlinePhase === "queued"
+                  ? "找到對手前會持續等待。"
+                  : "請稍候片刻。"
+              }
+              busy
+            >
+              <button onClick={cancelQueue}>取消</button>
+            </OnlineOverlay>
+          )}
+
+        {mode === "online" &&
+          (onlinePhase === "matched" || onlinePhase === "waiting_ready") && (
+            <OnlineSelection
+              // A rematch arrives as a fresh match id. Remounting resets the
+              // friend room back to its blade-selection step.
+              key={online.matchId ?? "pending"}
+              online={online}
+              powerRef={powerRef}
+              playerType={playerType}
+              onBlade={handleBladeChange}
+              customColor={customColor}
+              onCustomColorChange={setCustomColor}
+              customSpec={customSpec}
+              onOpenCustomizer={() => setIsCustomizerOpen(true)}
+              onReady={readyOnline}
+              onLeave={returnToMenu}
+            />
+          )}
+
+        {mode === "online" && onlinePhase === "countdown" && onlineConfig && (
+          <OnlineOverlay
+            eyebrow="READY TO LAUNCH"
+            title="3, 2, 1, GO SHOOT!"
+            detail={`對手: ${withRecordLabel(onlineOpponentName, onlineOpponentRecord)}`}
+            countdown
+            countdownVal={countdown > 0 ? String(countdown) : "GO SHOOT!"}
+          />
+        )}
+
+        {mode === "local" && game.phase === "battle" && game.battle && (
           <BattleHud
-            snapshot={onlineSnapshot}
-            localTopId={localTopId}
-            localLabel={withRecordLabel(onlineLocalName, onlineLocalRecord)}
-            opponentLabel={withRecordLabel(
-              onlineOpponentName,
-              onlineOpponentRecord,
-            )}
+            snapshot={game.battle}
+            localTopId={LOCAL_TOP_ID}
+            localLabel={localName}
+            opponentLabel="AI"
             onExit={returnToMenu}
           />
         )}
 
-      {mode === "local" && game.phase === "result" && game.result && (
-        <ResultScreen
-          result={game.result}
-          battle={game.battle}
-          localTopId={LOCAL_TOP_ID}
-          online={false}
-          playerNames={{
-            p1: customName.trim() || BEYBLADES[playerType].name,
-            p2: BEYBLADES[game.config.p2Type].name,
-          }}
-          record={record}
-          playerColor={customColor}
-          onRematch={prepareLocal}
-          onMenu={returnToMenu}
-        />
-      )}
+        {mode === "online" &&
+          (onlinePhase === "battle" || onlinePhase === "ending") &&
+          onlineSnapshot && (
+            <BattleHud
+              snapshot={onlineSnapshot}
+              localTopId={localTopId}
+              localLabel={withRecordLabel(onlineLocalName, onlineLocalRecord)}
+              opponentLabel={withRecordLabel(
+                onlineOpponentName,
+                onlineOpponentRecord,
+              )}
+              onExit={returnToMenu}
+            />
+          )}
 
-      {mode === "online" && onlinePhase === "result" && onlineResult && (
-        <ResultScreen
-          result={onlineResult}
-          battle={onlineSnapshot}
-          localTopId={localTopId}
-          online
-          {...(onlineNames ? { playerNames: onlineNames } : {})}
-          record={record}
-          playerColor={
-            localTopId === "p1"
-              ? online.start?.p1.color
-              : online.start?.p2.color
-          }
-          {...(online.rematchAvailable
-            ? {
-                onRematch: rematchOnline,
-                rematchRequested: online.rematchRequested,
-                opponentRematch: online.opponentRematch,
-                rematchReselects: online.roomKind === "friend",
-              }
-            : {})}
-          onMenu={returnToMenu}
-        />
-      )}
-
-      {mode === "online" &&
-        (onlinePhase === "error" ||
-          (onlinePhase === "result" && !onlineResult)) && (
-          <OnlineOverlay
-            eyebrow="ONLINE MATCH"
-            {...terminationCopy(online.termination, online.error)}
-          >
-            <button className="primary" onClick={returnToMenu}>
-              返回主選單
-            </button>
-          </OnlineOverlay>
+        {mode === "local" && game.phase === "result" && game.result && (
+          <ResultScreen
+            result={game.result}
+            battle={game.battle}
+            localTopId={LOCAL_TOP_ID}
+            online={false}
+            playerNames={{
+              p1: customName.trim() || BEYBLADES[playerType].name,
+              p2: BEYBLADES[game.config.p2Type].name,
+            }}
+            record={record}
+            playerColor={customColor}
+            onRematch={prepareLocal}
+            onMenu={returnToMenu}
+          />
         )}
 
-      {upcomingModalOpen && (
-        <UpcomingModal onClose={() => setUpcomingModalOpen(false)} />
-      )}
-    </main>
+        {mode === "online" && onlinePhase === "result" && onlineResult && (
+          <ResultScreen
+            result={onlineResult}
+            battle={onlineSnapshot}
+            localTopId={localTopId}
+            online
+            {...(onlineNames ? { playerNames: onlineNames } : {})}
+            record={record}
+            playerColor={
+              localTopId === "p1"
+                ? online.start?.p1.color
+                : online.start?.p2.color
+            }
+            {...(online.rematchAvailable
+              ? {
+                  onRematch: rematchOnline,
+                  rematchRequested: online.rematchRequested,
+                  opponentRematch: online.opponentRematch,
+                  rematchReselects: online.roomKind === "friend",
+                }
+              : {})}
+            onMenu={returnToMenu}
+          />
+        )}
+
+        {mode === "online" &&
+          (onlinePhase === "error" ||
+            (onlinePhase === "result" && !onlineResult)) && (
+            <OnlineOverlay
+              eyebrow="ONLINE MATCH"
+              {...terminationCopy(online.termination, online.error)}
+            >
+              <button className="primary" onClick={returnToMenu}>
+                返回主選單
+              </button>
+            </OnlineOverlay>
+          )}
+
+        {upcomingModalOpen && (
+          <UpcomingModal onClose={() => setUpcomingModalOpen(false)} />
+        )}
+      </main>
+    </GraphicsQualityContext>
   );
 }
 

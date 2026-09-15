@@ -21,12 +21,7 @@ import {
   BIT_BUILDERS,
   CHIP_BUILDERS,
 } from "./detailed";
-export {
-  BLADE_BUILDERS,
-  RATCHET_BUILDERS,
-  BIT_BUILDERS,
-  CHIP_BUILDERS,
-};
+export { BLADE_BUILDERS, RATCHET_BUILDERS, BIT_BUILDERS, CHIP_BUILDERS };
 import type { DetailedParts } from "./detailed/types";
 
 export * from "./camera";
@@ -85,7 +80,7 @@ interface CollisionLight {
 }
 
 interface Trail {
-  mesh: THREE.Object3D;
+  mesh: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
   life: number;
   intensity: number;
 }
@@ -136,9 +131,14 @@ export class BeybladeVisualWorld {
   #snapshot: BattleSnapshot | null = null;
   #sparks: Spark[] = [];
   #trails: Trail[] = [];
+  #trailPool: Trail["mesh"][] = [];
+  #trailGeometry = new THREE.RingGeometry(0.305, 0.355, 20).rotateX(
+    -Math.PI / 2,
+  );
   #debris: Debris[] = [];
   #flyingParts: FlyingPart[] = [];
   #time = 0;
+  #disposed = false;
   #lastEventTick = 0;
 
   // Pools and shared visual components for high-performance collision effects
@@ -382,7 +382,7 @@ export class BeybladeVisualWorld {
         this.#bubbleField = findBubbleField(scene);
         this.#bubblePositions = this.#bubbleField
           ? (this.#bubbleField.geometry.getAttribute("position")
-            .array as Float32Array)
+              .array as Float32Array)
           : null;
         break;
       case "neon-city":
@@ -411,15 +411,25 @@ export class BeybladeVisualWorld {
   }
 
   dispose(): void {
+    if (this.#disposed) return;
+    this.#disposed = true;
     // Remove pooled groups first so they aren't disposed in root.traverse()
     this.root.remove(this.#sparkGroup);
     this.root.remove(this.#shockwaveGroup);
     this.root.remove(this.#lightGroup);
 
     // Now safely traverse and dispose of the rest of the scene (stadium, tops, etc.)
-    this.root.traverse((object) => {
-      disposeObject(object);
-    });
+    // Return trails to their pool before disposing the rest of the scene.
+    for (const trail of this.#trails) {
+      this.root.remove(trail.mesh);
+      this.#trailPool.push(trail.mesh);
+    }
+    // Burst parts may have finished flying and be detached but retained for rematches.
+    for (const top of Object.values(this.#tops)) top.group.add(...top.parts);
+    disposeObject(this.root);
+    this.#trailGeometry.dispose();
+    for (const mesh of this.#trailPool) mesh.material.dispose();
+    this.#trailPool = [];
     this.root.clear();
 
     // Manually dispose of our pooled resources to avoid double-disposal or memory leaks
@@ -522,7 +532,9 @@ export class BeybladeVisualWorld {
 
   #updateMarker(snapshot: TopSnapshot): void {
     this.#marker.visible = !snapshot.isBurst;
-    const surfaceY = bowlHeight(Math.hypot(snapshot.position.x, snapshot.position.z));
+    const surfaceY = bowlHeight(
+      Math.hypot(snapshot.position.x, snapshot.position.z),
+    );
     this.#marker.position.set(
       snapshot.position.x,
       snapshot.position.y + surfaceY + 2.25 + Math.sin(this.#time * 5) * 0.12,
@@ -619,30 +631,27 @@ export class BeybladeVisualWorld {
   }
 
   #spawnTrail(x: number, z: number, color: number, intensity: number): void {
-    const group = new THREE.Group();
-
-    const geometry = new THREE.RingGeometry(0.305, 0.355, 20);
-    geometry.rotateX(-Math.PI / 2);
-    const mainMesh = new THREE.Mesh(
-      geometry,
-      new THREE.MeshBasicMaterial({
-        color,
-        transparent: true,
-        opacity: 0.7 * intensity,
-        side: THREE.DoubleSide,
-        blending: THREE.NormalBlending,
-        depthWrite: false,
-      }),
-    );
-    group.add(mainMesh);
-
-    group.position.set(x, bowlHeight(Math.hypot(x, z)) + 0.03, z);
-    group.quaternion.setFromUnitVectors(
-      new THREE.Vector3(0, 1, 0),
-      bowlSurfaceNormal(x, z),
-    );
-    this.root.add(group);
-    this.#trails.push({ mesh: group, life: 0, intensity });
+    // Bound allocation even if a remote producer emits an excessive trail batch.
+    let mesh = this.#trailPool.pop();
+    if (!mesh) {
+      if (this.#trails.length >= 32) return;
+      mesh = new THREE.Mesh(
+        this.#trailGeometry,
+        new THREE.MeshBasicMaterial({
+          transparent: true,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        }),
+      );
+      mesh.name = "battle-trail";
+    }
+    mesh.material.color.set(color);
+    mesh.material.opacity = 0.7 * intensity;
+    mesh.scale.set(1, 1, 1);
+    mesh.position.set(x, bowlHeight(Math.hypot(x, z)) + 0.03, z);
+    mesh.quaternion.setFromUnitVectors(UP_VECTOR, bowlSurfaceNormal(x, z));
+    this.root.add(mesh);
+    this.#trails.push({ mesh, life: 0, intensity });
   }
 
   #burstTop(top: TopVisual): void {
@@ -800,7 +809,7 @@ export class BeybladeVisualWorld {
       trail.life += delta;
       if (trail.life >= 0.4) {
         this.root.remove(trail.mesh);
-        disposeObject(trail.mesh);
+        this.#trailPool.push(trail.mesh);
         this.#trails.splice(index, 1);
         continue;
       }
@@ -808,14 +817,7 @@ export class BeybladeVisualWorld {
       trail.mesh.scale.set(scale, 1, scale);
 
       const opacityRatio = 1 - trail.life / 0.4;
-      trail.mesh.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          const mat = child.material as THREE.MeshBasicMaterial;
-          const isOutline = child.position.y < -0.001;
-          const baseOpacity = isOutline ? 0.8 : 0.7;
-          mat.opacity = baseOpacity * trail.intensity * opacityRatio;
-        }
-      });
+      trail.mesh.material.opacity = 0.7 * trail.intensity * opacityRatio;
     }
   }
 
@@ -894,7 +896,7 @@ export class BeybladeVisualWorld {
 
     for (const trail of this.#trails) {
       this.root.remove(trail.mesh);
-      disposeObject(trail.mesh);
+      this.#trailPool.push(trail.mesh);
     }
     this.#trails = [];
 
@@ -1053,7 +1055,9 @@ function createStadium(
   const stadium =
     STADIUMS.find(
       (entry) => entry.type === theme && entry.variant === variant,
-    ) ?? STADIUMS.find((entry) => entry.type === theme) ?? STADIUMS[0]!;
+    ) ??
+    STADIUMS.find((entry) => entry.type === theme) ??
+    STADIUMS[0]!;
   const group = new THREE.Group();
 
   const points: THREE.Vector2[] = [];
@@ -1464,7 +1468,7 @@ function createBeyblade(
 
   if (!bladeFn || !ratchetFn || !bitFn || !chipFn) {
     throw new Error(
-      `Missing visual builder for component parts: blade=${spec.bladeId}, ratchet=${spec.ratchetId}, bit=${spec.bitId}, chip=${spec.chipId}`
+      `Missing visual builder for component parts: blade=${spec.bladeId}, ratchet=${spec.ratchetId}, bit=${spec.bitId}, chip=${spec.chipId}`,
     );
   }
 
@@ -1575,6 +1579,9 @@ function appendPolylineSegments(
 }
 
 export function disposeObject(object: THREE.Object3D): void {
+  const geometries = new Set<THREE.BufferGeometry>();
+  const materials = new Set<THREE.Material>();
+  const textures = new Set<THREE.Texture>();
   object.traverse((child) => {
     if (
       child instanceof THREE.Mesh ||
@@ -1584,13 +1591,21 @@ export function disposeObject(object: THREE.Object3D): void {
     ) {
       const geometry = child.geometry;
       const material = child.material;
-      if (geometry) geometry.dispose();
+      if (geometry && !geometries.has(geometry)) {
+        geometries.add(geometry);
+        geometry.dispose();
+      }
       if (material) {
         toMaterialList(material).forEach((mat) => {
+          if (materials.has(mat)) return;
+          materials.add(mat);
           const m = mat as THREE.Material & { map?: THREE.Texture };
           // Textures flagged as shared live in a module-level cache (e.g. the
           // chip emblem art) and outlive any single mesh.
-          if (m.map && m.map.userData.shared !== true) m.map.dispose();
+          if (m.map && m.map.userData.shared !== true && !textures.has(m.map)) {
+            textures.add(m.map);
+            m.map.dispose();
+          }
           mat.dispose();
         });
       }
@@ -1617,7 +1632,10 @@ function weldOutlineNormals(geometry: THREE.BufferGeometry): void {
   const positionAttribute = geometry.getAttribute("position");
   const normalAttribute = geometry.getAttribute("normal");
   if (!positionAttribute || !normalAttribute) return;
-  const groups = new Map<string, { n: [number, number, number]; indices: number[] }>();
+  const groups = new Map<
+    string,
+    { n: [number, number, number]; indices: number[] }
+  >();
   for (let i = 0; i < positionAttribute.count; i++) {
     const key =
       `${Math.round(positionAttribute.getX(i) * 1e4)},` +
@@ -2008,14 +2026,14 @@ function createSunsetEnvironment(): THREE.Group {
     h: number;
     warm: boolean;
   }> = [
-      { x: -22, y: 6, z: -38, w: 16, h: 2.2, warm: true },
-      { x: -10, y: 9, z: -44, w: 20, h: 2, warm: true },
-      { x: 12, y: 7, z: -40, w: 18, h: 2.4, warm: true },
-      { x: 26, y: 10, z: -42, w: 12, h: 2, warm: true },
-      { x: -6, y: 16, z: -50, w: 24, h: 1.6, warm: false },
-      { x: 18, y: 18, z: -52, w: 14, h: 1.4, warm: false },
-      { x: -30, y: 14, z: -46, w: 10, h: 1.8, warm: false },
-    ];
+    { x: -22, y: 6, z: -38, w: 16, h: 2.2, warm: true },
+    { x: -10, y: 9, z: -44, w: 20, h: 2, warm: true },
+    { x: 12, y: 7, z: -40, w: 18, h: 2.4, warm: true },
+    { x: 26, y: 10, z: -42, w: 12, h: 2, warm: true },
+    { x: -6, y: 16, z: -50, w: 24, h: 1.6, warm: false },
+    { x: 18, y: 18, z: -52, w: 14, h: 1.4, warm: false },
+    { x: -30, y: 14, z: -46, w: 10, h: 1.8, warm: false },
+  ];
   const cloudColors: number[] = [];
   const cloudPositions: number[] = [];
   const cloudIndices: number[] = [];
@@ -2286,9 +2304,7 @@ function createNeonCityEnvironment(): THREE.Group {
 function createXinyiNightEnvironment(): THREE.Group {
   const group = new THREE.Group();
   group.name = "xinyi-night-environment";
-  group.add(
-    createGradientSkydome([0x101d3a, 0x08142c, 0x050b1c, 0x02050d]),
-  );
+  group.add(createGradientSkydome([0x101d3a, 0x08142c, 0x050b1c, 0x02050d]));
 
   let seed = 1101;
   const rand = (): number => {
@@ -2423,9 +2439,7 @@ function cylinderBetween(
 function createToxicRefineryEnvironment(): THREE.Group {
   const group = new THREE.Group();
   group.name = "toxic-refinery-environment";
-  group.add(
-    createGradientSkydome([0x18220b, 0x26350f, 0x18230c, 0x0b1007]),
-  );
+  group.add(createGradientSkydome([0x18220b, 0x26350f, 0x18230c, 0x0b1007]));
 
   const structures: THREE.BufferGeometry[] = [];
   const hazardBands: THREE.BufferGeometry[] = [];
@@ -2475,11 +2489,7 @@ function createToxicRefineryEnvironment(): THREE.Group {
       structures.push(stack);
       const rim = new THREE.TorusGeometry(0.58, 0.13, 4, 8);
       rim.rotateX(Math.PI / 2);
-      rim.translate(
-        x + Math.cos(angle) * 2.5,
-        -2,
-        z + Math.sin(angle) * 2.5,
-      );
+      rim.translate(x + Math.cos(angle) * 2.5, -2, z + Math.sin(angle) * 2.5);
       hazardBands.push(rim);
     }
   }
@@ -2515,9 +2525,7 @@ function createToxicRefineryEnvironment(): THREE.Group {
 function createVolcanoCalderaEnvironment(): THREE.Group {
   const group = new THREE.Group();
   group.name = "volcano-caldera-environment";
-  group.add(
-    createGradientSkydome([0x361016, 0x48141a, 0x2b1016, 0x10090e]),
-  );
+  group.add(createGradientSkydome([0x361016, 0x48141a, 0x2b1016, 0x10090e]));
 
   const ridges: THREE.BufferGeometry[] = [];
   const lavaCuts: THREE.BufferGeometry[] = [];

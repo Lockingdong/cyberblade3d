@@ -21,6 +21,7 @@ import { normalizeRoomCode } from "./room-code";
 
 export interface WebSocketLike {
   readonly readyState: number;
+  readonly bufferedAmount?: number;
   send(data: string): void;
   close(code?: number, reason?: string): void;
   addEventListener(
@@ -68,6 +69,7 @@ export class MatchmakingClient {
   #stateSeq = 0;
   #eventId = 0;
   #idCounter = 0;
+  #backlogged = false;
 
   constructor(factory: SocketFactory) {
     this.#factory = factory;
@@ -75,6 +77,7 @@ export class MatchmakingClient {
 
   connect(url: string): void {
     this.dispose();
+    this.#backlogged = false;
     const socket = this.#factory(url);
     this.#socket = socket;
     socket.addEventListener("open", this.#onOpen);
@@ -130,9 +133,16 @@ export class MatchmakingClient {
 
   sendHostSnapshot(snapshot: BattleSnapshot): number {
     if (!this.#matchId) throw new Error("Cannot send state before a match");
-    const seq = ++this.#stateSeq;
-    this.#send(toStateMessage(this.#matchId, seq, snapshot));
-    return seq;
+    // Keep the last successfully queued sequence: events can still reference it.
+    // Never enqueue a history of obsolete snapshots behind a slow connection.
+    if ((this.#socket?.bufferedAmount ?? 0) > 16 * 1024 && this.#stateSeq > 0) {
+      this.#checkBacklog();
+      return this.#stateSeq;
+    }
+    const seq = this.#stateSeq + 1;
+    if (this.#send(toStateMessage(this.#matchId, seq, snapshot)))
+      this.#stateSeq = seq;
+    return this.#stateSeq;
   }
 
   sendHostEvent(
@@ -237,10 +247,20 @@ export class MatchmakingClient {
     this.#emit({ type: "connection", state: "closed" });
   };
 
-  #send(message: ClientMessage): void {
+  #checkBacklog(): boolean {
+    if ((this.#socket?.bufferedAmount ?? 0) <= 256 * 1024) return true;
+    this.#backlogged = true;
+    this.#socket?.close(4008, "outbound buffer exceeded");
+    return false;
+  }
+
+  #send(message: ClientMessage): boolean {
+    if (this.#backlogged) return false;
     if (!this.#socket || this.#socket.readyState !== 1)
       throw new Error("Socket is not open");
-    this.#socket.send(JSON.stringify(message));
+    if (!this.#checkBacklog()) return false;
+    this.#socket!.send(JSON.stringify(message));
+    return true;
   }
 
   #emit(event: MatchmakingClientEvent): void {

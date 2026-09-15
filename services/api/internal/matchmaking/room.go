@@ -29,6 +29,8 @@ type room struct {
 	readyTimer   *time.Timer
 	phaseTimer   *time.Timer
 	rematchTimer *time.Timer
+	eventWindow  time.Time
+	eventCount   int
 	rateWindow   time.Time
 	stateCount   int
 	rateBreaches int
