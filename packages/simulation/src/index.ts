@@ -339,9 +339,44 @@ export class CannonBattleSimulation implements BattleSimulation {
     this.#elapsed += dt;
     this.#applyTopForces(this.#p1, this.#p2, dt);
     this.#applyTopForces(this.#p2, this.#p1, dt);
+    this.#applyProximityInteractions();
     this.#world.step(FIXED_STEP);
     for (const body of this.#pendingRemovals) this.#world.removeBody(body);
     this.#pendingRemovals = [];
+  }
+
+  #applyProximityInteractions(): void {
+    if (
+      this.#p1.isBurst ||
+      this.#p1.isStopped ||
+      this.#p2.isBurst ||
+      this.#p2.isStopped ||
+      this.#p1.rpm <= 40 ||
+      this.#p2.rpm <= 40
+    ) {
+      return;
+    }
+
+    const dx = this.#p1.body.position.x - this.#p2.body.position.x;
+    const dz = this.#p1.body.position.z - this.#p2.body.position.z;
+    const dist = Math.hypot(dx, dz);
+    const contactThreshold = TOP_RADIUS * 2 + 0.05; // 1.65
+
+    if (dist < contactThreshold) {
+      const nx = dist > 0.001 ? dx / dist : 1;
+      const nz = dist > 0.001 ? dz / dist : 0;
+      // Repulsion force counters the bowl slope inward pull so tops don't get stuck fusing together
+      const overlap = contactThreshold - dist;
+      const pushForce = 6 + overlap * 35;
+      this.#p1.body.applyForce(
+        new CANNON.Vec3(nx * pushForce, 0, nz * pushForce),
+        this.#p1.body.position,
+      );
+      this.#p2.body.applyForce(
+        new CANNON.Vec3(-nx * pushForce, 0, -nz * pushForce),
+        this.#p2.body.position,
+      );
+    }
   }
 
   #applyTopForces(top: ActiveTop, opponent: ActiveTop, dt: number): void {
