@@ -209,7 +209,6 @@ export function App() {
   const [countdownNow, setCountdownNow] = useState(0);
   const [quality, setQuality] = useState(loadGraphicsQuality);
   const [showIntro, setShowIntro] = useState(true);
-  const [upcomingModalOpen, setUpcomingModalOpen] = useState(false);
   const [lobbyOpen, setLobbyOpen] = useState(false);
   const [scene, setScene] = useState<EnvironmentScene>(() =>
     environmentSceneForStadium("neon"),
@@ -672,7 +671,6 @@ export function App() {
             record={record}
             onLocal={prepareLocal}
             onOnline={openOnlineLobby}
-            onUpcomingClick={() => setUpcomingModalOpen(true)}
             customSpec={customSpec}
             selectedBladeId={selectedBladeId}
             onBladeIdChange={(bladeId) =>
@@ -840,10 +838,6 @@ export function App() {
               </button>
             </OnlineOverlay>
           )}
-
-        {upcomingModalOpen && (
-          <UpcomingModal onClose={() => setUpcomingModalOpen(false)} />
-        )}
       </main>
     </GraphicsQualityContext>
   );
@@ -867,7 +861,6 @@ function MainMenu({
   record,
   onLocal,
   onOnline,
-  onUpcomingClick,
   customSpec,
   selectedBladeId,
   onBladeIdChange,
@@ -882,7 +875,6 @@ function MainMenu({
   record: BattleRecord;
   onLocal: () => void;
   onOnline: () => void;
-  onUpcomingClick?: () => void;
   customSpec?: BeybladeSpec | undefined;
   selectedBladeId: string;
   onBladeIdChange: (id: string) => void;
@@ -900,9 +892,6 @@ function MainMenu({
     setCameraPreset(nextPreset);
   };
 
-  const [activeModal, setActiveModal] = useState<"terms" | "privacy" | null>(
-    null,
-  );
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [isMuted, setIsMuted] = useState(() => synth.isMuted);
   const [isBGMMuted, setIsBGMMuted] = useState(() => synth.isBGMMuted);
@@ -955,7 +944,6 @@ function MainMenu({
         onCustomNameChange={onCustomNameChange}
         customColor={customColor}
         onCustomColorChange={onCustomColorChange}
-        onUpcomingClick={onUpcomingClick}
       />
       <div className="garage-preview-stage">
         <div className="preview-controls-bar">
@@ -1083,24 +1071,6 @@ function MainMenu({
           <button
             className="menu-drawer-item"
             onClick={() => {
-              synth.click();
-              setActiveModal("terms");
-            }}
-          >
-            服務條款
-          </button>
-          <button
-            className="menu-drawer-item"
-            onClick={() => {
-              synth.click();
-              setActiveModal("privacy");
-            }}
-          >
-            隱私權政策
-          </button>
-          <button
-            className="menu-drawer-item"
-            onClick={() => {
               const nextMuted = !isMuted;
               synth.setMuted(nextMuted);
               setIsMuted(nextMuted);
@@ -1139,94 +1109,6 @@ function MainMenu({
         </div>
       </div>
 
-      {/* 條款與政策 Modal */}
-      {activeModal && (
-        <div className="legal-modal">
-          <div
-            className="legal-modal-backdrop"
-            onClick={() => setActiveModal(null)}
-          />
-          <div className="legal-card">
-            <p className="eyebrow">
-              {activeModal === "terms" ? "TERMS OF SERVICE" : "PRIVACY POLICY"}
-            </p>
-            <h2>{activeModal === "terms" ? "服務條款" : "隱私權政策"}</h2>
-            <div className="legal-content">
-              {activeModal === "terms" ? (
-                <div className="legal-text">
-                  <h3>1. 服務接受</h3>
-                  <p>
-                    當您存取或使用本遊戲時，即代表您同意接受並遵守本服務條款。若您不同意，請勿使用本服務。
-                  </p>
-                  <h3>2. 使用權限與授權</h3>
-                  <p>
-                    本遊戲僅供個人、非商業目的娛樂使用。您不得對本遊戲進行逆向工程、反編譯、修改或散佈任何遊戲內容與代碼。
-                  </p>
-                  <h3>3. 線上對戰與行為準則</h3>
-                  <p>
-                    本服務提供線上即時配對功能。您同意不會利用任何外掛程式、自動化指令碼或漏洞來干擾遊戲公平性。如有惡意斷線或作弊之行為，我們保留中止您存取線上服務之權利。
-                  </p>
-                  <h3>4. 著作權聲明</h3>
-                  <p>
-                    本遊戲內的所有美術資產、音樂、3D
-                    模型、物理模擬引擎及代碼，均屬 DONGSTUDIO
-                    智慧財產權所有，受相關著作權法保護。
-                  </p>
-                  <h3>5. 免責聲明</h3>
-                  <p>
-                    本服務按「現狀」提供，不附帶任何形式的保證。我們不保證服務不會中斷、無延遲或無漏洞。
-                  </p>
-                  <h3>6. 條款修訂</h3>
-                  <p>
-                    我們保留隨時修改本服務條款的權利，修訂後之條款於公布時立即生效。
-                  </p>
-                </div>
-              ) : (
-                <div className="legal-text">
-                  <h3>1. 資訊收集與使用</h3>
-                  <p>
-                    <strong>本地儲存 (Local Storage)：</strong>
-                    我們會在您的瀏覽器中以 Local Storage
-                    記錄您的自訂陀螺名稱、戰績 (勝/敗場數) 以及遊戲設定
-                    (如場景主題)。這些資料保留在您的本地設備中，您隨時可以透過瀏覽器清除資料。
-                  </p>
-                  <p>
-                    <strong>連線資料：</strong>
-                    在您使用線上對戰時，我們只會傳輸進行即時同步所需的臨時資料（如您的自訂名稱、勝敗統計、陀螺屬性與操作數據）。我們不會收集或儲存您的身分證號、真實姓名、電話號碼等敏感個人資料。
-                  </p>
-                  <p>
-                    <strong>伺服器記錄：</strong>
-                    為了改善服務品質與維護網路安全，我們的伺服器可能會自動記錄您連線時的
-                    IP 位址與存取時間。
-                  </p>
-                  <h3>2. 資訊分享</h3>
-                  <p>我們不會將您的資料販售、交換或租借給任何第三方。</p>
-                  <h3>3. 資料安全</h3>
-                  <p>
-                    我們採用標準的安全加密傳輸協議，以確保線上配對與數據同步之安全性，但請注意，網際網路傳輸無法保證百分之百安全。
-                  </p>
-                  <h3>4. 聯絡我們</h3>
-                  <p>
-                    若您對本隱私權政策有任何疑問，歡迎透過 DONGSTUDIO
-                    官方平台與我們聯繫。
-                  </p>
-                </div>
-              )}
-            </div>
-            <div className="legal-actions">
-              <button
-                className="primary"
-                onClick={() => {
-                  synth.click();
-                  setActiveModal(null);
-                }}
-              >
-                我知道了
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showResetConfirm && (
         <div className="legal-modal">
@@ -1309,7 +1191,6 @@ function BladePicker({
   onCustomNameChange,
   customColor,
   onCustomColorChange,
-  onUpcomingClick,
   disabled = false,
 }: {
   model: BladeSelectionViewModel;
@@ -1318,7 +1199,6 @@ function BladePicker({
   onCustomNameChange?: (name: string) => void;
   customColor?: number | null;
   onCustomColorChange?: (color: number | null) => void;
-  onUpcomingClick?: (() => void) | undefined;
   disabled?: boolean;
 }) {
   const value = model.selectedType;
@@ -1401,30 +1281,7 @@ function BladePicker({
             aria-label="選擇戰鬥陀螺"
           >
             {model.items.map((item) => {
-              if (item.type === null) {
-                return (
-                  <button
-                    key="upcoming"
-                    disabled={disabled}
-                    className="blade-card upcoming"
-                    onClick={() => {
-                      synth.click();
-                      onUpcomingClick?.();
-                    }}
-                    role="option"
-                    aria-selected={false}
-                  >
-                    <span className="blade-chip-emblem upcoming">
-                      <span className="chip-question">?</span>
-                    </span>
-                    <div className="blade-card-info">
-                      <span className="blade-type">???</span>
-                      <strong>敬請期待</strong>
-                      <small>COMING SOON</small>
-                    </div>
-                  </button>
-                );
-              }
+              if (item.type === null) return null;
               const type = item.type;
               const blade = BEYBLADES[type];
               const bladeColor = `#${blade.color.toString(16).padStart(6, "0")}`;
@@ -2114,28 +1971,4 @@ function IntroScreen({ onComplete }: { onComplete: () => void }) {
   );
 }
 
-function UpcomingModal({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="upcoming-modal-overlay">
-      <div className="upcoming-modal-backdrop" onClick={onClose} />
-      <div className="upcoming-modal-card">
-        <div className="upcoming-modal-accent" />
-        <p className="upcoming-eyebrow">{NON_BATTLE_COPY.upcomingEyebrow}</p>
-        <h2>{NON_BATTLE_COPY.upcomingTitle}</h2>
-        <p className="upcoming-description">{NON_BATTLE_COPY.upcomingDetail}</p>
-        <div className="upcoming-silhouette-wrap">
-          <div className="upcoming-silhouette-shadow" />
-        </div>
-        <button
-          className="primary upcoming-close-btn"
-          onClick={() => {
-            synth.click();
-            onClose();
-          }}
-        >
-          我知道了
-        </button>
-      </div>
-    </div>
-  );
-}
+

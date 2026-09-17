@@ -7,18 +7,16 @@ import {
 } from "./index";
 
 describe("ui model", () => {
-  it("builds the canonical carousel with an unavailable upcoming item", () => {
+  it("builds the canonical carousel with four selectable blades", () => {
     const model = buildBladeSelectionViewModel("defense");
     expect(model.items.map((item) => item.id)).toEqual([
       "attack",
       "defense",
       "stamina",
       "balance",
-      "upcoming",
     ]);
-    expect(model.counter).toBe("2 / 05");
+    expect(model.counter).toBe("2 / 04");
     expect(model.items[1]?.selected).toBe(true);
-    expect(model.items.at(-1)).toMatchObject({ selectable: false, type: null });
   });
 
   it("uses a custom assembled spec for details and display stats", () => {

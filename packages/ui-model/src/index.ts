@@ -94,17 +94,6 @@ export function buildBladeSelectionViewModel(
       selectable: true,
     };
   });
-  items.push({
-    id: "upcoming",
-    kind: "upcoming",
-    type: null,
-    typeLabel: "???",
-    name: "敬請期待",
-    englishName: "COMING SOON",
-    color: null,
-    selected: false,
-    selectable: false,
-  });
 
   return {
     eyebrow: "SELECT YOUR BLADE",
