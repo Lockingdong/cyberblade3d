@@ -890,6 +890,17 @@ button:disabled {
   text-align: center;
 }
 
+.room-connection-note {
+  margin: 14px 0 4px;
+  padding: 10px 12px;
+  border-left: 4px solid var(--cb-warning);
+  background: color-mix(in srgb, var(--cb-warning) 18%, white);
+  color: var(--cb-ink);
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-align: left;
+}
+
 .connection-warning {
   position: fixed;
   top: max(18px, env(safe-area-inset-top));

@@ -283,6 +283,7 @@ describe("OnlineMatchCoordinator", () => {
         requestId: "r1",
         code: "K7M2P9",
         expiresInMs: 600000,
+        resumeToken: "resume_123",
       }),
     );
     expect(coordinator.state.phase).toBe("hosting");

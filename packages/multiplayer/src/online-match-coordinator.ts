@@ -38,7 +38,7 @@ export type OnlinePhase =
 /** How a session that is being connected intends to find its opponent. */
 export type OnlineIntent =
   | { readonly kind: "quick" }
-  | { readonly kind: "create" }
+  | { readonly kind: "create"; readonly resumeToken?: string }
   | { readonly kind: "join"; readonly code: string };
 
 /**
@@ -55,7 +55,7 @@ function roomKindForIntent(intent: OnlineIntent): RoomKind {
 export interface OnlineTransport {
   connect(url: string): void;
   joinQueue(): string;
-  createRoom(): string;
+  createRoom(resumeToken?: string): string;
   joinRoom(code: string): string;
   cancelQueue(): void;
   ready(selection: ReadySelection): void;
@@ -99,6 +99,7 @@ export interface OnlineMatchState {
   readonly requestId: string | null;
   readonly matchId: string | null;
   readonly roomCode: string | null;
+  readonly roomResumeToken: string | null;
   /** Survives `matched`, so the UI can keep offering friend-room-only steps. */
   readonly roomKind: RoomKind;
   readonly role: "host" | "guest" | null;
@@ -148,6 +149,7 @@ export class OnlineMatchCoordinator {
     requestId: null,
     matchId: null,
     roomCode: null,
+    roomResumeToken: null,
     roomKind: "quick",
     role: null,
     localTopId: null,
@@ -201,13 +203,14 @@ export class OnlineMatchCoordinator {
     });
   }
 
-  createRoom(): void {
-    const requestId = this.#transport.createRoom();
+  createRoom(resumeToken?: string): void {
+    const requestId = this.#transport.createRoom(resumeToken);
     this.#setState({
       ...this.#state,
       phase: "connecting",
       requestId,
       roomCode: null,
+      roomResumeToken: resumeToken ?? null,
       roomKind: "friend",
       error: null,
       errorCode: null,
@@ -378,7 +381,8 @@ export class OnlineMatchCoordinator {
   #handleMessage(message: ServerMessage): void {
     if (message.type === "hello_ok") {
       if (this.#state.phase !== "connecting" || this.#state.requestId) return;
-      if (this.#intent.kind === "create") this.createRoom();
+      if (this.#intent.kind === "create")
+        this.createRoom(this.#intent.resumeToken);
       else if (this.#intent.kind === "join") this.joinRoom(this.#intent.code);
       else this.joinQueue();
       return;
@@ -395,6 +399,7 @@ export class OnlineMatchCoordinator {
         phase: "hosting",
         requestId: message.requestId,
         roomCode: message.code,
+        roomResumeToken: message.resumeToken,
       });
       return;
     }
@@ -573,6 +578,7 @@ export class OnlineMatchCoordinator {
       requestId: null,
       matchId: null,
       roomCode: null,
+      roomResumeToken: null,
       roomKind: "quick",
       role: null,
       localTopId: null,

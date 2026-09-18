@@ -70,9 +70,12 @@ import {
   clearRoomParamFromUrl,
   createWebSocket,
   hostShouldLeaveWhenHidden,
+  loadFriendRoomResumeToken,
   onlinePageExitAction,
   readRoomCodeFromLocation,
   resolveWebSocketUrl,
+  saveFriendRoomResumeToken,
+  shouldWarnBeforeOnlineExit,
 } from "./online";
 import {
   OnlineLobby,
@@ -376,14 +379,31 @@ export function App() {
     if (invitedRoom.current) return;
     invitedRoom.current = true;
     const code = readRoomCodeFromLocation();
-    if (!code) return;
-    clearRoomParamFromUrl();
+    const resumeToken = code ? null : loadFriendRoomResumeToken();
+    if (!code && !resumeToken) return;
+    if (code) clearRoomParamFromUrl();
     resetMatchRefs();
     modeRef.current = "online";
     setMode("online");
-    coordinator.connect(resolveWebSocketUrl(), { kind: "join", code });
+    coordinator.connect(
+      resolveWebSocketUrl(),
+      code
+        ? { kind: "join", code }
+        : { kind: "create", resumeToken: resumeToken! },
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coordinator]);
+
+  useEffect(() => {
+    if (online.roomResumeToken)
+      saveFriendRoomResumeToken(online.roomResumeToken);
+    if (
+      online.phase === "matched" ||
+      online.errorCode === "ROOM_EXPIRED" ||
+      online.errorCode === "ROOM_IN_USE"
+    )
+      saveFriendRoomResumeToken(null);
+  }, [online.errorCode, online.phase, online.roomResumeToken]);
 
   useEffect(() => {
     const leaveActiveSession = (): void => {
@@ -411,12 +431,23 @@ export function App() {
       )
         leaveActiveSession();
     };
+    const confirmActiveSessionExit = (event: BeforeUnloadEvent): void => {
+      if (
+        modeRef.current !== "online" ||
+        !shouldWarnBeforeOnlineExit(coordinator.state.phase)
+      )
+        return;
+      // Setting returnValue is still required by browsers that support the
+      // standard preventDefault-based beforeunload confirmation.
+      event.preventDefault();
+      event.returnValue = true;
+    };
     window.addEventListener("pagehide", leaveActiveSession);
-    window.addEventListener("beforeunload", leaveActiveSession);
+    window.addEventListener("beforeunload", confirmActiveSessionExit);
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       window.removeEventListener("pagehide", leaveActiveSession);
-      window.removeEventListener("beforeunload", leaveActiveSession);
+      window.removeEventListener("beforeunload", confirmActiveSessionExit);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [coordinator, runtime]);
@@ -540,6 +571,7 @@ export function App() {
 
   function cancelQueue(): void {
     synth.click();
+    saveFriendRoomResumeToken(null);
     coordinator.cancelQueue();
   }
 
@@ -1970,5 +2002,3 @@ function IntroScreen({ onComplete }: { onComplete: () => void }) {
     </div>
   );
 }
-
-

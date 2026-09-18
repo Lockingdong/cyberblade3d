@@ -41,7 +41,9 @@ type room struct {
 type pendingRoom struct {
 	code        string
 	host        *Client
+	guest       *Client
 	requestID   string
+	resumeToken string
 	expireTimer *time.Timer
 }
 
