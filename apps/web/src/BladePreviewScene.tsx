@@ -1,6 +1,5 @@
-import { GRAPHICS_QUALITY, GraphicsQualityContext } from "./graphics-quality";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { BeybladePreviewWorld } from "@cyberblade/visuals";
 import type { BeybladeType, BeybladeSpec } from "@cyberblade/core";
@@ -26,7 +25,6 @@ export function BladePreviewScene({
   overridePos?: [number, number, number] | undefined;
   showExplodedLabels?: boolean;
 }) {
-  const quality = useContext(GraphicsQualityContext);
   const initialPos = [
     ...(overridePos ??
       PRESET_CONFIGS[preset]?.position ??
@@ -35,7 +33,7 @@ export function BladePreviewScene({
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <Canvas
-        dpr={[1, GRAPHICS_QUALITY[quality].dpr]}
+        dpr={[1, 1.5]}
         className="blade-preview-canvas"
         aria-label={`${type} 3D 預覽`}
         camera={{ position: initialPos, fov: 32, near: 0.1, far: 100 }}

@@ -1,4 +1,3 @@
-import { GRAPHICS_QUALITY, type GraphicsQuality } from "./graphics-quality";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import { BlendFunction, KernelSize } from "postprocessing";
@@ -21,7 +20,6 @@ import {
 import type { BattleFrame } from "./battle-presentation";
 
 interface Props {
-  quality: GraphicsQuality;
   config: MatchConfig;
   phase: MatchPhase;
   readFrame: () => BattleFrame;
@@ -30,12 +28,11 @@ interface Props {
 }
 
 export function BattleScene(props: Props) {
-  const graphics = GRAPHICS_QUALITY[props.quality];
   return (
     <div className="battle-canvas" aria-hidden="true">
       <Canvas
-        shadows={graphics.shadows}
-        dpr={[1, graphics.dpr]}
+        shadows
+        dpr={[1, 1.5]}
         camera={{ position: [0, 10, 15], fov: 45, near: 0.1, far: 100 }}
         gl={{
           antialias: false,
@@ -47,7 +44,7 @@ export function BattleScene(props: Props) {
         }}
       >
         <SceneContent {...props} />
-        {graphics.bloom && <ScenePostFX />}
+        <ScenePostFX />
         {import.meta.env.DEV && window.location.search.includes("debug") && (
           <PerfProbe />
         )}
@@ -58,7 +55,6 @@ export function BattleScene(props: Props) {
 
 function SceneContent({
   config,
-  quality,
   phase,
   readFrame,
   localTopId,
@@ -172,14 +168,11 @@ function SceneContent({
       <fogExp2 attach="fog" args={[backgroundColor, fogDensity]} />
       <ambientLight intensity={0.45} />
       <directionalLight
-        castShadow={GRAPHICS_QUALITY[quality].shadows}
+        castShadow
         intensity={1.5}
         color={0xffffff}
         position={[8, 20, 8]}
-        shadow-mapSize={[
-          GRAPHICS_QUALITY[quality].shadowSize,
-          GRAPHICS_QUALITY[quality].shadowSize,
-        ]}
+        shadow-mapSize={[2048, 2048]}
         shadow-camera-near={0.5}
         shadow-camera-far={50}
         shadow-camera-left={-15}

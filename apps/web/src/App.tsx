@@ -1,9 +1,3 @@
-import {
-  GRAPHICS_QUALITY,
-  GraphicsQualityContext,
-  loadGraphicsQuality,
-  saveGraphicsQuality,
-} from "./graphics-quality";
 import { BladePreviewScene } from "./lazy-scenes";
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/purity */
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
@@ -210,7 +204,6 @@ export function App() {
   );
   const [record, setRecord] = useState<BattleRecord>(() => loadBattleRecord());
   const [countdownNow, setCountdownNow] = useState(0);
-  const [quality, setQuality] = useState(loadGraphicsQuality);
   const [showIntro, setShowIntro] = useState(true);
   const [lobbyOpen, setLobbyOpen] = useState(false);
   const [scene, setScene] = useState<EnvironmentScene>(() =>
@@ -646,43 +639,21 @@ export function App() {
         ["countdown", "battle", "ending", "result"].includes(onlinePhase)));
 
   return (
-    <GraphicsQualityContext value={quality}>
-      <main
-        className={`app mode-${mode} phase-${
-          mode === "online" ? onlinePhase : game.phase
-        }`}
-      >
-        {mode === "menu" && (
-          <label className="graphics-quality">
-            畫質
-            <select
-              aria-label="畫質"
-              value={quality}
-              onChange={(event) => {
-                const next = event.target.value as typeof quality;
-                setQuality(next);
-                saveGraphicsQuality(next);
-              }}
-            >
-              {Object.entries(GRAPHICS_QUALITY).map(([value, settings]) => (
-                <option key={value} value={value}>
-                  {settings.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        {showIntro && <IntroScreen onComplete={() => setShowIntro(false)} />}
-        {showScene && sceneConfig && (
-          <BattleScene
-            config={sceneConfig}
-            phase={scenePhase}
-            readFrame={presentation.read}
-            quality={quality}
-            localTopId={mode === "online" ? localTopId : LOCAL_TOP_ID}
-            scene={activeScene}
-          />
-        )}
+    <main
+      className={`app mode-${mode} phase-${
+        mode === "online" ? onlinePhase : game.phase
+      }`}
+    >
+      {showIntro && <IntroScreen onComplete={() => setShowIntro(false)} />}
+      {showScene && sceneConfig && (
+        <BattleScene
+          config={sceneConfig}
+          phase={scenePhase}
+          readFrame={presentation.read}
+          localTopId={mode === "online" ? localTopId : LOCAL_TOP_ID}
+          scene={activeScene}
+        />
+      )}
         {mode === "online" &&
           online.role === "guest" &&
           (onlinePhase === "battle" || onlinePhase === "ending") &&
@@ -871,7 +842,6 @@ export function App() {
             </OnlineOverlay>
           )}
       </main>
-    </GraphicsQualityContext>
   );
 }
 

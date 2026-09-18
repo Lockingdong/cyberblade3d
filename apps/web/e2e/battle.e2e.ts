@@ -3,7 +3,6 @@ import { test, expect, type Page } from "@playwright/test";
 async function menu(page: Page) {
   await page.goto("/?debug");
   await expect(page.locator(".intro-screen")).toHaveCount(0);
-  await page.getByLabel("畫質", { exact: true }).selectOption("low");
 }
 async function ready(page: Page) {
   await page.getByRole("button", { name: "確定出戰", exact: true }).click();
@@ -66,7 +65,7 @@ test("friend room plays to a result, rematches, and handles a disconnected guest
   }
 });
 
-test("quality persists, the customizer loads, and the high-quality local launch renders", async ({
+test("the customizer loads, and the local launch renders", async ({
   page,
 }, testInfo) => {
   let renderedCalls = 0;
@@ -77,10 +76,6 @@ test("quality persists, the customizer loads, and the high-quality local launch 
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await menu(page);
-  await page.getByLabel("畫質", { exact: true }).selectOption("high");
-  await page.reload();
-  await expect(page.locator(".intro-screen")).toHaveCount(0);
-  await expect(page.getByLabel("畫質", { exact: true })).toHaveValue("high");
   await page
     .getByRole("button", { name: "開啟零件改裝工坊", exact: true })
     .click();
