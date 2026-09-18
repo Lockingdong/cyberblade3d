@@ -331,6 +331,11 @@ class AudioSynth {
     oscillator.connect(filter).connect(gain).connect(this.#master!);
     oscillator.start(time);
     this.#spins.set(id, { oscillator, filter, gain });
+    // Build the reverb IR and noise buffers now rather than on the first hit.
+    this.#ensureCollisionBus();
+    this.#ensureShaper();
+    this.#getNoiseBuffer("crack");
+    this.#getNoiseBuffer("click");
   }
 
   updateSpin(id: string, rpm: number): void {
@@ -460,16 +465,25 @@ class AudioSynth {
     return buffer;
   }
 
-  #ensure(): AudioContext {
+  /**
+   * Create the (suspended) context ahead of the first gesture: constructing
+   * an AudioContext blocks the main thread for ~200ms on some devices.
+   */
+  prepare(): AudioContext {
     this.#context ??= new AudioContext();
-    if (this.#context.state === "suspended") void this.#context.resume();
     if (!this.#master) {
       this.#master = this.#context.createGain();
       this.#master.gain.value = this.#isMuted ? 0 : 0.6;
       this.#master.connect(this.#context.destination);
     }
-    this.startBGM();
     return this.#context;
+  }
+
+  #ensure(): AudioContext {
+    const context = this.prepare();
+    if (context.state === "suspended") void context.resume();
+    this.startBGM();
+    return context;
   }
 }
 

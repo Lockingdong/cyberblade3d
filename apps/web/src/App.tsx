@@ -1922,6 +1922,17 @@ function IntroScreen({ onComplete }: { onComplete: () => void }) {
   const [status, setStatus] = useState("INITIALIZING CORE SYSTEMS...");
   const [isFading, setIsFading] = useState(false);
 
+  // Pay one-time setup costs behind the intro instead of on the first
+  // "start battle" tap.
+  useEffect(() => {
+    preloadBattleScene();
+    try {
+      synth.prepare();
+    } catch {
+      // Web Audio unavailable; the synth retries on first use.
+    }
+  }, []);
+
   useEffect(() => {
     let current = 0;
     const interval = setInterval(() => {

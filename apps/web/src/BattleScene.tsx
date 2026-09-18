@@ -28,9 +28,13 @@ interface Props {
 }
 
 export function BattleScene(props: Props) {
+  // Hold the frame loop until shaders finish compiling in the background;
+  // rendering earlier makes WebGL block on every unfinished program.
+  const [ready, setReady] = useState(false);
   return (
-    <div className="battle-canvas" aria-hidden="true">
+    <div className="battle-canvas" data-ready={ready} aria-hidden="true">
       <Canvas
+        frameloop={ready ? "always" : "never"}
         shadows
         dpr={[1, 1.5]}
         camera={{ position: [0, 10, 15], fov: 45, near: 0.1, far: 100 }}
@@ -43,7 +47,7 @@ export function BattleScene(props: Props) {
           gl.outputColorSpace = THREE.SRGBColorSpace;
         }}
       >
-        <SceneContent {...props} />
+        <SceneContent {...props} onReadyChange={setReady} />
         <ScenePostFX />
         {import.meta.env.DEV && window.location.search.includes("debug") && (
           <PerfProbe />
@@ -59,7 +63,8 @@ function SceneContent({
   readFrame,
   localTopId,
   scene,
-}: Props) {
+  onReadyChange,
+}: Props & { onReadyChange: (ready: boolean) => void }) {
   const [world, setWorld] = useState<BeybladeVisualWorld | null>(null);
   useEffect(() => {
     const next = new BeybladeVisualWorld(
@@ -100,6 +105,25 @@ function SceneContent({
     config.p2BitId,
     config.p2ChipId,
   ]);
+
+  // Compile every shader up front, including the hidden pooled spark and
+  // shockwave meshes, so neither entering the battle nor the first collision
+  // stalls on shader linking.
+  const { gl, scene: threeScene, camera: threeCamera } = useThree();
+  useEffect(() => {
+    if (!world) return;
+    let cancelled = false;
+    onReadyChange(false);
+    const ready = precompile(gl, threeScene, threeCamera);
+    // Never leave the arena blank if the driver never reports completion.
+    const timeout = new Promise((resolve) => setTimeout(resolve, 3000));
+    void Promise.race([ready, timeout]).then(() => {
+      if (!cancelled) onReadyChange(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [world, gl, threeScene, threeCamera, onReadyChange]);
 
   const colors =
     STADIUMS.find((stadium) => stadium.type === config.stadiumTheme) ??
@@ -199,6 +223,36 @@ function SceneContent({
       {world && <primitive object={world.root} />}
     </>
   );
+}
+
+function precompile(
+  gl: THREE.WebGLRenderer,
+  scene: THREE.Scene,
+  camera: THREE.Camera,
+): Promise<unknown> {
+  // The EffectComposer renders the scene into an offscreen target, which
+  // turns off tone mapping and sRGB output in each shader's cache key.
+  // Compiling against a target makes the prepared programs the ones used.
+  const target = new THREE.WebGLRenderTarget(1, 1, {
+    type: THREE.HalfFloatType,
+  });
+  // Stand-in for the shadow map's internal depth material.
+  const shadowCaster = new THREE.Mesh(
+    new THREE.BufferGeometry(),
+    new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }),
+  );
+  const previous = gl.getRenderTarget();
+  gl.setRenderTarget(target);
+  const ready = Promise.all([
+    gl.compileAsync(scene, camera),
+    gl.compileAsync(shadowCaster, camera, scene),
+  ]);
+  gl.setRenderTarget(previous);
+  target.dispose();
+  return ready.finally(() => {
+    shadowCaster.geometry.dispose();
+    shadowCaster.material.dispose();
+  });
 }
 
 // Dev-only renderer stats, enabled with ?debug in the URL: logs per-frame

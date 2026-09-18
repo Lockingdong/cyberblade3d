@@ -259,7 +259,8 @@ export class BeybladeVisualWorld {
     for (let i = 0; i < 3; i++) {
       const light = new THREE.PointLight(0xffaa44, 0, 6.0);
       light.castShadow = false;
-      light.visible = false;
+      // Stay visible at intensity 0: toggling visibility changes the scene's
+      // point-light count, which recompiles every lit material mid-battle.
       this.#lightGroup.add(light);
       this.#lightPool.push(light);
     }
@@ -620,7 +621,6 @@ export class BeybladeVisualWorld {
     light.position.y += 0.15; // slightly above collision point
     const maxIntensity = Math.min(intensity * 1.5, 8.0);
     light.intensity = maxIntensity;
-    light.visible = maxIntensity > 0.1;
 
     this.#lights.push({
       light,
@@ -786,7 +786,6 @@ export class BeybladeVisualWorld {
       if (!lightState) continue;
       lightState.life += delta;
       if (lightState.life >= lightState.maxLife) {
-        lightState.light.visible = false;
         lightState.light.intensity = 0;
         this.#lightPool.push(lightState.light);
         this.#lights.splice(index, 1);
@@ -796,9 +795,6 @@ export class BeybladeVisualWorld {
       // Exponential decay for natural flash fade-out
       const decay = Math.exp(-delta * 25);
       lightState.light.intensity *= decay;
-      if (lightState.light.intensity < 0.05) {
-        lightState.light.visible = false;
-      }
     }
   }
 
@@ -888,7 +884,6 @@ export class BeybladeVisualWorld {
     this.#shockwaves = [];
 
     for (const lightState of this.#lights) {
-      lightState.light.visible = false;
       lightState.light.intensity = 0;
       this.#lightPool.push(lightState.light);
     }

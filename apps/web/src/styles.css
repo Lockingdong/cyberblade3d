@@ -76,6 +76,11 @@ button:disabled {
   position: fixed;
   inset: 0;
   z-index: 0;
+  transition: opacity 0.25s ease-out;
+}
+
+.battle-canvas[data-ready="false"] {
+  opacity: 0;
 }
 
 /* Extra static darkening layered on top of the GL scene. Postprocessing on
