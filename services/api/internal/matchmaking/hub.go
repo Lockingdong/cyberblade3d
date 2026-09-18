@@ -221,6 +221,7 @@ func (h *Hub) handle(value command) {
 		if h.codes[value.code] == value.pending {
 			h.discardPendingRoom(value.pending)
 			h.sendError(value.pending.host, "ROOM_EXPIRED", "好友房已逾時，請重新建立")
+			h.sendError(value.pending.guest, "ROOM_EXPIRED", "好友房已逾時，請重新加入")
 		}
 	case commandRematchTimeout:
 		if current := h.rooms[value.roomID]; current != nil && current.phase == phaseFinished {
@@ -243,7 +244,7 @@ func (h *Hub) handleMessage(client *Client, message any, raw []byte) {
 		case "join_queue":
 			h.joinQueue(client, value.RequestID)
 		case "create_room":
-			h.createRoom(client, value.RequestID)
+			h.createRoom(client, value.RequestID, value.ResumeToken)
 		default:
 			h.cancelQueue(client, value.RequestID)
 		}
@@ -321,7 +322,7 @@ func (h *Hub) matchQueued() {
 	}
 }
 
-func (h *Hub) createRoom(client *Client, requestID string) {
+func (h *Hub) createRoom(client *Client, requestID, resumeToken string) {
 	if _, inRoom := h.clientRoom[client]; inRoom {
 		h.sendError(client, "ALREADY_IN_ROOM", "client is already in a room")
 		return
@@ -338,6 +339,33 @@ func (h *Hub) createRoom(client *Client, requestID string) {
 		h.sendError(client, "ALREADY_QUEUED", "client already hosts a friend room")
 		return
 	}
+	if resumeToken != "" {
+		for _, pending := range h.codes {
+			if pending.resumeToken != resumeToken {
+				continue
+			}
+			if pending.host != nil {
+				h.sendError(client, "ROOM_IN_USE", "好友房已在其他頁面恢復")
+				return
+			}
+			pending.host = client
+			pending.requestID = requestID
+			h.hosting[client] = pending
+			h.sendRoomCreated(pending)
+			if pending.guest != nil {
+				if _, connected := h.clients[pending.guest]; !connected {
+					pending.guest = nil
+					return
+				}
+				guest := pending.guest
+				h.discardPendingRoom(pending)
+				h.startRoom(client, guest, pending.code)
+			}
+			return
+		}
+		h.sendError(client, "ROOM_EXPIRED", "好友房已逾時，請重新建立")
+		return
+	}
 	if len(h.codes) >= h.config.MaxPendingRooms {
 		h.sendError(client, "SERVER_BUSY", "伺服器目前無法建立更多好友房")
 		return
@@ -348,7 +376,12 @@ func (h *Hub) createRoom(client *Client, requestID string) {
 		h.sendError(client, "SERVER_BUSY", "無法產生房號，請稍後再試")
 		return
 	}
-	pending := &pendingRoom{code: code, host: client, requestID: requestID}
+	tokenBytes := make([]byte, 24)
+	if _, err := crand.Read(tokenBytes); err != nil {
+		h.sendError(client, "SERVER_BUSY", "無法建立好友房，請稍後再試")
+		return
+	}
+	pending := &pendingRoom{code: code, host: client, requestID: requestID, resumeToken: fmt.Sprintf("%x", tokenBytes)}
 	h.codes[code] = pending
 	h.hosting[client] = pending
 	if !h.sendRoomCreated(pending) {
@@ -385,6 +418,16 @@ func (h *Hub) joinRoom(client *Client, requestID, code string) {
 		return
 	}
 	client.joinFailures = 0
+	if pending.host == nil {
+		if pending.guest != nil {
+			if _, connected := h.clients[pending.guest]; connected {
+				h.sendError(client, "ROOM_TAKEN", "已有玩家正在等待房主恢復連線")
+				return
+			}
+		}
+		pending.guest = client
+		return
+	}
 	h.discardPendingRoom(pending)
 	h.startRoom(pending.host, client, pending.code)
 }
@@ -445,6 +488,7 @@ func (h *Hub) sendRoomCreated(pending *pendingRoom) bool {
 		"requestId":   pending.requestID,
 		"code":        pending.code,
 		"expiresInMs": h.config.RoomCodeTTL.Milliseconds(),
+		"resumeToken": pending.resumeToken,
 	})
 }
 
@@ -456,7 +500,9 @@ func (h *Hub) discardPendingRoom(pending *pendingRoom) {
 		pending.expireTimer.Stop()
 	}
 	delete(h.codes, pending.code)
-	delete(h.hosting, pending.host)
+	if pending.host != nil {
+		delete(h.hosting, pending.host)
+	}
 }
 
 func (h *Hub) newRoomCode() (string, error) {
@@ -757,7 +803,11 @@ func (h *Hub) removeClient(client *Client, notify bool) {
 	delete(h.clients, client)
 	h.removeFromQueue(client)
 	if pending := h.hosting[client]; pending != nil {
-		h.discardPendingRoom(pending)
+		// A newly-created friend room has no battle state yet, so it can safely
+		// survive a short browser/network disconnect until its normal TTL. The
+		// resume token is required to claim the host slot again.
+		delete(h.hosting, client)
+		pending.host = nil
 	}
 	if current := h.clientRoom[client]; current != nil {
 		if notify {

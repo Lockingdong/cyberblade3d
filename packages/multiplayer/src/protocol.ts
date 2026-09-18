@@ -13,7 +13,9 @@ import { isValidRoomCode } from "./room-code";
 // v3: optional per-player accent color on ready/start.
 // v4: optional 4-part custom assembly (bladeId, ratchetId, bitId, chipId) on ready/start.
 // v5: friend rooms (create_room / join_room / room_created) and in-room rematch.
-export const PROTOCOL_VERSION = 7;
+// v6-v7: environment additions for arena themes.
+// v8: pending friend rooms can be resumed after a short host disconnect.
+export const PROTOCOL_VERSION = 8;
 
 export interface WireTopState {
   readonly p: readonly [number, number, number];
@@ -74,7 +76,11 @@ export type ClientMessage =
   // cancel_queue cancels whichever wait is pending: the FIFO queue or a friend
   // room that has not been joined yet. Both are acked with queue_left.
   | { readonly type: "cancel_queue"; readonly requestId: string }
-  | { readonly type: "create_room"; readonly requestId: string }
+  | {
+      readonly type: "create_room";
+      readonly requestId: string;
+      readonly resumeToken?: string;
+    }
   | {
       readonly type: "join_room";
       readonly requestId: string;
@@ -125,6 +131,7 @@ export type ServerMessage =
       readonly requestId: string;
       readonly code: string;
       readonly expiresInMs: number;
+      readonly resumeToken: string;
     }
   | { readonly type: "opponent_rematch"; readonly matchId: string }
   | {
@@ -196,7 +203,9 @@ function decodeMessage(
     case "join_queue":
     case "cancel_queue":
     case "create_room":
-      return direction === "client" && isOpaque(value.requestId)
+      return direction === "client" &&
+        isOpaque(value.requestId) &&
+        (value.resumeToken === undefined || isOpaque(value.resumeToken))
         ? valid(value as unknown as ClientMessage)
         : invalid(`invalid ${value.type}`);
     case "join_room":
@@ -220,6 +229,7 @@ function decodeMessage(
         isOpaque(value.requestId) &&
         isString(value.code) &&
         isValidRoomCode(value.code) &&
+        isOpaque(value.resumeToken) &&
         isNonNegativeInteger(value.expiresInMs)
         ? valid(value as unknown as ServerMessage)
         : invalid("invalid room_created");

@@ -29,6 +29,7 @@ func TestDecodeMessageValidation(t *testing.T) {
 		{name: "trailing JSON", input: `{"type":"hello","protocolVersion":1} {"type":"hello","protocolVersion":1}`, wantErr: true},
 		{name: "unknown type", input: `{"type":"nope"}`, wantErr: true},
 		{name: "create_room", input: `{"type":"create_room","requestId":"r_1"}`},
+		{name: "resume room", input: `{"type":"create_room","requestId":"r_2","resumeToken":"abc123"}`},
 		{name: "join_room", input: `{"type":"join_room","requestId":"r_1","code":"K7M2P9"}`},
 		{name: "lowercase room code", input: `{"type":"join_room","requestId":"r_1","code":"k7m2p9"}`, wantErr: true},
 		{name: "ambiguous room code", input: `{"type":"join_room","requestId":"r_1","code":"K7M2P0"}`, wantErr: true},

@@ -94,10 +94,14 @@ export class MatchmakingClient {
     return requestId;
   }
 
-  createRoom(): string {
+  createRoom(resumeToken?: string): string {
     const requestId = `r_${++this.#idCounter}`;
     this.#requestId = requestId;
-    this.#send({ type: "create_room", requestId });
+    this.#send({
+      type: "create_room",
+      requestId,
+      ...(resumeToken ? { resumeToken } : {}),
+    });
     return requestId;
   }
 

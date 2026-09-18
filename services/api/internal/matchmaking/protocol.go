@@ -18,7 +18,8 @@ import (
 // v6: arena theme now selects a matching dedicated environment; adds toxic
 // refinery and volcano caldera environment ids.
 // v7: adds the rare Xinyi Night environment for Neon matches.
-const ProtocolVersion = 7
+// v8: pending friend rooms can be resumed after a short host disconnect.
+const ProtocolVersion = 8
 
 // roomCodeAlphabet drops the characters players confuse when reading a code
 // aloud or out of a chat message: I, L, O, 0 and 1.
@@ -52,8 +53,9 @@ type helloMessage struct {
 }
 
 type queueMessage struct {
-	Type      string `json:"type"`
-	RequestID string `json:"requestId"`
+	Type        string `json:"type"`
+	RequestID   string `json:"requestId"`
+	ResumeToken string `json:"resumeToken,omitempty"`
 }
 
 type joinRoomMessage struct {
@@ -191,6 +193,9 @@ func validateMessage(message any) error {
 	case *queueMessage:
 		if !opaque(value.RequestID) {
 			return errors.New("invalid requestId")
+		}
+		if value.ResumeToken != "" && !opaque(value.ResumeToken) {
+			return errors.New("invalid resumeToken")
 		}
 	case *joinRoomMessage:
 		if !opaque(value.RequestID) {

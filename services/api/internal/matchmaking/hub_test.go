@@ -139,6 +139,38 @@ func TestFriendRoomCodeExpires(t *testing.T) {
 	}
 }
 
+func TestPendingFriendRoomResumesAfterHostDisconnect(t *testing.T) {
+	t.Parallel()
+	hub, logger := newTestHub(t, DefaultConfig())
+	host := newClient("host", hub, nil, logger)
+	guest := newClient("guest", hub, nil, logger)
+	resumedHost := newClient("resumed-host", hub, nil, logger)
+	hub.register(host)
+	hub.register(guest)
+	hub.register(resumedHost)
+
+	hub.submit(host, &queueMessage{Type: "create_room", RequestID: "r_host"}, nil)
+	created := consumeType(t, host.control, "room_created")
+	code := created["code"].(string)
+	resumeToken := created["resumeToken"].(string)
+
+	// The invite remains redeemable while the creator briefly has no socket.
+	hub.disconnect(host)
+	hub.submit(guest, &joinRoomMessage{Type: "join_room", RequestID: "j_guest", Code: code}, nil)
+	hub.submit(resumedHost, &queueMessage{
+		Type: "create_room", RequestID: "r_resume", ResumeToken: resumeToken,
+	}, nil)
+	resumed := consumeType(t, resumedHost.control, "room_created")
+	if resumed["code"] != code || resumed["resumeToken"] != resumeToken {
+		t.Fatalf("resumed room = %#v, want original code and token", resumed)
+	}
+	hostMatched := consumeType(t, resumedHost.control, "matched")
+	guestMatched := consumeType(t, guest.control, "matched")
+	if hostMatched["role"] != "host" || guestMatched["role"] != "guest" {
+		t.Fatalf("resumed roles: host=%v guest=%v", hostMatched["role"], guestMatched["role"])
+	}
+}
+
 func TestFriendRoomRematchRestartsUnderANewMatchID(t *testing.T) {
 	t.Parallel()
 	config := DefaultConfig()

@@ -6,6 +6,7 @@ import {
 } from "@cyberblade/multiplayer";
 
 export const ROOM_QUERY_PARAM = "room";
+const FRIEND_ROOM_RESUME_KEY = "cyberblade.friend-room-resume";
 
 export function resolveWebSocketUrl(
   configured: string | undefined = import.meta.env.VITE_PUBLIC_WS_URL,
@@ -27,6 +28,32 @@ export function buildInviteUrl(
   location: Pick<Location, "origin" | "pathname"> = window.location,
 ): string {
   return `${location.origin}${location.pathname}?${ROOM_QUERY_PARAM}=${normalizeRoomCode(code)}`;
+}
+
+export function buildRoomInviteShareData(
+  code: string,
+  url: string = buildInviteUrl(code),
+): ShareData {
+  const normalizedCode = normalizeRoomCode(code);
+  return {
+    title: "CyberBlade 3D 好友對戰",
+    text: `加入我的 CyberBlade 3D 好友房：${normalizedCode}`,
+    url,
+  };
+}
+
+export function loadFriendRoomResumeToken(
+  storage: Pick<Storage, "getItem"> = window.localStorage,
+): string | null {
+  return storage.getItem(FRIEND_ROOM_RESUME_KEY);
+}
+
+export function saveFriendRoomResumeToken(
+  token: string | null,
+  storage: Pick<Storage, "setItem" | "removeItem"> = window.localStorage,
+): void {
+  if (token) storage.setItem(FRIEND_ROOM_RESUME_KEY, token);
+  else storage.removeItem(FRIEND_ROOM_RESUME_KEY);
 }
 
 export function readRoomCodeFromLocation(
@@ -69,8 +96,20 @@ export function hostShouldLeaveWhenHidden(phase: OnlinePhase): boolean {
 export function onlinePageExitAction(
   phase: OnlinePhase,
 ): "cancel_queue" | "leave" | null {
-  if (["connecting", "queued", "hosting", "joining"].includes(phase))
+  if (["connecting", "queued", "joining"].includes(phase))
     return "cancel_queue";
+  // Pending friend rooms carry a resume token. Let the socket disconnect
+  // naturally so the server keeps the invite alive until its normal TTL.
+  if (phase === "hosting") return null;
   // A finished room stays open for a rematch, so result must release it too.
   return isActiveOnlineRoom(phase) || phase === "result" ? "leave" : null;
+}
+
+/**
+ * Browsers cannot keep the room's WebSocket alive after the tab is closed.
+ * Warn while matchmaking owns server state so an accidental close does not
+ * silently invalidate an invite link or abandon an opponent.
+ */
+export function shouldWarnBeforeOnlineExit(phase: OnlinePhase): boolean {
+  return onlinePageExitAction(phase) !== null;
 }

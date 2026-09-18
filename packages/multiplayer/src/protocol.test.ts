@@ -72,6 +72,7 @@ describe("protocol decoders", () => {
         requestId: "r1",
         code: "K7M2P9",
         expiresInMs: 600000,
+        resumeToken: "resume_123",
       },
       { type: "matched", matchId: "m1", role: "guest", localTopId: "p2" },
       { type: "opponent_ready", matchId: "m1" },
