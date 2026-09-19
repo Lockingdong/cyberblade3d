@@ -139,6 +139,13 @@ export class SnapshotTimeline {
           top: event.top,
           position: vec(event.p),
         });
+      } else if (event.kind === "special") {
+        visualEvents.push({
+          type: "special",
+          top: event.top,
+          move: event.move,
+          position: vec(event.p),
+        });
       }
     }
     if (this.#options.deriveTrails)
@@ -338,6 +345,7 @@ function interpolateTop(
     lerp(before.rpm, after.rpm, alpha),
     lerp(before.st, after.st, alpha),
     flags,
+    lerp(before.sc, after.sc, alpha),
   );
 }
 
@@ -360,7 +368,7 @@ function extrapolateState(
     const position = b.p.map(
       (value, index) => value + ((value - a.p[index]!) / dt) * duration,
     ) as unknown as readonly [number, number, number];
-    return topSnapshot(id, type, position, b.rpm, b.st, b.f);
+    return topSnapshot(id, type, position, b.rpm, b.st, b.f, b.sc);
   };
   return {
     elapsed: latest.t + duration,
@@ -385,7 +393,7 @@ function toTopSnapshot(
   type: BeybladeType,
   state: WireTopState,
 ): TopSnapshot {
-  return topSnapshot(id, type, state.p, state.rpm, state.st, state.f);
+  return topSnapshot(id, type, state.p, state.rpm, state.st, state.f, state.sc);
 }
 
 function topSnapshot(
@@ -395,6 +403,7 @@ function topSnapshot(
   rpm: number,
   stability: number,
   flags: number,
+  charge: number,
 ): TopSnapshot {
   return {
     id,
@@ -406,6 +415,11 @@ function topSnapshot(
     isBurst: (flags & 1) !== 0,
     isStopped: (flags & 2) !== 0,
     isOut: (flags & 4) !== 0,
+    special: {
+      charge,
+      used: (flags & 8) !== 0,
+      active: (flags & 16) !== 0,
+    },
   };
 }
 

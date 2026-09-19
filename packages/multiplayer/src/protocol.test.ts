@@ -13,8 +13,8 @@ describe("protocol decoders", () => {
       matchId: "m1",
       seq: 1,
       t: 0.1,
-      p1: { p: [-1, 0.8, 0], rpm: 4000, st: 80, f: 0 },
-      p2: { p: [1, 0.8, 0], rpm: 3900, st: 70, f: 0 },
+      p1: { p: [-1, 0.8, 0], rpm: 4000, st: 80, f: 0, sc: 0 },
+      p2: { p: [1, 0.8, 0], rpm: 3900, st: 70, f: 0, sc: 0 },
     } as const;
     const messages: ClientMessage[] = [
       { type: "hello", protocolVersion: 1 },
@@ -35,6 +35,7 @@ describe("protocol decoders", () => {
         stadium: "neon",
       },
       { type: "leave", matchId: "m1" },
+      { type: "special", matchId: "m1" },
       state,
       {
         type: "battle_event",
@@ -43,6 +44,19 @@ describe("protocol decoders", () => {
         stateSeq: 1,
         t: 0.1,
         event: { kind: "collision", p: [0, 0.8, 0], intensity: 2 },
+      },
+      {
+        type: "battle_event",
+        matchId: "m1",
+        eventId: 2,
+        stateSeq: 1,
+        t: 0.1,
+        event: {
+          kind: "special",
+          top: "p2",
+          move: "drake_pierce",
+          p: [1, 0.8, 0],
+        },
       },
       {
         type: "match_end",
@@ -77,6 +91,7 @@ describe("protocol decoders", () => {
       { type: "matched", matchId: "m1", role: "guest", localTopId: "p2" },
       { type: "opponent_ready", matchId: "m1" },
       { type: "opponent_rematch", matchId: "m1" },
+      { type: "opponent_special", matchId: "m1" },
       {
         type: "start",
         matchId: "m1",
@@ -141,6 +156,40 @@ describe("protocol decoders", () => {
       }).ok,
     ).toBe(false);
     expect(decodeServerMessage({ type: "surprise" }).ok).toBe(false);
+  });
+
+  it("validates the special gauge and move ids", () => {
+    const state = {
+      type: "state",
+      matchId: "m1",
+      seq: 1,
+      t: 0,
+      p1: { p: [0, 1, 0], rpm: 1, st: 1, f: 24, sc: 1 },
+      p2: { p: [0, 1, 0], rpm: 1, st: 1, f: 0, sc: 0.5 },
+    };
+    expect(decodeServerMessage(state).ok).toBe(true);
+    expect(
+      decodeServerMessage({ ...state, p2: { ...state.p2, sc: 1.5 } }).ok,
+    ).toBe(false);
+    expect(
+      decodeServerMessage({ ...state, p2: { ...state.p2, f: 32 } }).ok,
+    ).toBe(false);
+    expect(
+      decodeServerMessage({
+        type: "battle_event",
+        matchId: "m1",
+        eventId: 1,
+        stateSeq: 1,
+        t: 0,
+        event: { kind: "special", top: "p1", move: "toString", p: [0, 0, 0] },
+      }).ok,
+    ).toBe(false);
+    expect(decodeServerMessage({ type: "special", matchId: "m1" }).ok).toBe(
+      false,
+    );
+    expect(
+      decodeClientMessage({ type: "opponent_special", matchId: "m1" }).ok,
+    ).toBe(false);
   });
 
   it("rejects negative or fractional win/loss records", () => {

@@ -26,13 +26,16 @@ export function useBattlePresentation(
       const fresh = presentation.push(snapshot, events, tick);
       let collision = 0;
       let burst = false;
+      let special = false;
       for (const event of fresh) {
         if (event.type === "collision")
           collision = Math.max(collision, event.intensity);
         if (event.type === "burst") burst = true;
+        if (event.type === "special") special = true;
       }
       if (collision > 0) synth.collision(collision);
       if (burst) synth.burst();
+      if (special) synth.special();
       if (!snapshot || !audible) {
         scraped.p1 = scraped.p2 = false;
         synth.stop();

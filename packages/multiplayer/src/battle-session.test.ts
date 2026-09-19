@@ -5,6 +5,7 @@ import {
   type BattleSnapshot,
   type LaunchInput,
   type SimulationStep,
+  type TopId,
 } from "@cyberblade/core";
 import { BattleSession } from "./battle-session";
 import {
@@ -29,6 +30,7 @@ class Simulation implements BattleSimulation {
   snapshot: BattleSnapshot = { elapsed: 0, p1: top("p1"), p2: top("p2") };
   tick = 0;
   launch = vi.fn<(input: LaunchInput) => void>();
+  activateSpecial = vi.fn<(top: TopId) => boolean>(() => true);
   initialize = vi.fn(() => {
     this.tick = 0;
   });
@@ -70,6 +72,7 @@ function setup(role: "host" | "guest") {
     ready() {},
     leave() {},
     rematch() {},
+    requestSpecial() {},
     dispose() {},
     sendHostSnapshot: vi.fn(() => ++seq),
     sendHostEvent: vi.fn(() => 1),
@@ -112,7 +115,16 @@ function setup(role: "host" | "guest") {
     now += 100;
     session.tick(now, 0.1);
   }
-  return { session, coordinator, runtime, simulation, transport, match, step };
+  return {
+    session,
+    coordinator,
+    runtime,
+    simulation,
+    transport,
+    match,
+    step,
+    emit,
+  };
 }
 
 describe("BattleSession", () => {
@@ -139,6 +151,17 @@ describe("BattleSession", () => {
     expect(simulation.launch).toHaveBeenCalledTimes(2);
     expect(transport.sendHostEvent).toHaveBeenCalledTimes(4);
     expect(transport.sendMatchEnd).toHaveBeenCalledTimes(2);
+  });
+  it("fires the guest's special on the host simulation when relayed", () => {
+    const { coordinator, simulation, match, step, emit } = setup("host");
+    match("m1");
+    step();
+    expect(coordinator.state.phase).toBe("battle");
+    emit({ type: "opponent_special", matchId: "m1" });
+    step();
+    expect(simulation.activateSpecial).toHaveBeenCalledExactlyOnceWith("p2");
+    step();
+    expect(simulation.activateSpecial).toHaveBeenCalledTimes(1);
   });
   it("advances guest playback without initializing or running local physics", () => {
     const { coordinator, simulation, transport, match, step } = setup("guest");

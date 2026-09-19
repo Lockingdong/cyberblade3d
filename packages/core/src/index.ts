@@ -43,6 +43,8 @@ export interface BeybladeSpec {
   spinSteal?: number;
   /** Multiplier for the collision damage this top deals to others. */
   attackMultiplier?: number;
+  /** Special move granted by the chip. */
+  readonly special: SpecialMoveId;
 }
 
 export interface BeybladeDisplayStat {
@@ -73,6 +75,17 @@ export interface TopSnapshot {
   readonly isBurst: boolean;
   readonly isStopped: boolean;
   readonly isOut: boolean;
+  /** Absent on snapshots from sources that predate special moves. */
+  readonly special?: TopSpecialSnapshot;
+}
+
+export interface TopSpecialSnapshot {
+  /** 0–1; the move is ready at 1. */
+  readonly charge: number;
+  /** The one use per match has been spent. */
+  readonly used: boolean;
+  /** The move's effect window is running. */
+  readonly active: boolean;
 }
 
 export interface BattleSnapshot {
@@ -98,6 +111,8 @@ export interface MatchConfig {
   readonly p2RatchetId?: string;
   readonly p2BitId?: string;
   readonly p2ChipId?: string;
+  /** Tops whose special the simulation fires on its own (the CPU side). */
+  readonly aiSpecialTopIds?: readonly TopId[];
 }
 
 /**
@@ -204,6 +219,12 @@ export type SimulationEvent =
       readonly type: "burst";
       readonly top: TopId;
       readonly position: VectorSnapshot;
+    }
+  | {
+      readonly type: "special";
+      readonly top: TopId;
+      readonly move: SpecialMoveId;
+      readonly position: VectorSnapshot;
     };
 
 export interface SimulationStep {
@@ -221,6 +242,8 @@ export interface BattleSimulation {
   readonly snapshot: BattleSnapshot;
   initialize(config: MatchConfig): void;
   launch(input: LaunchInput): void;
+  /** Fires `top`'s special if charged and unused; returns whether it fired. */
+  activateSpecial(top: TopId): boolean;
   step(deltaSeconds: number): SimulationStep;
   dispose(): void;
 }
@@ -238,10 +261,19 @@ export interface BeybladeState {
 export type BeybladeInput =
   | { readonly type: "prepare"; readonly config: MatchConfig }
   | { readonly type: "launch"; readonly launch: LaunchInput }
+  | { readonly type: "special"; readonly top: TopId }
   | { readonly type: "tick"; readonly deltaSeconds: number }
   | { readonly type: "leave" };
 
-import { assembleBeybladeSpec, type CustomBeybladeConfig } from "./parts";
+import {
+  BEYBLADE_ALLOWED_PARTS,
+  CHIP_PARTS,
+  SPECIAL_MOVES,
+  assembleBeybladeSpec,
+  type CustomBeybladeConfig,
+  type SpecialMove,
+  type SpecialMoveId,
+} from "./parts";
 export * from "./parts";
 
 export const BEYBLADE_DESCRIPTIONS: Record<BeybladeType, string> = {
@@ -308,6 +340,18 @@ export const BEYBLADES: Record<BeybladeType, BeybladeSpec> = PRESET_ORDER.reduce
   },
   {} as Record<BeybladeType, BeybladeSpec>
 );
+
+/** The move a top brings, resolving chips the way the simulation assembles them. */
+export function specialMoveFor(
+  type: BeybladeType,
+  chipId?: string,
+): SpecialMove {
+  const allowed = BEYBLADE_ALLOWED_PARTS[type].allowedChips;
+  const chip = chipId && allowed.includes(chipId) ? chipId : allowed[0];
+  const move =
+    (chip ? CHIP_PARTS[chip]?.special : undefined) ?? BEYBLADES[type].special;
+  return SPECIAL_MOVES[move];
+}
 
 export function beybladeDisplayStats(
   type: BeybladeType,
@@ -690,6 +734,12 @@ export class BeybladeRuntime implements GameRuntime<
       this.#simulation.launch(input.launch);
       this.#setStatus("running");
       this.#setState({ ...this.#state, phase: "battle", events: [] });
+      return;
+    }
+    if (input.type === "special") {
+      // The activation event reaches listeners with the next tick's events.
+      if (this.#status === "running" && this.#state.phase === "battle")
+        this.#simulation.activateSpecial(input.top);
       return;
     }
     if (

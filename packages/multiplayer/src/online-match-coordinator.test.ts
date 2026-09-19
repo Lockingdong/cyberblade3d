@@ -18,6 +18,7 @@ class FakeTransport implements OnlineTransport {
   created = 0;
   joinedCodes: string[] = [];
   rematches = 0;
+  specialRequests = 0;
 
   connect(url: string): void {
     this.connected = url;
@@ -41,6 +42,9 @@ class FakeTransport implements OnlineTransport {
   leave(): void {}
   rematch(): void {
     this.rematches += 1;
+  }
+  requestSpecial(): void {
+    this.specialRequests += 1;
   }
   sendHostSnapshot(snapshot: BattleSnapshot): number {
     this.snapshots.push(snapshot);
@@ -146,8 +150,8 @@ describe("OnlineMatchCoordinator", () => {
         matchId: "m1",
         seq: 1,
         t: 0,
-        p1: { p: [-1, 0.8, 0], rpm: 4000, st: 80, f: 0 },
-        p2: { p: [1, 0.8, 0], rpm: 3800, st: 70, f: 0 },
+        p1: { p: [-1, 0.8, 0], rpm: 4000, st: 80, f: 0, sc: 0 },
+        p2: { p: [1, 0.8, 0], rpm: 3800, st: 70, f: 0, sc: 0 },
       }),
     );
     expect(coordinator.update().snapshot?.p2.type).toBe("defense");
@@ -166,6 +170,48 @@ describe("OnlineMatchCoordinator", () => {
     expect(coordinator.update().eventsTick).toBe(1);
     expect(coordinator.update().eventsTick).toBe(1);
     expect(transport.snapshots).toHaveLength(0);
+  });
+
+  it("forwards guest specials only in battle and queues them for the host", () => {
+    let now = 0;
+    const guestTransport = new FakeTransport();
+    const guest = new OnlineMatchCoordinator(guestTransport, () => now);
+    const hostTransport = new FakeTransport();
+    const host = new OnlineMatchCoordinator(hostTransport, () => now);
+    const start = {
+      type: "start",
+      matchId: "m1",
+      countdownMs: 100,
+      stadium: "neon",
+      environment: "space",
+      p1: { blade: "attack", power: 90, angle: 0 },
+      p2: { blade: "defense", power: 80, angle: 0 },
+    } as const;
+    for (const [transport, role, localTopId] of [
+      [guestTransport, "guest", "p2"],
+      [hostTransport, "host", "p1"],
+    ] as const) {
+      transport.emit(
+        message({ type: "matched", matchId: "m1", role, localTopId }),
+      );
+      transport.emit(message(start));
+    }
+
+    guest.requestSpecial();
+    expect(guestTransport.specialRequests).toBe(0);
+    hostTransport.emit(message({ type: "opponent_special", matchId: "m1" }));
+    expect(host.takeOpponentSpecial()).toBe(false);
+
+    now = 200;
+    guest.update();
+    host.update();
+    guest.requestSpecial();
+    expect(guestTransport.specialRequests).toBe(1);
+    host.requestSpecial();
+    expect(hostTransport.specialRequests).toBe(0);
+    hostTransport.emit(message({ type: "opponent_special", matchId: "m1" }));
+    expect(host.takeOpponentSpecial()).toBe(true);
+    expect(host.takeOpponentSpecial()).toBe(false);
   });
 
   it("throttles host snapshots to 20Hz and ignores stale match messages", () => {

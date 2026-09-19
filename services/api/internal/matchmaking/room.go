@@ -15,25 +15,27 @@ const (
 )
 
 type room struct {
-	id           string
-	code         string
-	host         *Client
-	guest        *Client
-	phase        roomPhase
-	hostReady    *readyMessage
-	guestReady   *readyMessage
-	endingSeen   bool
-	matchEnded   bool
-	hostRematch  bool
-	guestRematch bool
-	readyTimer   *time.Timer
-	phaseTimer   *time.Timer
-	rematchTimer *time.Timer
-	eventWindow  time.Time
-	eventCount   int
-	rateWindow   time.Time
-	stateCount   int
-	rateBreaches int
+	id         string
+	code       string
+	host       *Client
+	guest      *Client
+	phase      roomPhase
+	hostReady  *readyMessage
+	guestReady *readyMessage
+	endingSeen bool
+	// The guest gets one special per match; later requests are dropped.
+	guestSpecialSent bool
+	matchEnded       bool
+	hostRematch      bool
+	guestRematch     bool
+	readyTimer       *time.Timer
+	phaseTimer       *time.Timer
+	rematchTimer     *time.Timer
+	eventWindow      time.Time
+	eventCount       int
+	rateWindow       time.Time
+	stateCount       int
+	rateBreaches     int
 }
 
 // pendingRoom is a friend room whose code has been handed out but that nobody

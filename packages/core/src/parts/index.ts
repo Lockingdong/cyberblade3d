@@ -5,3 +5,4 @@ export * from "./bits";
 export * from "./chips";
 export * from "./compatibility";
 export * from "./assembly";
+export * from "./specials";

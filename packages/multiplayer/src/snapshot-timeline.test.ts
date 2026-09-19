@@ -19,8 +19,8 @@ function state(
     matchId,
     seq,
     t,
-    p1: { p: [x, 0.8, 0], rpm: 4000 - t * 100, st: 80 - t, f: flags },
-    p2: { p: [-x, 0.8, 0], rpm: 3800 - t * 100, st: 70 - t, f: 0 },
+    p1: { p: [x, 0.8, 0], rpm: 4000 - t * 100, st: 80 - t, f: flags, sc: 0 },
+    p2: { p: [-x, 0.8, 0], rpm: 3800 - t * 100, st: 70 - t, f: 0, sc: 0 },
   };
 }
 
@@ -75,6 +75,40 @@ describe("SnapshotTimeline", () => {
     expect(sample.renderedT).toBeCloseTo(0.05);
     expect(sample.snapshot.p1.position.x).toBeCloseTo(0.5);
     expect(sample.snapshot.p1.rpm).toBeCloseTo(3995);
+  });
+
+  it("carries the special gauge and flags into guest snapshots", () => {
+    const value = timeline();
+    const first = state(1, 0, 0);
+    value.pushState({ ...first, p1: { ...first.p1, sc: 0.4 } }, 0);
+    const second = state(2, 0.1, 0.1, "m1", 8 | 16);
+    value.pushState({ ...second, p1: { ...second.p1, sc: 0.6 } }, 100);
+    value.pushEvent({
+      type: "battle_event",
+      matchId: "m1",
+      eventId: 1,
+      stateSeq: 2,
+      t: 0.1,
+      event: { kind: "special", top: "p1", move: "blaze_rush", p: [0, 0.8, 0] },
+    });
+
+    expect(value.sample(170)!.snapshot.p1.special).toEqual({
+      charge: expect.closeTo(0.5),
+      used: false,
+      active: false,
+    });
+    const after = value.sample(220)!;
+    expect(after.snapshot.p1.special).toEqual({
+      charge: 0.6,
+      used: true,
+      active: true,
+    });
+    expect(after.visualEvents).toContainEqual({
+      type: "special",
+      top: "p1",
+      move: "blaze_rush",
+      position: { x: 0, y: 0.8, z: 0 },
+    });
   });
 
   it("handles jitter and missing packets while rejecting duplicate and old seq", () => {

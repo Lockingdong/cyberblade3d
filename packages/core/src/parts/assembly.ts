@@ -51,6 +51,7 @@ export function assembleBeybladeSpec(config: CustomBeybladeConfig): BeybladeSpec
     damageTaken: blade.damageTaken,
     ai: blade.ai,
     counteredBy: blade.counteredBy,
+    special: chip.special,
   };
 
   if (bit.spinSteal !== undefined) {

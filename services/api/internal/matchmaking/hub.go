@@ -255,6 +255,8 @@ func (h *Hub) handleMessage(client *Client, message any, raw []byte) {
 	case *matchMessage:
 		if value.Type == "rematch" {
 			h.rematch(client, value.MatchID)
+		} else if value.Type == "special" {
+			h.relaySpecial(client, value.MatchID)
 		} else {
 			h.leave(client, value.MatchID)
 		}
@@ -635,6 +637,28 @@ func (h *Hub) relayState(client *Client, value *stateMessage, raw []byte) {
 	current.guest.sendState(append([]byte(nil), raw...))
 }
 
+// relaySpecial forwards the guest's special request to the host, whose
+// simulation decides whether it fires. Only one request per match passes.
+func (h *Hub) relaySpecial(client *Client, matchID string) {
+	current := h.clientRoom[client]
+	if current == nil || current.id != matchID {
+		if client.hasRecentMatch(matchID) {
+			return
+		}
+		h.sendError(client, "INVALID_MATCH", "match is not active")
+		return
+	}
+	if current.guest != client {
+		h.sendError(client, "GUEST_ONLY", "only the guest requests a special through the server")
+		return
+	}
+	if current.phase != phaseBattle || current.guestSpecialSent {
+		return
+	}
+	current.guestSpecialSent = true
+	h.send(current.host, map[string]any{"type": "opponent_special", "matchId": current.id})
+}
+
 func (h *Hub) relayEvent(client *Client, value *battleEventMessage, raw []byte) {
 	current := h.authorizedHost(client, value.MatchID)
 	if current == nil {
@@ -654,7 +678,7 @@ func (h *Hub) relayEvent(client *Client, value *battleEventMessage, raw []byte) 
 		return
 	}
 	switch value.Event.Kind {
-	case "collision", "burst":
+	case "collision", "burst", "special":
 		if current.phase != phaseBattle {
 			h.sendError(client, "INVALID_PHASE", "battle event is not accepted in this phase")
 			return
@@ -744,6 +768,7 @@ func (h *Hub) restartRoom(current *room) {
 	current.hostReady = nil
 	current.guestReady = nil
 	current.endingSeen = false
+	current.guestSpecialSent = false
 	current.matchEnded = false
 	current.hostRematch = false
 	current.guestRematch = false

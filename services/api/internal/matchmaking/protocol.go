@@ -19,7 +19,9 @@ import (
 // refinery and volcano caldera environment ids.
 // v7: adds the rare Xinyi Night environment for Neon matches.
 // v8: pending friend rooms can be resumed after a short host disconnect.
-const ProtocolVersion = 8
+// v9: chip special moves — gauge in state (sc, flags 8/16), special battle
+// event, and the guest's special request relayed to the host.
+const ProtocolVersion = 9
 
 // roomCodeAlphabet drops the characters players confuse when reading a code
 // aloud or out of a chat message: I, L, O, 0 and 1.
@@ -35,7 +37,12 @@ var (
 	validStadiums     = map[string]bool{"neon": true, "toxic": true, "volcano": true}
 	validStadiumList  = []string{"neon", "toxic", "volcano"}
 	validEnvironments = []string{"space", "sunset", "deep-sea", "neon-city", "glacier", "xinyi-night", "toxic-refinery", "volcano-caldera"}
-	validFinishes     = map[string]bool{
+	validSpecialMoves = map[string]bool{
+		"blaze_rush": true, "drake_pierce": true, "bastion_charge": true,
+		"genbu_bulwark": true, "aegis_shockwave": true, "corona_regen": true,
+		"falcon_evade": true, "jade_resonance": true, "chameleon_mimic": true,
+	}
+	validFinishes = map[string]bool{
 		"BURST FINISH": true,
 		"OVER FINISH":  true,
 		"SPIN FINISH":  true,
@@ -91,6 +98,8 @@ type wireTopState struct {
 	RPM       float64    `json:"rpm"`
 	Stability float64    `json:"st"`
 	Flags     int        `json:"f"`
+	// Special gauge, 0–1.
+	SpecialCharge float64 `json:"sc"`
 }
 
 type stateMessage struct {
@@ -107,6 +116,7 @@ type wireBattleEvent struct {
 	Position   *[3]float64 `json:"p,omitempty"`
 	Intensity  *float64    `json:"intensity,omitempty"`
 	Top        string      `json:"top,omitempty"`
+	Move       string      `json:"move,omitempty"`
 	WinnerID   string      `json:"winnerId,omitempty"`
 	FinishType string      `json:"finishType,omitempty"`
 }
@@ -163,7 +173,7 @@ func decodeMessage(data []byte) (any, error) {
 		value = &joinRoomMessage{}
 	case "ready":
 		value = &readyMessage{}
-	case "leave", "rematch":
+	case "leave", "rematch", "special":
 		value = &matchMessage{}
 	case "state":
 		value = &stateMessage{}
@@ -255,7 +265,8 @@ func validateMessage(message any) error {
 
 func validTopState(value wireTopState) bool {
 	return finiteVec(value.Position) && nonNegativeFinite(value.RPM) &&
-		nonNegativeFinite(value.Stability) && value.Flags >= 0 && value.Flags <= 7
+		nonNegativeFinite(value.Stability) && value.Flags >= 0 && value.Flags <= 31 &&
+		nonNegativeFinite(value.SpecialCharge) && value.SpecialCharge <= 1
 }
 
 func validEvent(value wireBattleEvent) bool {
@@ -266,6 +277,9 @@ func validEvent(value wireBattleEvent) bool {
 	case "burst":
 		return value.Position != nil && finiteVec(*value.Position) &&
 			(value.Top == "p1" || value.Top == "p2")
+	case "special":
+		return value.Position != nil && finiteVec(*value.Position) &&
+			(value.Top == "p1" || value.Top == "p2") && validSpecialMoves[value.Move]
 	case "ending":
 		return validWinner(value.WinnerID) && validFinishes[value.FinishType]
 	default:

@@ -5,6 +5,7 @@ import {
   isPerfectLaunch,
   resolveMatchFinish,
   assembleBeybladeSpec,
+  SPECIAL_MOVES,
   type BeybladeType,
   type BattleSimulation,
   type BattleSnapshot,
@@ -29,6 +30,16 @@ interface ActiveTop {
   /** Sim time when the top ran out of spin and began falling over. */
   stoppedAt: number | null;
   lastTrailAt: number;
+  readonly baseMass: number;
+  specialCharge: number;
+  specialUsed: boolean;
+  /** Seconds left on the running special's effect window. */
+  specialRemaining: number;
+  /** Blaze Rush's doubled hit waits for the next contact. */
+  empoweredHit: boolean;
+  /** CPU only: when the charged special became ready, and the planned fire time. */
+  aiReadyAt: number | null;
+  aiFireAt: number | null;
 }
 
 const FIXED_STEP = 1 / 60;
@@ -41,6 +52,44 @@ const BOWL_RADIUS = 7.8;
 const POCKET_RADIUS = 7.5;
 const OUTER_LIMIT = 8.5;
 const POCKET_ANGLES = [0, Math.PI / 2, Math.PI, -Math.PI / 2, -Math.PI];
+
+// Special moves: a full gauge takes this long on time alone; stability lost to
+// hits adds on top so the side taking the beating charges first.
+const SPECIAL_CHARGE_SECONDS = 9;
+const SPECIAL_HIT_CHARGE = 1.5;
+// The CPU never waits longer than this once charged.
+const AI_SPECIAL_PATIENCE = 8;
+
+// Every special's strength in one place; tuned against the matchup matrix in
+// special-balance.test.ts.
+const TUNING = {
+  blazeDashSpeed: 10,
+  blazeHitMultiplier: 2,
+  drakeHitMultiplier: 1.3,
+  /** Drake Pierce adds this much per point of armor (1 − damageTaken). */
+  drakeArmorBreak: 3.5,
+  bastionMass: 2,
+  bastionSpeed: 1.6,
+  bastionDamage: 0.3,
+  /** Extra outward speed Bastion Charge adds to the opponent on each hit. */
+  bastionKnockback: 12,
+  genbuMass: 4,
+  genbuDamping: 0.6,
+  genbuReflect: 0.5,
+  aegisRange: 6,
+  aegisPush: 12,
+  coronaRpm: 0.25,
+  falconDamage: 0.5,
+  falconSpeed: 1.5,
+  /** Falcon Evade also halts natural spin decay while it runs. */
+  falconHaltsDecay: true,
+  /** Instant spin top-up; with the decay halt it matches Corona's total. */
+  falconRpm: 0.18,
+  jadeStability: 0.25,
+  jadeRpm: 0.15,
+  /** Mimic never copies less than this multiple of the user's own stats. */
+  mimicFloor: 1.5,
+} as const;
 
 export class CannonBattleSimulation implements BattleSimulation {
   #world = new CANNON.World();
@@ -58,9 +107,12 @@ export class CannonBattleSimulation implements BattleSimulation {
   #launched = false;
   #tick = 0;
   #events: SimulationEvent[] = [];
+  #queuedEvents: SimulationEvent[] = [];
+  #stepping = false;
   #lastHitAt = -1;
   #pendingRemovals: CANNON.Body[] = [];
   #random = mulberry32(1);
+  #aiSpecialTops = new Set<TopId>();
 
   constructor() {
     this.#resetWorld();
@@ -77,6 +129,7 @@ export class CannonBattleSimulation implements BattleSimulation {
 
   initialize(config: MatchConfig): void {
     this.#config = config;
+    this.#aiSpecialTops = new Set(config.aiSpecialTopIds ?? []);
     this.#random = mulberry32(config.seed ?? Date.now());
     this.#resetWorld();
     const perfectLaunchTopIds = new Set(config.perfectLaunchTopIds ?? []);
@@ -124,6 +177,7 @@ export class CannonBattleSimulation implements BattleSimulation {
     this.#launched = false;
     this.#tick = 0;
     this.#events = [];
+    this.#queuedEvents = [];
     this.#lastHitAt = -1;
     this.#pendingRemovals = [];
   }
@@ -134,17 +188,93 @@ export class CannonBattleSimulation implements BattleSimulation {
     this.#launched = true;
   }
 
+  activateSpecial(id: TopId): boolean {
+    const top = id === "p1" ? this.#p1 : this.#p2;
+    const opponent = id === "p1" ? this.#p2 : this.#p1;
+    if (
+      !this.#launched ||
+      top.specialUsed ||
+      top.specialCharge < 1 ||
+      top.isBurst ||
+      top.stoppedAt !== null ||
+      isOut(top)
+    )
+      return false;
+    const move = SPECIAL_MOVES[top.spec.special];
+    top.specialUsed = true;
+    top.specialCharge = 0;
+    top.specialRemaining = move.duration;
+    const position = top.body.position;
+    const dx = opponent.body.position.x - position.x;
+    const dz = opponent.body.position.z - position.z;
+    const distance = Math.max(0.01, Math.hypot(dx, dz));
+    switch (move.id) {
+      case "blaze_rush":
+        top.empoweredHit = true;
+        top.body.velocity.set(
+          (dx / distance) * TUNING.blazeDashSpeed,
+          0,
+          (dz / distance) * TUNING.blazeDashSpeed,
+        );
+        break;
+      case "aegis_shockwave":
+        if (!opponent.isBurst && distance < TUNING.aegisRange) {
+          const push =
+            TUNING.aegisPush * (1 - distance / (TUNING.aegisRange + 1));
+          opponent.body.velocity.x += (dx / distance) * push;
+          opponent.body.velocity.z += (dz / distance) * push;
+        }
+        break;
+      case "corona_regen":
+        top.rpm = Math.min(
+          Math.max(top.spec.maxRpm, top.rpm),
+          top.rpm + top.spec.maxRpm * TUNING.coronaRpm,
+        );
+        break;
+      case "falcon_evade":
+        top.rpm = Math.min(
+          Math.max(top.spec.maxRpm, top.rpm),
+          top.rpm + top.spec.maxRpm * TUNING.falconRpm,
+        );
+        break;
+      case "jade_resonance":
+        top.stability = Math.min(
+          top.spec.maxStability,
+          top.stability + top.spec.maxStability * TUNING.jadeStability,
+        );
+        top.rpm = Math.min(
+          Math.max(top.spec.maxRpm, top.rpm),
+          top.rpm + top.spec.maxRpm * TUNING.jadeRpm,
+        );
+        break;
+      default:
+        break;
+    }
+    this.#applySpecialMass(top, opponent);
+    (this.#stepping ? this.#events : this.#queuedEvents).push({
+      type: "special",
+      top: top.id,
+      move: move.id,
+      position: vec(position),
+    });
+    return true;
+  }
+
   step(deltaSeconds: number): SimulationStep {
     this.#tick += 1;
     if (!this.#launched) {
       return { snapshot: this.snapshot, events: [], tick: this.#tick };
     }
-    this.#events = [];
+    // Specials fired from input between steps belong to this step's batch.
+    this.#events = this.#queuedEvents;
+    this.#queuedEvents = [];
+    this.#stepping = true;
     this.#accumulator += Math.min(Math.max(deltaSeconds, 0), 0.1);
     while (this.#accumulator >= FIXED_STEP) {
       this.#fixedStep(FIXED_STEP);
       this.#accumulator -= FIXED_STEP;
     }
+    this.#stepping = false;
     const finish = resolveMatchFinish(this.snapshot, TIME_LIMIT);
     return {
       snapshot: this.snapshot,
@@ -248,6 +378,13 @@ export class CannonBattleSimulation implements BattleSimulation {
       isStopped: false,
       stoppedAt: null,
       lastTrailAt: 0,
+      baseMass: spec.mass,
+      specialCharge: 0,
+      specialUsed: false,
+      specialRemaining: 0,
+      empoweredHit: false,
+      aiReadyAt: null,
+      aiFireAt: null,
     };
   }
 
@@ -271,21 +408,73 @@ export class CannonBattleSimulation implements BattleSimulation {
   #applyHit(impact: number): void {
     const damage = Math.min(30, impact * 2);
     const tops = [this.#p1, this.#p2] as const;
+    const active = (top: ActiveTop, id: string) =>
+      top.specialRemaining > 0 && top.spec.special === id;
     // Spin loss is a fraction of the remaining spin so chained hits have
     // diminishing returns — a hit never kills the spin outright; the final
     // wind-down (wobble, then topple) always comes from natural decay.
     const lossFraction = Math.min(0.35, Math.max(0.05, impact * 0.025)) * 0.45;
     const rpmLosses = tops.map((top) =>
-      top.isBurst || top.isStopped ? 0 : top.rpm * lossFraction,
+      top.isBurst || top.isStopped
+        ? 0
+        : top.rpm *
+          lossFraction *
+          (active(top, "falcon_evade") ? TUNING.falconDamage : 1),
     );
+    const stabilityLosses = tops.map((top, index) => {
+      const opponent = tops[1 - index]!;
+      let multiplier = opponent.spec.attackMultiplier ?? 1.0;
+      if (active(opponent, "chameleon_mimic"))
+        multiplier = Math.max(
+          multiplier * TUNING.mimicFloor,
+          top.spec.attackMultiplier ?? 1.0,
+        );
+      if (opponent.empoweredHit) multiplier *= TUNING.blazeHitMultiplier;
+      let taken = top.spec.damageTaken;
+      if (active(top, "chameleon_mimic"))
+        taken = Math.min(taken / TUNING.mimicFloor, opponent.spec.damageTaken);
+      // Drake Pierce scales with the target's armor: heavy blades crack.
+      if (active(opponent, "drake_pierce"))
+        taken =
+          taken * TUNING.drakeHitMultiplier +
+          TUNING.drakeArmorBreak * Math.max(0, 1 - top.spec.damageTaken);
+      let loss = damage * multiplier * taken;
+      if (active(top, "falcon_evade")) loss *= TUNING.falconDamage;
+      if (active(top, "bastion_charge")) loss *= TUNING.bastionDamage;
+      // The Blaze Rush strike itself leaves the rusher unscathed.
+      if (top.empoweredHit) loss = 0;
+      return loss;
+    });
+    for (const top of tops) top.empoweredHit = false;
+    for (const [index, top] of tops.entries()) {
+      const opponent = tops[1 - index]!;
+      if (!active(top, "bastion_charge") || opponent.isBurst) continue;
+      const dx = opponent.body.position.x - top.body.position.x;
+      const dz = opponent.body.position.z - top.body.position.z;
+      const distance = Math.max(0.01, Math.hypot(dx, dz));
+      opponent.body.velocity.x += (dx / distance) * TUNING.bastionKnockback;
+      opponent.body.velocity.z += (dz / distance) * TUNING.bastionKnockback;
+    }
+    // Genbu Bulwark shrugs the hit off and throws half of it back, unless
+    // Drake Pierce is cutting through the armor.
+    for (const [index, top] of tops.entries()) {
+      if (!active(top, "genbu_bulwark")) continue;
+      if (active(tops[1 - index]!, "drake_pierce")) continue;
+      stabilityLosses[1 - index]! +=
+        stabilityLosses[index]! * TUNING.genbuReflect;
+      stabilityLosses[index] = 0;
+      rpmLosses[index] = 0;
+    }
     for (const [index, top] of tops.entries()) {
       if (top.isBurst || top.isStopped) continue;
-      const opponent = tops[1 - index]!;
-      const attackMultiplier = opponent.spec.attackMultiplier ?? 1.0;
-      top.stability = Math.max(
-        0,
-        top.stability - damage * attackMultiplier * top.spec.damageTaken,
-      );
+      const stabilityLoss = Math.min(top.stability, stabilityLosses[index]!);
+      top.stability -= stabilityLoss;
+      if (!top.specialUsed)
+        top.specialCharge = Math.min(
+          1,
+          top.specialCharge +
+            (stabilityLoss / top.spec.maxStability) * SPECIAL_HIT_CHARGE,
+        );
       top.rpm = Math.max(0, top.rpm - rpmLosses[index]!);
       // Spin-steal converts part of the opponent's collision spin loss into
       // the thief's own spin, so trading hits favors the leech over time.
@@ -315,6 +504,80 @@ export class CannonBattleSimulation implements BattleSimulation {
     });
   }
 
+  #updateSpecial(top: ActiveTop, opponent: ActiveTop, dt: number): void {
+    if (top.specialRemaining > 0) {
+      top.specialRemaining = Math.max(0, top.specialRemaining - dt);
+      if (top.specialRemaining === 0) {
+        top.empoweredHit = false;
+        this.#applySpecialMass(top, opponent);
+      }
+    }
+    if (top.isBurst || top.stoppedAt !== null || top.specialUsed) return;
+    top.specialCharge = Math.min(
+      1,
+      top.specialCharge + dt / SPECIAL_CHARGE_SECONDS,
+    );
+    if (top.specialCharge >= 1 && this.#aiSpecialTops.has(top.id))
+      this.#runSpecialAi(top, opponent);
+  }
+
+  #runSpecialAi(top: ActiveTop, opponent: ActiveTop): void {
+    top.aiReadyAt ??= this.#elapsed;
+    if (top.aiFireAt === null) {
+      const patienceOut = this.#elapsed - top.aiReadyAt >= AI_SPECIAL_PATIENCE;
+      if (!patienceOut && !this.#aiWantsSpecial(top, opponent)) return;
+      // Human-like reaction delay between spotting the moment and pressing.
+      top.aiFireAt = this.#elapsed + 0.3 + this.#random() * 0.7;
+    }
+    if (this.#elapsed >= top.aiFireAt) this.activateSpecial(top.id);
+  }
+
+  #aiWantsSpecial(top: ActiveTop, opponent: ActiveTop): boolean {
+    const dx = opponent.body.position.x - top.body.position.x;
+    const dz = opponent.body.position.z - top.body.position.z;
+    const distance = Math.max(0.01, Math.hypot(dx, dz));
+    // Positive when the two are converging.
+    const closing =
+      ((top.body.velocity.x - opponent.body.velocity.x) * dx +
+        (top.body.velocity.z - opponent.body.velocity.z) * dz) /
+      distance;
+    const rpmRatio = top.rpm / top.spec.maxRpm;
+    const stabilityRatio = top.stability / top.spec.maxStability;
+    const opponentActive = opponent.specialRemaining > 0;
+    switch (SPECIAL_MOVES[top.spec.special].role) {
+      case "offense":
+        return distance < 4 && closing > 0;
+      case "recovery":
+        return top.spec.special === "corona_regen"
+          ? rpmRatio < 0.5
+          : stabilityRatio < 0.5 || rpmRatio < 0.4;
+      case "guard":
+        if (top.spec.special === "aegis_shockwave") return distance < 3.5;
+        if (top.spec.special === "falcon_evade" && rpmRatio < 0.6) return true;
+        return opponentActive || (distance < 3.5 && closing > 3);
+      case "mimic":
+        return distance < 4 && closing > 0;
+    }
+  }
+
+  /** Sets the body mass the running special calls for (or restores it). */
+  #applySpecialMass(top: ActiveTop, opponent: ActiveTop): void {
+    let mass = top.baseMass;
+    let damping = top.stoppedAt === null ? 0.05 : top.body.linearDamping;
+    if (top.specialRemaining > 0) {
+      if (top.spec.special === "bastion_charge") mass *= TUNING.bastionMass;
+      if (top.spec.special === "genbu_bulwark") {
+        mass *= TUNING.genbuMass;
+        damping = TUNING.genbuDamping;
+      }
+      if (top.spec.special === "chameleon_mimic")
+        mass = Math.max(mass * TUNING.mimicFloor, opponent.baseMass);
+    }
+    top.body.mass = mass;
+    top.body.linearDamping = damping;
+    top.body.updateMassProperties();
+  }
+
   #launchTop(top: ActiveTop, power: number, angleDegrees: number): void {
     const normalized = clampLaunchPower(power) / 100;
     top.rpm =
@@ -337,6 +600,8 @@ export class CannonBattleSimulation implements BattleSimulation {
 
   #fixedStep(dt: number): void {
     this.#elapsed += dt;
+    this.#updateSpecial(this.#p1, this.#p2, dt);
+    this.#updateSpecial(this.#p2, this.#p1, dt);
     this.#applyTopForces(this.#p1, this.#p2, dt);
     this.#applyTopForces(this.#p2, this.#p1, dt);
     this.#applyProximityInteractions();
@@ -381,7 +646,12 @@ export class CannonBattleSimulation implements BattleSimulation {
 
   #applyTopForces(top: ActiveTop, opponent: ActiveTop, dt: number): void {
     if (top.isBurst || top.isStopped) return;
-    top.rpm = Math.max(0, top.rpm - top.spec.rpmDecay * 0.45 * dt);
+    const decayHalted =
+      TUNING.falconHaltsDecay &&
+      top.specialRemaining > 0 &&
+      top.spec.special === "falcon_evade";
+    if (!decayHalted)
+      top.rpm = Math.max(0, top.rpm - top.spec.rpmDecay * 0.45 * dt);
     if (top.rpm <= 40) {
       top.rpm = 0;
       if (top.stoppedAt === null) {
@@ -469,7 +739,9 @@ export class CannonBattleSimulation implements BattleSimulation {
         break;
     }
     // Steering weakens as spin runs down, like the original game.
-    const rpmFactor = Math.min(0.2 + (top.rpm / top.spec.maxRpm) * 0.8, 1);
+    const rpmFactor =
+      Math.min(0.2 + (top.rpm / top.spec.maxRpm) * 0.8, 1) *
+      specialSpeedFactor(top);
     const wobble = (this.#random() - 0.5) * 0.25;
     top.body.applyForce(
       new CANNON.Vec3(
@@ -515,7 +787,19 @@ function toSnapshot(top: ActiveTop): TopSnapshot {
     isBurst: top.isBurst,
     isStopped: top.isStopped,
     isOut: isOut(top),
+    special: {
+      charge: top.specialCharge,
+      used: top.specialUsed,
+      active: top.specialRemaining > 0,
+    },
   };
+}
+
+function specialSpeedFactor(top: ActiveTop): number {
+  if (top.specialRemaining <= 0) return 1;
+  if (top.spec.special === "bastion_charge") return TUNING.bastionSpeed;
+  if (top.spec.special === "falcon_evade") return TUNING.falconSpeed;
+  return 1;
 }
 
 function vec(value: CANNON.Vec3) {

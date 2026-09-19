@@ -595,6 +595,221 @@ button:disabled {
   }
 }
 
+.hud .special-button {
+  --charge: 0deg;
+  position: absolute;
+  right: 3vw;
+  bottom: calc(max(22px, env(safe-area-inset-bottom)) + 190px);
+  display: grid;
+  width: 112px;
+  height: 112px;
+  padding: 7px;
+  place-items: center;
+  border: 3px solid var(--cb-ink);
+  border-radius: 50%;
+  --special-bg: conic-gradient(
+    var(--cb-cyan) var(--charge),
+    #e4e4e4 var(--charge)
+  );
+  background: var(--special-bg);
+  box-shadow: -5px 5px 0 var(--cb-ink);
+  pointer-events: auto;
+  transform: none;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+/* Keep the gauge visible under the generic .hud button hover. */
+.hud .special-button:hover {
+  border-color: var(--cb-ink);
+  background: var(--special-bg);
+}
+
+.hud .special-button:hover:not(:disabled) {
+  transform: translate(-2px, -2px);
+}
+
+.hud .special-button > * {
+  transform: none;
+}
+
+.hud .special-button:disabled {
+  opacity: 1;
+}
+
+.special-core {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-content: center;
+  gap: 2px;
+  border: 2px solid var(--cb-ink);
+  border-radius: 50%;
+  background: white;
+  line-height: 1.1;
+  text-transform: none;
+}
+
+.special-core strong {
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.special-core small {
+  color: var(--cb-ink-muted);
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.hud .special-button.ready {
+  --special-bg: #ffd500;
+  animation: special-ready 0.7s infinite alternate ease-in-out;
+}
+
+.hud .special-button.ready .special-core small {
+  color: #e60026;
+}
+
+.hud .special-button.active {
+  --special-bg: #ff2e88;
+}
+
+.hud .special-button.used {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+
+@keyframes special-ready {
+  from {
+    box-shadow:
+      -5px 5px 0 var(--cb-ink),
+      0 0 0 0 rgba(255, 213, 0, 0.7);
+  }
+
+  to {
+    box-shadow:
+      -5px 5px 0 var(--cb-ink),
+      0 0 0 12px rgba(255, 213, 0, 0);
+  }
+}
+
+/* Compact banner under the timer, clear of the arena centre. */
+.special-cutins {
+  position: absolute;
+  top: calc(max(20px, env(safe-area-inset-top)) + 84px);
+  left: 50%;
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  transform: translateX(-50%);
+}
+
+.special-cutin {
+  display: flex;
+  padding: 4px 14px;
+  align-items: baseline;
+  gap: 8px;
+  border: 2px solid var(--cb-ink);
+  background: white;
+  color: var(--cb-ink);
+  box-shadow: -3px 3px 0 var(--cb-ink);
+  white-space: nowrap;
+  transform: skewX(-12deg);
+  animation: special-cutin 1s ease-out forwards;
+}
+
+.special-cutin > * {
+  transform: skewX(12deg);
+}
+
+.special-cutin small {
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.special-cutin strong {
+  font-size: 1.1rem;
+  font-weight: 900;
+  font-style: italic;
+}
+
+.special-cutin.mine {
+  border-color: var(--cb-cyan);
+}
+
+.special-cutin.mine strong {
+  color: var(--cb-cyan);
+  text-shadow: -1px 1px 0 var(--cb-ink);
+}
+
+.special-cutin.theirs strong {
+  color: #e60026;
+  text-shadow: -1px 1px 0 var(--cb-ink);
+}
+
+@keyframes special-cutin {
+  0% {
+    opacity: 0;
+    transform: translateX(20%) skewX(-12deg) scale(1.3);
+  }
+
+  15% {
+    opacity: 1;
+    transform: skewX(-12deg) scale(1);
+  }
+
+  80% {
+    opacity: 1;
+    transform: skewX(-12deg) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-20%) skewX(-12deg) scale(1);
+  }
+}
+
+@media (max-width: 800px) {
+  .hud .special-button {
+    right: 12px;
+    /* Clears the two stacked top panels. */
+    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 206px);
+    width: 86px;
+    height: 86px;
+    padding: 5px;
+  }
+
+  .special-core strong {
+    font-size: 0.78rem;
+  }
+
+  .special-core small {
+    font-size: 0.56rem;
+  }
+
+  .special-cutins {
+    top: calc(max(20px, env(safe-area-inset-top)) + 80px);
+  }
+
+  .special-cutin {
+    padding: 3px 10px;
+  }
+
+  .special-cutin strong {
+    font-size: 0.95rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud .special-button.ready,
+  .special-cutin {
+    animation: none;
+  }
+}
+
 .result-screen {
   display: grid;
   padding: 24px;
@@ -3274,6 +3489,11 @@ button:disabled {
 .part-attr {
   font-size: 0.72rem;
   color: rgba(255, 255, 255, 0.6);
+}
+
+.part-attr.part-special {
+  color: #ffd500;
+  line-height: 1.35;
 }
 
 .part-stats-panel h3 {

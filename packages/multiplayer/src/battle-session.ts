@@ -104,6 +104,16 @@ export class BattleSession {
     }
     if (
       current.role === "host" &&
+      current.localTopId &&
+      this.coordinator.takeOpponentSpecial()
+    ) {
+      this.runtime.dispatch({
+        type: "special",
+        top: current.localTopId === "p1" ? "p2" : "p1",
+      });
+    }
+    if (
+      current.role === "host" &&
       (current.phase === "battle" || current.phase === "ending") &&
       (this.runtime.state.phase === "battle" ||
         this.runtime.state.phase === "ending")

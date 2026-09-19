@@ -191,6 +191,35 @@ func TestMatchReadyRelayAndEndIntegration(t *testing.T) {
 	expectType(t, guest, "matched")
 }
 
+func TestGuestSpecialRelaysOncePerMatch(t *testing.T) {
+	t.Parallel()
+	service := newTestService(t, nil)
+	host := service.dial(t)
+	guest := service.dial(t)
+	matchID := matchClients(t, host, guest)
+	writeJSON(t, guest, readyPayload(matchID, "attack", 80, 0, "neon"))
+	expectType(t, host, "opponent_ready")
+	writeJSON(t, host, readyPayload(matchID, "defense", 80, 0, "neon"))
+	expectType(t, guest, "opponent_ready")
+	expectType(t, host, "start")
+	expectType(t, guest, "start")
+	time.Sleep(10 * time.Millisecond)
+
+	writeJSON(t, host, map[string]any{"type": "special", "matchId": matchID})
+	if message := expectType(t, host, "error"); message["code"] != "GUEST_ONLY" {
+		t.Fatalf("host special = %#v", message)
+	}
+	writeJSON(t, guest, map[string]any{"type": "special", "matchId": matchID})
+	if message := expectType(t, host, "opponent_special"); message["matchId"] != matchID {
+		t.Fatalf("relayed special = %#v", message)
+	}
+	// A second request in the same match is dropped; the next frame the host
+	// sees is the guest's leave.
+	writeJSON(t, guest, map[string]any{"type": "special", "matchId": matchID})
+	writeJSON(t, guest, map[string]any{"type": "leave", "matchId": matchID})
+	expectType(t, host, "opponent_left")
+}
+
 func TestFriendRoomJoinByCodeIntegration(t *testing.T) {
 	t.Parallel()
 	service := newTestService(t, nil)

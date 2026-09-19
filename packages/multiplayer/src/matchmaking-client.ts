@@ -135,6 +135,12 @@ export class MatchmakingClient {
     this.#eventId = 0;
   }
 
+  /** Guest only: asks the host to fire this side's special. */
+  requestSpecial(): void {
+    if (!this.#matchId) return;
+    this.#send({ type: "special", matchId: this.#matchId });
+  }
+
   sendHostSnapshot(snapshot: BattleSnapshot): number {
     if (!this.#matchId) throw new Error("Cannot send state before a match");
     // Keep the last successfully queued sequence: events can still reference it.
@@ -286,7 +292,10 @@ function toStateMessage(
       f:
         (value.isBurst ? 1 : 0) |
         (value.isStopped ? 2 : 0) |
-        (value.isOut ? 4 : 0),
+        (value.isOut ? 4 : 0) |
+        (value.special?.used ? 8 : 0) |
+        (value.special?.active ? 16 : 0),
+      sc: value.special?.charge ?? 0,
     };
   };
   return {
@@ -318,6 +327,13 @@ function toWireEvent(
     return {
       kind: "burst",
       top: event.top,
+      p: [event.position.x, event.position.y, event.position.z],
+    };
+  if (event.type === "special")
+    return {
+      kind: "special",
+      top: event.top,
+      move: event.move,
       p: [event.position.x, event.position.y, event.position.z],
     };
   return {

@@ -12,6 +12,7 @@ import {
   opponentTopId,
   assembleBeybladeSpec,
   resolveCustomConfig,
+  specialMoveFor,
   validatePartCompatibility,
   BLADE_PARTS,
   type BeybladeSpec,
@@ -23,6 +24,7 @@ import {
   type MatchPhase,
   type MatchResult,
   type MatchTermination,
+  type SpecialMove,
   type TopId,
   type TopSnapshot,
   type WinnerId,
@@ -484,6 +486,7 @@ export function App() {
         stadiumVariant: stadiumVariantFromSeed(seed),
         seed,
         perfectLaunchTopIds: [LOCAL_TOP_ID],
+        aiSpecialTopIds: [opponentTopId(LOCAL_TOP_ID)],
         p1BladeId: currentConfig.bladeId,
         p1RatchetId: currentConfig.ratchetId,
         p1BitId: currentConfig.bitId,
@@ -507,6 +510,16 @@ export function App() {
         p2Angle: 180 + offset(),
       },
     });
+  }
+
+  function fireSpecial(): void {
+    if (mode === "local") {
+      runtime.dispatch({ type: "special", top: LOCAL_TOP_ID });
+    } else if (online.role === "host" && online.localTopId) {
+      runtime.dispatch({ type: "special", top: online.localTopId });
+    } else if (online.role === "guest") {
+      coordinator.requestSpecial();
+    }
   }
 
   function openOnlineLobby(): void {
@@ -622,6 +635,16 @@ export function App() {
     ),
   );
   const sceneConfig = mode === "online" ? onlineConfig : game.config;
+  const specialMoves = useMemo(
+    () =>
+      sceneConfig
+        ? {
+            p1: specialMoveFor(sceneConfig.p1Type, sceneConfig.p1ChipId),
+            p2: specialMoveFor(sceneConfig.p2Type, sceneConfig.p2ChipId),
+          }
+        : null,
+    [sceneConfig],
+  );
   const scenePhase: MatchPhase =
     mode === "online"
       ? onlinePhase === "countdown"
@@ -768,6 +791,9 @@ export function App() {
             localTopId={LOCAL_TOP_ID}
             localLabel={localName}
             opponentLabel="AI"
+            moves={specialMoves}
+            canSpecial={game.phase === "battle"}
+            onSpecial={fireSpecial}
             onExit={returnToMenu}
           />
         )}
@@ -783,6 +809,9 @@ export function App() {
                 onlineOpponentName,
                 onlineOpponentRecord,
               )}
+              moves={specialMoves}
+              canSpecial={onlinePhase === "battle"}
+              onSpecial={fireSpecial}
               onExit={returnToMenu}
             />
           )}
@@ -1656,16 +1685,43 @@ function BattleHud({
   localTopId,
   localLabel,
   opponentLabel,
+  moves,
+  canSpecial,
+  onSpecial,
   onExit,
 }: {
   snapshot: BattleSnapshot;
   localTopId: TopId;
   localLabel: string;
   opponentLabel: string;
+  moves: Record<TopId, SpecialMove> | null;
+  canSpecial: boolean;
+  onSpecial: () => void;
   onExit: () => void;
 }) {
   const remaining = Math.max(0, Math.ceil(20 - snapshot.elapsed));
   const opponentId = opponentTopId(localTopId);
+  const local = snapshot[localTopId];
+  const localSpecial = local.special;
+  const specialReady =
+    canSpecial &&
+    Boolean(localSpecial && localSpecial.charge >= 1 && !localSpecial.used) &&
+    !local.isBurst &&
+    !local.isStopped &&
+    !local.isOut;
+  const cutIns = useSpecialCutIns(snapshot, localTopId, moves);
+
+  useEffect(() => {
+    if (!specialReady) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space" || event.repeat) return;
+      event.preventDefault();
+      onSpecial();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [specialReady, onSpecial]);
+
   return (
     <section className="hud">
       <div className="hud-top">
@@ -1674,12 +1730,119 @@ function BattleHud({
         </strong>
         <button onClick={onExit}>退出戰鬥</button>
       </div>
+      <div className="special-cutins" role="status">
+        {cutIns.map((cutIn) => (
+          <div
+            key={cutIn.key}
+            className={`special-cutin ${cutIn.mine ? "mine" : "theirs"}`}
+          >
+            <small>{cutIn.mine ? "絕招發動" : "對手絕招"}</small>
+            <strong>{cutIn.name}！</strong>
+          </div>
+        ))}
+      </div>
+      {moves && (
+        <SpecialButton
+          move={moves[localTopId]}
+          charge={localSpecial?.charge ?? 0}
+          used={localSpecial?.used ?? false}
+          active={localSpecial?.active ?? false}
+          ready={specialReady}
+          onFire={onSpecial}
+        />
+      )}
       <div className="hud-bottom">
         <TopHud top={snapshot[localTopId]} label={localLabel} />
         <span className="versus">VS</span>
         <TopHud top={snapshot[opponentId]} label={opponentLabel} reverse />
       </div>
     </section>
+  );
+}
+
+/** Flashes a move's name when either top's special switches on. */
+function useSpecialCutIns(
+  snapshot: BattleSnapshot,
+  localTopId: TopId,
+  moves: Record<TopId, SpecialMove> | null,
+) {
+  const [cutIns, setCutIns] = useState<
+    { key: number; name: string; mine: boolean }[]
+  >([]);
+  const previous = useRef({ p1: false, p2: false });
+  const p1Active = snapshot.p1.special?.active ?? false;
+  const p2Active = snapshot.p2.special?.active ?? false;
+  useEffect(() => {
+    for (const [id, active] of [
+      ["p1", p1Active],
+      ["p2", p2Active],
+    ] as const) {
+      if (active && !previous.current[id] && moves) {
+        // Both sides can fire within a beat; stack instead of replacing.
+        const cutIn = {
+          key: performance.now(),
+          name: moves[id].name,
+          mine: id === localTopId,
+        };
+        setCutIns((current) => [...current, cutIn]);
+        window.setTimeout(
+          () =>
+            setCutIns((current) => current.filter((item) => item !== cutIn)),
+          1000,
+        );
+      }
+      previous.current[id] = active;
+    }
+  }, [p1Active, p2Active, localTopId, moves]);
+  return cutIns;
+}
+
+function SpecialButton({
+  move,
+  charge,
+  used,
+  active,
+  ready,
+  onFire,
+}: {
+  move: SpecialMove;
+  charge: number;
+  used: boolean;
+  active: boolean;
+  ready: boolean;
+  onFire: () => void;
+}) {
+  const fill = used ? 0 : Math.max(0, Math.min(1, charge));
+  const state = active
+    ? "active"
+    : ready
+      ? "ready"
+      : used
+        ? "used"
+        : "charging";
+  return (
+    <button
+      type="button"
+      className={`special-button ${state}`}
+      style={{ "--charge": `${fill * 360}deg` } as React.CSSProperties}
+      disabled={!ready}
+      onClick={onFire}
+      aria-label={`絕招：${move.name}${ready ? "（空白鍵）" : ""}`}
+      title={move.description}
+    >
+      <span className="special-core">
+        <strong>{move.name}</strong>
+        <small>
+          {active
+            ? "發動中"
+            : used
+              ? "已使用"
+              : ready
+                ? "SPACE"
+                : `${Math.floor(fill * 100)}%`}
+        </small>
+      </span>
+    </button>
   );
 }
 

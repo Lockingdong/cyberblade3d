@@ -99,6 +99,7 @@ describe("beyblade rules", () => {
         damageTaken: 0.6,
         ai: "seek",
         counteredBy: "defense",
+        special: "blaze_rush",
       },
       defense: {
         type: "defense",
@@ -119,6 +120,7 @@ describe("beyblade rules", () => {
         damageTaken: 0.45,
         ai: "hold",
         counteredBy: "stamina",
+        special: "genbu_bulwark",
       },
       stamina: {
         type: "stamina",
@@ -139,6 +141,7 @@ describe("beyblade rules", () => {
         damageTaken: 1.1,
         ai: "orbitEvade",
         counteredBy: "attack",
+        special: "corona_regen",
       },
       balance: {
         type: "balance",
@@ -159,6 +162,7 @@ describe("beyblade rules", () => {
         damageTaken: 0.85,
         ai: "adaptive",
         counteredBy: "attack",
+        special: "jade_resonance",
       },
     };
     expect(BEYBLADES).toEqual(expectedPresets);

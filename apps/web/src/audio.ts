@@ -313,6 +313,45 @@ class AudioSynth {
     noise.stop(time + duration + 0.05);
   }
 
+  /** Power-up sweep with a bright chord when a special move fires. */
+  special(): void {
+    void Haptics.notification({
+      type: NotificationType.Success,
+    }).catch(() => {});
+    const context = this.#ensure();
+    const time = context.currentTime;
+
+    const sweep = context.createOscillator();
+    const sweepFilter = context.createBiquadFilter();
+    const sweepGain = context.createGain();
+    sweep.type = "sawtooth";
+    sweep.frequency.setValueAtTime(180, time);
+    sweep.frequency.exponentialRampToValueAtTime(1400, time + 0.35);
+    sweepFilter.type = "lowpass";
+    sweepFilter.frequency.setValueAtTime(900, time);
+    sweepFilter.frequency.exponentialRampToValueAtTime(5000, time + 0.35);
+    sweepGain.gain.setValueAtTime(0.0001, time);
+    sweepGain.gain.exponentialRampToValueAtTime(0.35, time + 0.3);
+    sweepGain.gain.exponentialRampToValueAtTime(0.001, time + 0.55);
+    sweep.connect(sweepFilter).connect(sweepGain).connect(this.#master!);
+    sweep.start(time);
+    sweep.stop(time + 0.6);
+
+    // Major triad rings out once the sweep peaks.
+    for (const frequency of [880, 1108.73, 1318.51]) {
+      const tone = context.createOscillator();
+      const toneGain = context.createGain();
+      tone.type = "triangle";
+      tone.frequency.setValueAtTime(frequency, time + 0.3);
+      toneGain.gain.setValueAtTime(0.0001, time + 0.3);
+      toneGain.gain.exponentialRampToValueAtTime(0.12, time + 0.34);
+      toneGain.gain.exponentialRampToValueAtTime(0.001, time + 1.1);
+      tone.connect(toneGain).connect(this.#master!);
+      tone.start(time + 0.3);
+      tone.stop(time + 1.15);
+    }
+  }
+
   startSpin(id: string, rpm: number): void {
     if (this.#spins.has(id)) return;
     const context = this.#ensure();

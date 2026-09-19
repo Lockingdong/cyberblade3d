@@ -6,6 +6,7 @@ import {
   RATCHET_PARTS,
   BIT_PARTS,
   CHIP_PARTS,
+  SPECIAL_MOVES,
   assembleBeybladeSpec,
   getCompatibleParts,
   type BeybladeType,
@@ -65,7 +66,7 @@ const SLOT_LABELS: Record<
     title: "核心晶片",
     englishTitle: "Chip",
     icon: <ChipSlotIcon size={18} />,
-    desc: "核心精神與標識，綁定陀螺精神象徵與限定氣場。",
+    desc: "決定陀螺在戰鬥中的絕招，每場可發動一次。",
   },
 };
 
@@ -291,6 +292,8 @@ export function PartCustomizerModal({
                   "maxRpm" in part && typeof part.maxRpm === "number"
                     ? part.maxRpm
                     : null;
+                const special =
+                  "special" in part ? SPECIAL_MOVES[part.special] : null;
 
                 return (
                   <div
@@ -315,6 +318,11 @@ export function PartCustomizerModal({
                       )}
                       {maxRpm !== null && (
                         <span className="part-attr">轉速: {maxRpm} RPM</span>
+                      )}
+                      {special !== null && (
+                        <span className="part-attr part-special">
+                          絕招「{special.name}」：{special.description}
+                        </span>
                       )}
                     </div>
 

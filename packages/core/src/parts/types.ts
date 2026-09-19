@@ -1,4 +1,5 @@
 import type { AiBehavior, BeybladeType } from "../index";
+import type { SpecialMoveId } from "./specials";
 
 export interface BladePart {
   readonly id: string;
@@ -37,6 +38,8 @@ export interface ChipPart {
   readonly id: string;
   readonly name: string;
   readonly englishName: string;
+  /** The special move this chip unlocks in battle. */
+  readonly special: SpecialMoveId;
 }
 
 export interface CustomBeybladeConfig {

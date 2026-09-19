@@ -61,6 +61,7 @@ export interface OnlineTransport {
   ready(selection: ReadySelection): void;
   leave(): void;
   rematch(): void;
+  requestSpecial(): void;
   sendHostSnapshot(snapshot: BattleSnapshot): number;
   sendHostEvent(
     event:
@@ -144,6 +145,7 @@ export class OnlineMatchCoordinator {
   #lastHostStateSentAt = -Infinity;
   #guestBattleStartedAt: number | null = null;
   #intent: OnlineIntent = { kind: "quick" };
+  #opponentSpecialPending = false;
   #state: OnlineMatchState = {
     phase: "idle",
     requestId: null,
@@ -262,6 +264,19 @@ export class OnlineMatchCoordinator {
     this.#timeline = null;
     this.#guestBattleStartedAt = null;
     this.#setState(this.#initialState);
+  }
+
+  /** Guest only: forwards the special request to the host during battle. */
+  requestSpecial(): void {
+    if (this.#state.role !== "guest" || this.#state.phase !== "battle") return;
+    this.#transport.requestSpecial();
+  }
+
+  /** Host only: consumes a guest special request relayed by the server. */
+  takeOpponentSpecial(): boolean {
+    const pending = this.#opponentSpecialPending;
+    this.#opponentSpecialPending = false;
+    return pending;
   }
 
   update(now = this.#now()): OnlineBattleView {
@@ -425,6 +440,7 @@ export class OnlineMatchCoordinator {
       this.#timeline?.reset();
       this.#timeline = null;
       this.#guestBattleStartedAt = null;
+      this.#opponentSpecialPending = false;
       this.#setState({
         ...this.#state,
         phase: "matched",
@@ -447,7 +463,10 @@ export class OnlineMatchCoordinator {
       return;
     }
     if (!this.#isCurrentMatch(message)) return;
-    if (message.type === "opponent_ready") {
+    if (message.type === "opponent_special") {
+      if (this.#state.role === "host" && this.#state.phase === "battle")
+        this.#opponentSpecialPending = true;
+    } else if (message.type === "opponent_ready") {
       this.#setState({ ...this.#state, opponentReady: true });
     } else if (message.type === "opponent_rematch") {
       this.#setState({ ...this.#state, opponentRematch: true });

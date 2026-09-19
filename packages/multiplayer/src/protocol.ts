@@ -1,10 +1,12 @@
-import type {
-  BeybladeType,
-  EnvironmentScene,
-  FinishType,
-  StadiumTheme,
-  TopId,
-  WinnerId,
+import {
+  SPECIAL_MOVES,
+  type BeybladeType,
+  type EnvironmentScene,
+  type FinishType,
+  type SpecialMoveId,
+  type StadiumTheme,
+  type TopId,
+  type WinnerId,
 } from "@cyberblade/core";
 import { isValidRoomCode } from "./room-code";
 
@@ -15,13 +17,18 @@ import { isValidRoomCode } from "./room-code";
 // v5: friend rooms (create_room / join_room / room_created) and in-room rematch.
 // v6-v7: environment additions for arena themes.
 // v8: pending friend rooms can be resumed after a short host disconnect.
-export const PROTOCOL_VERSION = 8;
+// v9: chip special moves — gauge in state (sc, flags 8/16), special battle
+// event, and the guest's special request relayed to the host.
+export const PROTOCOL_VERSION = 9;
 
 export interface WireTopState {
   readonly p: readonly [number, number, number];
   readonly rpm: number;
   readonly st: number;
+  /** Bits: 1 burst, 2 stopped, 4 out, 8 special used, 16 special active. */
   readonly f: number;
+  /** Special gauge, 0–1. */
+  readonly sc: number;
 }
 
 export interface StateMessage {
@@ -42,6 +49,12 @@ export type WireBattleEvent =
   | {
       readonly kind: "burst";
       readonly top: TopId;
+      readonly p: readonly [number, number, number];
+    }
+  | {
+      readonly kind: "special";
+      readonly top: TopId;
+      readonly move: SpecialMoveId;
       readonly p: readonly [number, number, number];
     }
   | {
@@ -104,6 +117,8 @@ export type ClientMessage =
       readonly chipId?: string;
     }
   | { readonly type: "leave"; readonly matchId: string }
+  // The guest asks the host to fire its special; the host's simulation decides.
+  | { readonly type: "special"; readonly matchId: string }
   | StateMessage
   | BattleEventMessage
   | MatchEndMessage;
@@ -141,6 +156,8 @@ export type ServerMessage =
       readonly localTopId: TopId;
     }
   | { readonly type: "opponent_ready"; readonly matchId: string }
+  /** Relayed to the host when the guest presses its special. */
+  | { readonly type: "opponent_special"; readonly matchId: string }
   | {
       readonly type: "start";
       readonly matchId: string;
@@ -280,6 +297,14 @@ function decodeMessage(
       return direction === "client" && isOpaque(value.matchId)
         ? valid(value as unknown as ClientMessage)
         : invalid("invalid leave");
+    case "special":
+      return direction === "client" && isOpaque(value.matchId)
+        ? valid(value as unknown as ClientMessage)
+        : invalid("invalid special");
+    case "opponent_special":
+      return direction === "server" && isOpaque(value.matchId)
+        ? valid(value as unknown as ServerMessage)
+        : invalid("invalid opponent_special");
     case "opponent_left":
       return direction === "server" &&
         isOpaque(value.matchId) &&
@@ -336,6 +361,12 @@ function isBattleEventMessage(value: Record<string, unknown>): boolean {
   if (event.kind === "collision")
     return isVec3(event.p) && isFiniteNumber(event.intensity);
   if (event.kind === "burst") return isTopId(event.top) && isVec3(event.p);
+  if (event.kind === "special")
+    return (
+      isTopId(event.top) &&
+      Object.hasOwn(SPECIAL_MOVES, String(event.move)) &&
+      isVec3(event.p)
+    );
   if (event.kind === "ending")
     return isWinner(event.winnerId) && isFinish(event.finishType);
   return false;
@@ -365,7 +396,10 @@ function isWireTop(value: unknown): boolean {
     isFiniteNumber(value.st) &&
     value.st >= 0 &&
     isNonNegativeInteger(value.f) &&
-    value.f <= 7
+    value.f <= 31 &&
+    isFiniteNumber(value.sc) &&
+    value.sc >= 0 &&
+    value.sc <= 1
   );
 }
 
