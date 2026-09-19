@@ -11,6 +11,7 @@ export const BLADE_PARTS: Record<string, BladePart> = {
     counteredBy: "defense",
     color: 0xe60012,
     massContribution: 0.66,
+    radius: 0.96,
     exclusiveTo: "attack",
   },
 
@@ -23,6 +24,7 @@ export const BLADE_PARTS: Record<string, BladePart> = {
     counteredBy: "defense",
     color: 0xe60012,
     massContribution: 0.7,
+    radius: 0.99,
     attackMultiplier: 1.4,
     exclusiveTo: "attack",
   },
@@ -36,6 +38,7 @@ export const BLADE_PARTS: Record<string, BladePart> = {
     counteredBy: "defense",
     color: 0xe60012,
     massContribution: 0.75,
+    radius: 0.88,
     attackMultiplier: 1.15,
     exclusiveTo: "attack",
   },
@@ -50,6 +53,7 @@ export const BLADE_PARTS: Record<string, BladePart> = {
     counteredBy: "stamina",
     color: 0x7a8b99,
     massContribution: 1.08,
+    radius: 0.99,
     exclusiveTo: "defense",
   },
 
@@ -62,6 +66,7 @@ export const BLADE_PARTS: Record<string, BladePart> = {
     counteredBy: "stamina",
     color: 0xc9d2dc,
     massContribution: 1.14,
+    radius: 1.13,
     attackMultiplier: 1.2,
     exclusiveTo: "defense",
   },
@@ -76,6 +81,7 @@ export const BLADE_PARTS: Record<string, BladePart> = {
     counteredBy: "attack",
     color: 0xffc800,
     massContribution: 0.48,
+    radius: 0.77,
     exclusiveTo: "stamina",
   },
 
@@ -88,6 +94,7 @@ export const BLADE_PARTS: Record<string, BladePart> = {
     counteredBy: "attack",
     color: 0xffc800,
     massContribution: 0.7,
+    radius: 0.92,
     exclusiveTo: "stamina",
   },
 
@@ -101,6 +108,7 @@ export const BLADE_PARTS: Record<string, BladePart> = {
     counteredBy: "attack",
     color: 0x22c55e,
     massContribution: 0.78,
+    radius: 0.97,
     exclusiveTo: "balance",
   },
 
@@ -113,6 +121,7 @@ export const BLADE_PARTS: Record<string, BladePart> = {
     counteredBy: "attack",
     color: 0x7c3aed,
     massContribution: 0.66,
+    radius: 0.92,
     exclusiveTo: "balance",
   },
 };

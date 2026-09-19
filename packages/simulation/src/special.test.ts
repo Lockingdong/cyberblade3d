@@ -83,7 +83,12 @@ describe("special moves", () => {
       type: "launch",
       launch: { p1Power: 80, p1Angle: 0, p2Power: 80, p2Angle: 180 },
     });
-    for (let index = 0; index < 600; index += 1)
+    // Tick only until the gauge fills so the match can't end first.
+    for (
+      let index = 0;
+      index < 600 && runtime.state.battle?.p1.special?.charge !== 1;
+      index += 1
+    )
       runtime.dispatch({ type: "tick", deltaSeconds: 1 / 60 });
     expect(runtime.state.phase).toBe("battle");
     runtime.dispatch({ type: "special", top: "p1" });

@@ -5,6 +5,7 @@ import {
   isPerfectLaunch,
   resolveMatchFinish,
   assembleBeybladeSpec,
+  BLADE_PARTS,
   SPECIAL_MOVES,
   type BeybladeType,
   type BattleSimulation,
@@ -22,6 +23,8 @@ interface ActiveTop {
   readonly id: TopId;
   readonly spec: BeybladeSpec;
   readonly body: CANNON.Body;
+  /** Blade reach: the radius at which the two tops collide. */
+  readonly reach: number;
   readonly perfectLaunchEligible: boolean;
   rpm: number;
   stability: number;
@@ -47,6 +50,13 @@ const TIME_LIMIT = 20;
 
 // Tops rest with their sphere center at this height on the flat physics floor.
 const TOP_RADIUS = 0.8;
+/** Pinned contact this long without a registered hit forces a clash. */
+const CLASH_AFTER_SECONDS = 0.4;
+// The small core sphere rides the floor and walls; a second sphere sized to the
+// rendered blade handles top-vs-top contact so tops touch where they look like
+// they touch.
+const CORE_GROUP = 2;
+const BLADE_GROUP = 4;
 // The visual bowl slopes up to radius 8; beyond POCKET_RADIUS lie the pockets.
 const BOWL_RADIUS = 7.8;
 const POCKET_RADIUS = 7.5;
@@ -64,31 +74,31 @@ const AI_SPECIAL_PATIENCE = 8;
 // special-balance.test.ts.
 const TUNING = {
   blazeDashSpeed: 10,
-  blazeHitMultiplier: 2,
+  blazeHitMultiplier: 1.78,
   drakeHitMultiplier: 1.3,
   /** Drake Pierce adds this much per point of armor (1 − damageTaken). */
-  drakeArmorBreak: 3.5,
+  drakeArmorBreak: 4.04,
   bastionMass: 2,
-  bastionSpeed: 1.6,
-  bastionDamage: 0.3,
+  bastionSpeed: 1.9,
+  bastionDamage: 0.25,
   /** Extra outward speed Bastion Charge adds to the opponent on each hit. */
   bastionKnockback: 12,
   genbuMass: 4,
   genbuDamping: 0.6,
   genbuReflect: 0.5,
   aegisRange: 6,
-  aegisPush: 12,
-  coronaRpm: 0.25,
-  falconDamage: 0.5,
+  aegisPush: 16,
+  coronaRpm: 0.24,
+  falconDamage: 0.43,
   falconSpeed: 1.5,
   /** Falcon Evade also halts natural spin decay while it runs. */
   falconHaltsDecay: true,
   /** Instant spin top-up; with the decay halt it matches Corona's total. */
-  falconRpm: 0.18,
-  jadeStability: 0.25,
-  jadeRpm: 0.15,
+  falconRpm: 0.17,
+  jadeStability: 0.346,
+  jadeRpm: 0.172,
   /** Mimic never copies less than this multiple of the user's own stats. */
-  mimicFloor: 1.5,
+  mimicFloor: 1.9,
 } as const;
 
 export class CannonBattleSimulation implements BattleSimulation {
@@ -110,6 +120,7 @@ export class CannonBattleSimulation implements BattleSimulation {
   #queuedEvents: SimulationEvent[] = [];
   #stepping = false;
   #lastHitAt = -1;
+  #contactSince: number | null = null;
   #pendingRemovals: CANNON.Body[] = [];
   #random = mulberry32(1);
   #aiSpecialTops = new Set<TopId>();
@@ -179,6 +190,7 @@ export class CannonBattleSimulation implements BattleSimulation {
     this.#events = [];
     this.#queuedEvents = [];
     this.#lastHitAt = -1;
+    this.#contactSince = null;
     this.#pendingRemovals = [];
   }
 
@@ -362,15 +374,24 @@ export class CannonBattleSimulation implements BattleSimulation {
       mass: spec.mass,
       linearDamping: 0.05,
       angularDamping: 0.02,
-      shape: new CANNON.Sphere(TOP_RADIUS),
       material: this.#beyMaterial,
     });
+    const reach = BLADE_PARTS[spec.bladeId]?.radius ?? TOP_RADIUS;
+    const core = new CANNON.Sphere(TOP_RADIUS);
+    core.collisionFilterGroup = CORE_GROUP;
+    core.collisionFilterMask = 1;
+    const blade = new CANNON.Sphere(reach);
+    blade.collisionFilterGroup = BLADE_GROUP;
+    blade.collisionFilterMask = BLADE_GROUP;
+    body.addShape(core);
+    body.addShape(blade);
     body.position.set(x, TOP_RADIUS + 0.1, z);
     this.#world.addBody(body);
     return {
       id,
       spec,
       body,
+      reach,
       perfectLaunchEligible,
       rpm: 0,
       stability: spec.maxStability,
@@ -406,7 +427,7 @@ export class CannonBattleSimulation implements BattleSimulation {
   }
 
   #applyHit(impact: number): void {
-    const damage = Math.min(30, impact * 2);
+    const damage = Math.min(30, impact * 2.2);
     const tops = [this.#p1, this.#p2] as const;
     const active = (top: ActiveTop, id: string) =>
       top.specialRemaining > 0 && top.spec.special === id;
@@ -625,7 +646,7 @@ export class CannonBattleSimulation implements BattleSimulation {
     const dx = this.#p1.body.position.x - this.#p2.body.position.x;
     const dz = this.#p1.body.position.z - this.#p2.body.position.z;
     const dist = Math.hypot(dx, dz);
-    const contactThreshold = TOP_RADIUS * 2 + 0.05; // 1.65
+    const contactThreshold = this.#p1.reach + this.#p2.reach + 0.05;
 
     if (dist < contactThreshold) {
       const nx = dist > 0.001 ? dx / dist : 1;
@@ -642,6 +663,53 @@ export class CannonBattleSimulation implements BattleSimulation {
         this.#p2.body.position,
       );
     }
+
+    // Steering can pin the tops against each other with no normal speed left,
+    // so cannon never reports another impact and they sit glued together.
+    // Real tops spin each other apart: once contact outlasts the hit cooldown,
+    // force a clash that throws them apart.
+    if (dist >= contactThreshold + 0.05) {
+      this.#contactSince = null;
+      return;
+    }
+    this.#contactSince ??= this.#elapsed;
+    if (
+      this.#elapsed - this.#contactSince < CLASH_AFTER_SECONDS ||
+      this.#elapsed - this.#lastHitAt < 0.4
+    )
+      return;
+    const nx = dist > 0.001 ? dx / dist : 1;
+    const nz = dist > 0.001 ? dz / dist : 0;
+    const p1 = this.#p1.body;
+    const p2 = this.#p2.body;
+    const spin =
+      (this.#p1.rpm / this.#p1.spec.maxRpm +
+        this.#p2.rpm / this.#p2.spec.maxRpm) /
+      2;
+    const separation = 2.5 + Math.min(1, spin) * 3.5;
+    const approach =
+      (p1.velocity.x - p2.velocity.x) * nx +
+      (p1.velocity.z - p2.velocity.z) * nz;
+    const kick = Math.max(0, separation - approach);
+    // Split by mass so a heavy (or Genbu-anchored) top barely budges.
+    const total = p1.mass + p2.mass;
+    p1.velocity.x += nx * kick * (p2.mass / total);
+    p1.velocity.z += nz * kick * (p2.mass / total);
+    p2.velocity.x -= nx * kick * (p1.mass / total);
+    p2.velocity.z -= nz * kick * (p1.mass / total);
+    this.#contactSince = null;
+    this.#lastHitAt = this.#elapsed;
+    // Visual-only clash: dealing damage here would add hits the balance
+    // matrix was never tuned for, so it separates and sparks but costs nothing.
+    this.#events.push({
+      type: "collision",
+      position: {
+        x: (p1.position.x + p2.position.x) / 2,
+        y: TOP_RADIUS,
+        z: (p1.position.z + p2.position.z) / 2,
+      },
+      intensity: separation,
+    });
   }
 
   #applyTopForces(top: ActiveTop, opponent: ActiveTop, dt: number): void {

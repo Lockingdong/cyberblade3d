@@ -10,6 +10,8 @@ export interface BladePart {
   readonly counteredBy: BeybladeType;
   readonly color: number;
   readonly massContribution: number;
+  /** Horizontal reach of the rendered blade; tops collide with each other at this radius. */
+  readonly radius: number;
   readonly attackMultiplier?: number;
   readonly exclusiveTo?: BeybladeType;
 }
