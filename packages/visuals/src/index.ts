@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {
   BEYBLADES,
+  BLADE_PARTS,
   STADIUMS,
   assembleBeybladeSpec,
   type BattleSnapshot,
@@ -23,6 +24,7 @@ import {
 } from "./detailed";
 export { BLADE_BUILDERS, RATCHET_BUILDERS, BIT_BUILDERS, CHIP_BUILDERS };
 import type { DetailedParts } from "./detailed/types";
+import { SpecialAura } from "./special-aura";
 
 export * from "./camera";
 
@@ -127,7 +129,7 @@ export class BeybladeVisualWorld {
   readonly p2: THREE.Group;
   #tops: Record<TopId, TopVisual>;
   /** Glow shown while each top's special move is running. */
-  #auras: Record<TopId, THREE.Group>;
+  #auras: Record<TopId, SpecialAura>;
   #localTopId: TopId;
   #marker: THREE.Group;
   #snapshot: BattleSnapshot | null = null;
@@ -214,11 +216,15 @@ export class BeybladeVisualWorld {
     const p2 = createBeyblade(p2Type, "p2", p2Color, p2Spec);
     this.#tops = { p1, p2 };
     // Built up front (hidden) so shader precompilation covers them.
+    const floorHeight = (x: number, z: number) =>
+      bowlHeight(Math.hypot(x, z));
+    const reachOf = (type: BeybladeType, spec?: BeybladeSpec) =>
+      BLADE_PARTS[(spec ?? BEYBLADES[type]).bladeId]?.radius ?? 0.9;
     this.#auras = {
-      p1: createSpecialAura(lightenColor(p1.accentColor, 0.35)),
-      p2: createSpecialAura(lightenColor(p2.accentColor, 0.35)),
+      p1: new SpecialAura(p1Type, reachOf(p1Type, p1Spec), floorHeight),
+      p2: new SpecialAura(p2Type, reachOf(p2Type, p2Spec), floorHeight),
     };
-    this.root.add(this.#auras.p1, this.#auras.p2);
+    this.root.add(this.#auras.p1.group, this.#auras.p2.group);
     this.#localTopId = localTopId;
     this.p1 = p1.group;
     this.p2 = p2.group;
@@ -328,8 +334,8 @@ export class BeybladeVisualWorld {
     if (this.#snapshot) {
       this.#updateTop(this.#tops.p1, this.#snapshot.p1, delta);
       this.#updateTop(this.#tops.p2, this.#snapshot.p2, delta);
-      this.#updateAura("p1", this.#snapshot.p1);
-      this.#updateAura("p2", this.#snapshot.p2);
+      this.#updateAura("p1", this.#snapshot.p1, delta);
+      this.#updateAura("p2", this.#snapshot.p2, delta);
       this.#updateMarker(this.#snapshot[this.#localTopId]);
     }
     this.#updateSparks(delta);
@@ -366,8 +372,8 @@ export class BeybladeVisualWorld {
   reset(): void {
     for (const flying of this.#flyingParts) this.root.remove(flying.object);
     this.#flyingParts = [];
-    this.#auras.p1.visible = false;
-    this.#auras.p2.visible = false;
+    this.#auras.p1.reset();
+    this.#auras.p2.reset();
     for (const top of Object.values(this.#tops)) {
       top.burst = false;
       top.spinAngle = 0;
@@ -552,22 +558,18 @@ export class BeybladeVisualWorld {
     top.group.rotation.set(tiltX, top.spinAngle, tiltZ);
   }
 
-  #updateAura(id: TopId, snapshot: TopSnapshot): void {
+  #updateAura(id: TopId, snapshot: TopSnapshot, delta: number): void {
     const aura = this.#auras[id];
-    const active = Boolean(snapshot.special?.active) && !this.#tops[id].burst;
-    aura.visible = active;
-    if (!active) return;
-    const { x, z } = snapshot.position;
-    aura.position.set(x, bowlHeight(Math.hypot(x, z)) + 0.02, z);
-    const pulse = 0.5 + 0.5 * Math.sin(this.#time * 14);
-    aura.scale.setScalar(1 + pulse * 0.12);
-    aura.rotation.y = this.#time * 3;
-    for (const child of aura.children) {
-      const material = (child as THREE.Mesh)
-        .material as THREE.MeshBasicMaterial;
-      material.opacity =
-        (child.userData.baseOpacity as number) * (0.7 + pulse * 0.3);
+    if (this.#tops[id].burst) {
+      aura.reset();
+      return;
     }
+    const { x, z } = snapshot.position;
+    aura.update(delta, Boolean(snapshot.special?.active), {
+      x,
+      y: bowlHeight(Math.hypot(x, z)),
+      z,
+    });
   }
 
   #updateMarker(snapshot: TopSnapshot): void {
@@ -1481,35 +1483,6 @@ function createCenterEmblem(stadium: {
   }
 
   return group;
-}
-
-/** Additive column and floor ring that wrap a top during its special. */
-function createSpecialAura(color: number): THREE.Group {
-  const aura = new THREE.Group();
-  aura.name = "special-aura";
-  const material = (opacity: number) =>
-    new THREE.MeshBasicMaterial({
-      color,
-      transparent: true,
-      opacity,
-      blending: THREE.AdditiveBlending,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-    });
-  const column = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.62, 0.72, 1.3, 24, 1, true),
-    material(0.28),
-  );
-  column.position.y = 0.65;
-  column.userData.baseOpacity = 0.28;
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(0.7, 1.05, 32).rotateX(-Math.PI / 2),
-    material(0.65),
-  );
-  ring.userData.baseOpacity = 0.65;
-  aura.add(column, ring);
-  aura.visible = false;
-  return aura;
 }
 
 function createBeyblade(
