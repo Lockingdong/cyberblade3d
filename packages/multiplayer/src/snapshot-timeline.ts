@@ -58,6 +58,9 @@ export class SnapshotTimeline {
   #lastSeq = -1;
   #lastEventId = -1;
   #lastRenderedT = -1;
+  #playbackT: number | null = null;
+  #lastSampleAt: number | null = null;
+  #endingT: number | null = null;
   #deliveredEventId = -1;
   #result: MatchResult | null = null;
   #previousRendered: BattleSnapshot | null = null;
@@ -100,6 +103,12 @@ export class SnapshotTimeline {
     )
       return false;
     this.#lastEventId = message.eventId;
+    if (message.event.kind === "ending" && this.#endingT === null) {
+      // Keep the cursor in the same simulation position if ending arrives late.
+      this.#endingT = message.t;
+      if (this.#playbackT !== null)
+        this.#playbackT = this.#toPlaybackTime(this.#playbackT);
+    }
     this.#events.push(message);
     return true;
   }
@@ -114,11 +123,41 @@ export class SnapshotTimeline {
     const latest = this.#states.at(-1);
     if (!latest) return null;
     const stale = now - latest.receivedAt > this.#options.staleAfterMs;
-    let targetT = stale
-      ? latest.message.t
-      : latest.message.t +
-        (now - latest.receivedAt - this.#options.interpolationDelayMs) / 1000;
-    targetT = Math.max(this.#lastRenderedT, targetT);
+    // Arrival jitter changes the desired buffer depth, not the playback cursor.
+    // Correct drift by at most 10% of playback speed instead of stopping or
+    // jumping on every packet. Work in wall-time units so ending's 0.25x
+    // simulation speed (BeybladeRuntime) retains the same real-time buffer.
+    const desiredT =
+      this.#toPlaybackTime(latest.message.t) +
+      (now - latest.receivedAt - this.#options.interpolationDelayMs) / 1000;
+    const dt =
+      this.#lastSampleAt === null
+        ? 0
+        : Math.max(0, (now - this.#lastSampleAt) / 1000);
+    if (stale) {
+      this.#playbackT = this.#toPlaybackTime(
+        Math.max(this.#lastRenderedT, latest.message.t),
+      );
+    } else if (
+      this.#playbackT === null ||
+      dt > this.#options.staleAfterMs / 1000 ||
+      desiredT - this.#playbackT > this.#options.staleAfterMs / 1000
+    ) {
+      // Initial buffering, a suspended render loop, or recovery after an outage.
+      this.#playbackT = desiredT;
+    } else {
+      const next = this.#playbackT + dt;
+      const correction = Math.max(
+        -dt * 0.1,
+        Math.min(dt * 0.1, (desiredT - next) * dt * 2),
+      );
+      this.#playbackT = next + correction;
+    }
+    this.#lastSampleAt = now;
+    const targetT = Math.max(
+      this.#lastRenderedT,
+      this.#toSimulationTime(this.#playbackT),
+    );
 
     const snapshot = this.#render(targetT);
     const renderedT = snapshot.elapsed;
@@ -190,6 +229,9 @@ export class SnapshotTimeline {
     this.#lastSeq = -1;
     this.#lastEventId = -1;
     this.#lastRenderedT = -1;
+    this.#playbackT = null;
+    this.#lastSampleAt = null;
+    this.#endingT = null;
     this.#deliveredEventId = -1;
     this.#result = null;
     this.#previousRendered = null;
@@ -232,6 +274,18 @@ export class SnapshotTimeline {
       this.#options.teleportDistance,
       this.#types,
     );
+  }
+
+  #toPlaybackTime(t: number): number {
+    return this.#endingT !== null && t > this.#endingT
+      ? this.#endingT + (t - this.#endingT) / 0.25
+      : t;
+  }
+
+  #toSimulationTime(t: number): number {
+    return this.#endingT !== null && t > this.#endingT
+      ? this.#endingT + (t - this.#endingT) * 0.25
+      : t;
   }
 
   #takeReadyEvents(renderedT: number): BattleEventMessage[] {

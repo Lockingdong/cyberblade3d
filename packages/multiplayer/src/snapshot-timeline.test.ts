@@ -121,6 +121,110 @@ describe("SnapshotTimeline", () => {
     expect(value.sample(280)!.snapshot.p1.position.x).toBeCloseTo(1);
   });
 
+  it.each([false, true])(
+    "plays continuously through jitter (ending: %s)",
+    (ending) => {
+      const value = timeline({ deriveTrails: false });
+      const simulationT = (t: number) =>
+        ending && t > 2 ? 2 + (t - 2) * 0.25 : t;
+      const packets = Array.from({ length: 101 }, (_, i) => ({
+        receivedAt: i * 50 + 50 + (i % 4) * 20,
+        message: state(i + 1, simulationT(i * 0.05), simulationT(i * 0.05)),
+      })).sort((a, b) => a.receivedAt - b.receivedAt);
+      let packet = 0;
+      let previous = 0;
+      let endingSent = false;
+      for (let frame = 0; frame <= 300; frame++) {
+        const now = (frame * 1000) / 60;
+        while (packets[packet] && packets[packet]!.receivedAt <= now) {
+          const current = packets[packet++]!;
+          value.pushState(current.message, current.receivedAt);
+        }
+        if (ending && !endingSent && now >= 2050) {
+          value.pushEvent({
+            type: "battle_event",
+            matchId: "m1",
+            eventId: 1,
+            stateSeq: 41,
+            t: 2,
+            event: {
+              kind: "ending",
+              winnerId: "p1",
+              finishType: "SPIN FINISH",
+            },
+          });
+          endingSent = true;
+        }
+        const sample = value.sample(now);
+        if (!sample) continue;
+        if (now > 1000) {
+          const advance = sample.snapshot.p1.position.x - previous;
+          const slow = ending && previous >= 2;
+          const crossesEnding = ending && previous < 2 && sample.renderedT >= 2;
+          expect(advance).toBeGreaterThanOrEqual(
+            ((slow || crossesEnding ? 0.25 : 1) / 60) * 0.89,
+          );
+          expect(advance).toBeLessThanOrEqual(((slow ? 0.25 : 1) / 60) * 1.11);
+          // The cursor stays close to the host without accumulating seconds of lag.
+          expect(simulationT(now / 1000) - sample.renderedT).toBeLessThan(0.35);
+          expect(sample.stale).toBe(false);
+        }
+        previous = sample.snapshot.p1.position.x;
+      }
+    },
+  );
+
+  it("recovers from a long outage without replaying the backlog", () => {
+    const value = timeline();
+    value.pushState(state(1, 0, 0), 0);
+    value.pushState(state(2, 0.1, 0.1), 100);
+    value.sample(220);
+    expect(value.sample(1000)!.stale).toBe(true);
+    value.pushState(state(80, 4, 4), 4000);
+    const recovered = value.sample(4020)!;
+    expect(recovered.stale).toBe(false);
+    expect(recovered.renderedT).toBeCloseTo(3.9);
+    expect(value.sample(4036)!.renderedT).toBeGreaterThan(recovered.renderedT);
+  });
+
+  it("keeps late ending events continuous and resets the clock for a rematch", () => {
+    const value = timeline();
+    value.pushState(state(1, 1.9, 1.9), 1900);
+    value.pushState(state(2, 2, 2), 2000);
+    value.sample(2120);
+    const before = value.sample(2140)!;
+    value.pushEvent({
+      type: "battle_event",
+      matchId: "m1",
+      eventId: 1,
+      stateSeq: 2,
+      t: 2,
+      event: { kind: "ending", winnerId: "p1", finishType: "SPIN FINISH" },
+    });
+    const after = value.sample(2156)!;
+    expect(after.renderedT).toBeGreaterThan(before.renderedT);
+    expect(after.renderedT - before.renderedT).toBeLessThan(0.005);
+    expect(after.events.map((message) => message.event.kind)).toEqual([
+      "ending",
+    ]);
+    expect(value.sample(2172)!.events).toEqual([]);
+
+    value.reset("m2");
+    value.pushState(state(1, 0, 0, "m2"), 3000);
+    value.pushState(state(2, 0.1, 0.1, "m2"), 3100);
+    expect(value.sample(3170)!.renderedT).toBeCloseTo(0.05);
+    expect(value.sample(3186)!.renderedT).toBeCloseTo(0.066);
+  });
+
+  it("reanchors after the render loop resumes while packets kept arriving", () => {
+    const value = timeline();
+    value.pushState(state(1, 0, 0), 0);
+    value.sample(0);
+    for (let i = 1; i <= 60; i++)
+      value.pushState(state(i + 1, i * 0.05, i * 0.05), i * 50);
+    expect(value.sample(3000)!.renderedT).toBeCloseTo(2.88);
+  });
+
   it("extrapolates at most 200ms and freezes after 500ms without a state", () => {
     const value = timeline();
     value.pushState(state(1, 0, 0), 0);
@@ -149,7 +253,8 @@ describe("SnapshotTimeline", () => {
   it("holds events and results until the corresponding rendered state time", () => {
     const value = timeline({ deriveTrails: false });
     value.pushState(state(1, 0, 0), 0);
-    value.pushState(state(2, 0.2, 2), 200);
+    // Ending starts at .14s; the remaining 60ms advance simulation by 15ms.
+    value.pushState(state(2, 0.155, 2), 200);
     value.pushEvent(collision(0.1, 2));
     value.pushEvent({
       type: "battle_event",
@@ -178,24 +283,25 @@ describe("SnapshotTimeline", () => {
     expect(early.events).toHaveLength(0);
     expect(early.result).toBeNull();
 
-    const collisionFrame = value.sample(220)!;
+    const collisionFrame = value.sample(221)!;
     expect(collisionFrame.events).toHaveLength(1);
     expect(collisionFrame.visualEvents[0]?.type).toBe("collision");
     expect(collisionFrame.result).toBeNull();
 
-    const burstFrame = value.sample(240)!;
+    const burstFrame = value.sample(241)!;
     expect(burstFrame.events.map((message) => message.event.kind)).toEqual([
       "burst",
     ]);
     expect(burstFrame.visualEvents[0]?.type).toBe("burst");
 
-    const endingFrame = value.sample(260)!;
+    const endingFrame = value.sample(261)!;
     expect(endingFrame.events.map((message) => message.event.kind)).toEqual([
       "ending",
     ]);
     expect(endingFrame.result).toBeNull();
 
-    const resultFrame = value.sample(270)!;
+    expect(value.sample(270)!.result).toBeNull();
+    const resultFrame = value.sample(301)!;
     expect(resultFrame.result?.winnerId).toBe("p1");
   });
 

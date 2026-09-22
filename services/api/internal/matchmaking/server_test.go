@@ -80,6 +80,17 @@ func TestHealthAndOriginPolicy(t *testing.T) {
 	if err == nil || response == nil || response.StatusCode != http.StatusForbidden {
 		t.Fatalf("blocked origin dial = (%v, %#v), want HTTP 403", err, response)
 	}
+
+	for _, allowedOrigin := range []string{
+		"http://192.168.10.129:5173",
+	} {
+		lanHeader := http.Header{"Origin": []string{allowedOrigin}}
+		lanConn, lanResp, lanErr := websocket.DefaultDialer.Dial(url, lanHeader)
+		if lanErr != nil {
+			t.Fatalf("allowed origin %s failed: %v (response: %#v)", allowedOrigin, lanErr, lanResp)
+		}
+		_ = lanConn.Close()
+	}
 }
 
 func TestHelloMustBeFirstAndVersionMustMatch(t *testing.T) {
