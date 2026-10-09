@@ -1251,8 +1251,27 @@ button:disabled {
 
 .online-ready-actions {
   display: flex;
-  gap: 10px;
+  align-items: stretch;
+  gap: 12px;
   justify-content: center;
+}
+
+.online-ready-actions button {
+  display: inline-flex;
+  min-width: 132px;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.25;
+}
+
+.online-selection > .online-ready-actions {
+  margin-top: 24px;
+}
+
+.online-selection > .online-ready-actions + .credits {
+  margin: 12px 0 24px;
+  text-align: center;
 }
 
 @keyframes matchmaking-spin {

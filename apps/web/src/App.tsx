@@ -1981,7 +1981,7 @@ function ResultScreen({
                   : opponentRematch
                     ? "對手想再戰，接受"
                     : rematchReselects
-                      ? "再戰（可重選陀螺）"
+                      ? "再戰"
                       : "再來一場"}
             </button>
           )}
