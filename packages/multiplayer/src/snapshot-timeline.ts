@@ -161,6 +161,12 @@ export class SnapshotTimeline {
 
     const snapshot = this.#render(targetT);
     const renderedT = snapshot.elapsed;
+    // Extrapolation is bounded, so its clock must stop at the same boundary.
+    // Otherwise the invisible cursor keeps advancing while the tops are frozen,
+    // and the next packet makes them jump straight to that future position.
+    if (targetT > renderedT) {
+      this.#playbackT = this.#toPlaybackTime(renderedT);
+    }
     this.#lastRenderedT = renderedT;
     const events = this.#takeReadyEvents(renderedT);
     const visualEvents: SimulationEvent[] = [];

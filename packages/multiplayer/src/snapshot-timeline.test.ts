@@ -237,6 +237,45 @@ describe("SnapshotTimeline", () => {
     expect(stale.renderedT).toBeCloseTo(0.3);
   });
 
+  it.each([false, true])(
+    "resumes without a clock jump after exhausting extrapolation (ending: %s)",
+    (ending) => {
+      const speed = ending ? 0.25 : 1;
+      const value = timeline({
+        deriveTrails: false,
+        maxExtrapolationMs: ending ? 50 : 200,
+      });
+      if (ending) {
+        value.pushEvent({
+          type: "battle_event",
+          matchId: "m1",
+          eventId: 1,
+          stateSeq: 1,
+          t: 0,
+          event: { kind: "ending", winnerId: "p1", finishType: "SPIN FINISH" },
+        });
+      }
+      value.pushState(state(1, 0, 0), 0);
+      value.pushState(state(2, 0.1 * speed, 0.1 * speed), 100);
+      // Keep rendering while the network holds the next eight packets.
+      for (let now = 120; now <= 536; now += 16) value.sample(now);
+      const frozen = value.sample(536)!;
+      expect(frozen.renderedT).toBeCloseTo(0.3 * speed);
+      expect(frozen.stale).toBe(false);
+      for (let i = 3; i <= 10; i++) {
+        const t = (i - 1) * 0.05 * speed;
+        value.pushState(state(i, t, t), 550);
+      }
+      const resumed = value.sample(552)!;
+      expect(resumed.renderedT).toBeGreaterThan(frozen.renderedT);
+      expect(resumed.renderedT - frozen.renderedT).toBeLessThanOrEqual(
+        0.016 * 1.1 * speed + 1e-9,
+      );
+      expect(resumed.snapshot.p1.position.x).toBeCloseTo(resumed.renderedT);
+      expect(value.sample(568)!.renderedT).toBeGreaterThan(resumed.renderedT);
+    },
+  );
+
   it("snaps teleports and uses flags from the latest rendered state", () => {
     const value = timeline();
     value.pushState(state(1, 0, 0), 0);
