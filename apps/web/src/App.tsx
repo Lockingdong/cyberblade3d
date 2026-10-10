@@ -1135,9 +1135,19 @@ function MainMenu({
           >
             重設資料 (清除)
           </button>
-        </div>
-        <div className="menu-drawer-footer">
-          <p>© 2026 DONGSTUDIO. All rights reserved.</p>
+          <a
+            className="menu-drawer-item menu-youtube-link"
+            href="https://www.youtube.com/@tung_li_23"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="YouTube 頻道（另開新分頁）"
+          >
+            <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+              <rect x="1" y="4" width="22" height="16" rx="5" fill="#ff0000" />
+              <path d="M10 8.5 16 12l-6 3.5Z" fill="#fff" />
+            </svg>
+            <span>YouTube 頻道</span>
+          </a>
         </div>
       </div>
 

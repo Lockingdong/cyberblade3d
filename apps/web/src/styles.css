@@ -2260,6 +2260,22 @@ button:disabled {
   color: #ffffff;
 }
 
+.menu-youtube-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.menu-youtube-link svg {
+  flex-shrink: 0;
+}
+
+.menu-youtube-link:focus-visible {
+  outline: 3px solid var(--cb-cyan);
+  outline-offset: 4px;
+}
+
 .menu-drawer-footer {
   padding: 24px;
   border-top: 2px solid rgba(0, 0, 0, 0.05);
