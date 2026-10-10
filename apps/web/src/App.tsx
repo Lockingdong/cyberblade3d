@@ -1,6 +1,6 @@
 import { BladePreviewScene } from "./lazy-scenes";
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/purity */
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   BEYBLADES,
   BeybladeRuntime,
@@ -207,6 +207,7 @@ export function App() {
   const [record, setRecord] = useState<BattleRecord>(() => loadBattleRecord());
   const [countdownNow, setCountdownNow] = useState(0);
   const [showIntro, setShowIntro] = useState(true);
+  const completeIntro = useCallback(() => setShowIntro(false), []);
   const [lobbyOpen, setLobbyOpen] = useState(false);
   const [scene, setScene] = useState<EnvironmentScene>(() =>
     environmentSceneForStadium("neon"),
@@ -667,7 +668,7 @@ export function App() {
         mode === "online" ? onlinePhase : game.phase
       }`}
     >
-      {showIntro && <IntroScreen onComplete={() => setShowIntro(false)} />}
+      {showIntro && <IntroScreen onComplete={completeIntro} />}
       {showScene && sceneConfig && (
         <BattleScene
           config={sceneConfig}
@@ -2085,41 +2086,45 @@ function IntroScreen({ onComplete }: { onComplete: () => void }) {
   const [status, setStatus] = useState("INITIALIZING CORE SYSTEMS...");
   const [isFading, setIsFading] = useState(false);
 
-  // Pay one-time setup costs behind the intro instead of on the first
-  // "start battle" tap.
-  useEffect(() => {
-    preloadBattleScene();
-    try {
-      synth.prepare();
-    } catch {
-      // Web Audio unavailable; the synth retries on first use.
-    }
-  }, []);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
-    let current = 0;
-    const interval = setInterval(() => {
-      current += Math.random() * 8 + 4;
-      if (current >= 100) {
-        current = 100;
-        clearInterval(interval);
-        setStatus("SYSTEM READY");
-        setIsFading(true);
-        setTimeout(() => {
-          onComplete();
-        }, 500);
-      } else {
-        if (current > 75) {
-          setStatus("SYNCING ONLINE PROTOCOLS...");
-        } else if (current > 45) {
-          setStatus("CALIBRATING 3D ARENA...");
-        } else if (current > 20) {
-          setStatus("LOADING BEYBLADE ASSETS...");
-        }
+    let cancelled = false;
+    let fadeTimer: ReturnType<typeof setTimeout> | undefined;
+    let completeTimer: ReturnType<typeof setTimeout> | undefined;
+
+    async function initialize() {
+      // Progress represents completed setup stages, not downloaded bytes.
+      setStatus("正在初始化音效…");
+      try {
+        synth.prepare();
+      } catch {
+        // Audio is optional and can retry after the first user gesture.
       }
-      setProgress(Math.floor(current));
-    }, 80);
-    return () => clearInterval(interval);
+      setProgress(25);
+      setStatus("正在載入 3D 對戰程式…");
+      const loaded = await preloadBattleScene();
+      if (cancelled) return;
+      if (!loaded) {
+        setLoadFailed(true);
+        setStatus("載入失敗，請重新整理再試一次");
+        return;
+      }
+      setProgress(100);
+      setStatus("準備完成");
+      // Let the completed progress render before fading the intro away.
+      fadeTimer = setTimeout(() => {
+        setIsFading(true);
+        completeTimer = setTimeout(onComplete, 500);
+      }, 200);
+    }
+
+    void initialize();
+    return () => {
+      cancelled = true;
+      clearTimeout(fadeTimer);
+      clearTimeout(completeTimer);
+    };
   }, [onComplete]);
 
   return (
@@ -2131,16 +2136,28 @@ function IntroScreen({ onComplete }: { onComplete: () => void }) {
         <p className="intro-subtitle">極限爆裂對決</p>
 
         <div className="intro-loading-box">
-          <div className="intro-progress-track">
+          <div
+            className="intro-progress-track"
+            role="progressbar"
+            aria-label="啟動準備進度"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress}
+          >
             <div
               className="intro-progress-bar"
               style={{ width: `${progress}%` }}
             />
           </div>
           <div className="intro-status-row">
-            <span className="intro-status-text">{status}</span>
+            <span className="intro-status-text" role="status">{status}</span>
             <span className="intro-progress-percent">{progress}%</span>
           </div>
+          {loadFailed && (
+            <button type="button" onClick={() => window.location.reload()}>
+              重新整理
+            </button>
+          )}
         </div>
       </div>
     </div>

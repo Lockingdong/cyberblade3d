@@ -20,8 +20,8 @@ const Share = lazy(() =>
   })),
 );
 
-export function preloadBattleScene(): void {
-  void loadBattle().catch(() => {});
+export function preloadBattleScene(): Promise<boolean> {
+  return loadBattle().then(() => true, () => false);
 }
 const loading = (
   <div role="status" className="scene-loading">
