@@ -254,6 +254,7 @@ button:disabled {
   text-transform: uppercase;
   transform: skewX(-8deg);
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .stadium-grid button > *,
@@ -946,6 +947,12 @@ button:disabled {
   display: flex;
   gap: 10px;
   justify-content: center;
+  flex-wrap: wrap;
+}
+
+.result-actions button {
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .online-overlay {
@@ -2418,8 +2425,16 @@ button:disabled {
     font-size: 1.2rem;
     padding: 2px;
   }
-  .online-card {
+  .online-card,
+  .result-card {
     padding: 28px 18px;
+  }
+  .result-actions {
+    gap: 8px;
+  }
+  .result-actions button {
+    padding: 10px 14px;
+    font-size: 0.9rem;
   }
   .lobby-join-row button {
     flex: 1 1 auto;
